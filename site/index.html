@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Agent Project Control Tower</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --panel-2: #273449;
+      --text: #e2e8f0;
+      --text-dim: #94a3b8;
+      --accent: #60a5fa;
+      --border: #334155;
+      --health-green: #16a34a;
+      --health-yellow: #eab308;
+      --health-red: #dc2626;
+      --health-gray: #6b7280;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                   "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    header {
+      padding: 24px 32px;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel);
+    }
+    header h1 {
+      margin: 0 0 4px;
+      font-size: 22px;
+      font-weight: 600;
+    }
+    header .meta {
+      color: var(--text-dim);
+      font-size: 13px;
+    }
+    main {
+      padding: 24px 32px 64px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    section {
+      margin-bottom: 32px;
+    }
+    h2 {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin: 0 0 12px;
+    }
+    /* ---- summary cards ---- */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .card .label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-dim);
+    }
+    .card .value {
+      font-size: 28px;
+      font-weight: 700;
+      margin-top: 4px;
+    }
+    .card.health .value { font-size: 22px; }
+    .card.green .value { color: var(--health-green); }
+    .card.yellow .value { color: var(--health-yellow); }
+    .card.red .value { color: var(--health-red); }
+    .card.gray .value { color: var(--health-gray); }
+    /* ---- tables / lists ---- */
+    .row-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .row {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--health-gray);
+      border-radius: 6px;
+      padding: 12px 16px;
+    }
+    .row.green  { border-left-color: var(--health-green); }
+    .row.yellow { border-left-color: var(--health-yellow); }
+    .row.red    { border-left-color: var(--health-red); }
+    .row.gray   { border-left-color: var(--health-gray); }
+    .row .head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .row .head .title {
+      font-weight: 600;
+    }
+    .row .head .badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: var(--panel-2);
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .row .head .badge.PASS    { background: rgba(22,163,74,0.18); color: #4ade80; }
+    .row .head .badge.FAIL    { background: rgba(220,38,38,0.18); color: #f87171; }
+    .row .head .badge.PARTIAL { background: rgba(234,179,8,0.18); color: #facc15; }
+    .row .head .badge.BLOCKED { background: rgba(220,38,38,0.18); color: #f87171; }
+    .row .meta-line {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-top: 4px;
+    }
+    .row .body {
+      margin-top: 8px;
+      font-size: 14px;
+    }
+    .row .next {
+      margin-top: 6px;
+      font-size: 13px;
+      color: var(--accent);
+    }
+    .row .next::before { content: "→ "; opacity: 0.7; }
+    /* ---- timeline ---- */
+    .timeline {
+      position: relative;
+      padding-left: 20px;
+    }
+    .timeline::before {
+      content: "";
+      position: absolute;
+      left: 6px;
+      top: 6px;
+      bottom: 6px;
+      width: 2px;
+      background: var(--border);
+    }
+    .tl-item {
+      position: relative;
+      padding: 8px 12px 12px 16px;
+    }
+    .tl-item::before {
+      content: "";
+      position: absolute;
+      left: -19px;
+      top: 14px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--health-gray);
+    }
+    .tl-item.green::before  { background: var(--health-green); }
+    .tl-item.yellow::before { background: var(--health-yellow); }
+    .tl-item.red::before    { background: var(--health-red); }
+    .tl-item .tl-meta {
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+    .tl-item .tl-summary {
+      font-size: 14px;
+      margin-top: 2px;
+    }
+    /* ---- footer / source banner ---- */
+    .source-banner {
+      font-size: 12px;
+      color: var(--text-dim);
+      padding: 12px 16px;
+      background: var(--panel-2);
+      border-radius: 6px;
+      margin-bottom: 24px;
+    }
+    .source-banner.error { border-left: 4px solid var(--health-red); }
+    .source-banner.ok    { border-left: 4px solid var(--health-green); }
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      background: var(--panel-2);
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Agent Project Control Tower</h1>
+    <div class="meta">
+      <span id="generated-at">loading…</span> · schema <code id="schema-version">…</code>
+    </div>
+  </header>
+  <main>
+    <div id="source-banner" class="source-banner ok" style="display:none;"></div>
+
+    <section>
+      <h2>Summary</h2>
+      <div class="summary-grid" id="summary-grid"></div>
+    </section>
+
+    <section>
+      <h2>Projects</h2>
+      <div class="row-list" id="projects-list"></div>
+    </section>
+
+    <section>
+      <h2>Agents</h2>
+      <div class="row-list" id="agents-list"></div>
+    </section>
+
+    <section>
+      <h2>Timeline (newest first)</h2>
+      <div class="timeline" id="timeline"></div>
+    </section>
+  </main>
+
+  <script>
+    // -------- data loader: try fetch first, fall back to embedded sample ---
+    const EMBEDDED_DATA = window.__TOWER_DATA__ || null;
+
+    async function loadData() {
+      const banner = document.getElementById("source-banner");
+      if (EMBEDDED_DATA) {
+        banner.style.display = "block";
+        banner.className = "source-banner ok";
+        banner.textContent =
+          "data source: embedded sample (open the embedded HTML for offline use)";
+        return EMBEDDED_DATA;
+      }
+      try {
+        const res = await fetch("../generated/index.json");
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        banner.style.display = "block";
+        banner.className = "source-banner ok";
+        banner.textContent = "data source: ../generated/index.json (live fetch ok)";
+        return data;
+      } catch (e) {
+        banner.style.display = "block";
+        banner.className = "source-banner error";
+        banner.textContent =
+          "could not load ../generated/index.json (" + e.message +
+          "). Run `make build` then `make site` to generate the embedded HTML, " +
+          "or serve this folder over HTTP.";
+        throw e;
+      }
+    }
+
+    // ----------------------------- rendering ------------------------------
+    function el(tag, attrs, children) {
+      const e = document.createElement(tag);
+      if (attrs) Object.assign(e, attrs);
+      if (children) {
+        for (const c of [].concat(children)) {
+          if (c == null) continue;
+          e.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
+        }
+      }
+      return e;
+    }
+
+    function renderSummary(s) {
+      const grid = document.getElementById("summary-grid");
+      grid.innerHTML = "";
+      const cards = [
+        ["Projects", s.project_count, ""],
+        ["Agents",   s.agent_count,   ""],
+        ["Events",   s.event_count,   ""],
+        ["Green",    s.green_count,   "green"],
+        ["Yellow",   s.yellow_count,  "yellow"],
+        ["Red",      s.red_count,     "red"],
+        ["Blocked",  s.blocked_count, "red"],
+      ];
+      for (const [label, val, klass] of cards) {
+        grid.appendChild(
+          el("div", { className: "card " + klass }, [
+            el("div", { className: "label" }, label),
+            el("div", { className: "value" }, String(val)),
+          ])
+        );
+      }
+    }
+
+    function renderProjects(projects) {
+      const list = document.getElementById("projects-list");
+      list.innerHTML = "";
+      for (const p of projects) {
+        const row = el("div", { className: "row " + p.current_health });
+        const head = el("div", { className: "head" }, [
+          el("span", { className: "title" }, p.name + "  "),
+          el("span", { className: "badge " + p.current_status },
+             p.current_phase_id
+               ? p.current_phase_id + " · " + p.current_status
+               : p.current_status),
+        ]);
+        const meta = el("div", { className: "meta-line" }, [
+          "location: " + p.location +
+          "  ·  category: " + p.category +
+          "  ·  last agent: " + (p.last_agent_id || "—") +
+          "  ·  events: " + p.event_count +
+          (p.last_event_at ? "  ·  " + p.last_event_at : ""),
+        ]);
+        const body = el("div", { className: "body" }, p.last_summary || "(no events yet)");
+        const next = p.next ? el("div", { className: "next" }, p.next) : null;
+        row.appendChild(head);
+        row.appendChild(meta);
+        row.appendChild(body);
+        if (next) row.appendChild(next);
+        list.appendChild(row);
+      }
+    }
+
+    function renderAgents(agents) {
+      const list = document.getElementById("agents-list");
+      list.innerHTML = "";
+      for (const a of agents) {
+        const row = el("div", { className: "row gray" });
+        const head = el("div", { className: "head" }, [
+          el("span", { className: "title" }, a.name),
+          el("span", { className: "badge" }, a.machine),
+        ]);
+        const meta = el("div", { className: "meta-line" }, [
+          "role: " + a.role +
+          "  ·  last project: " + (a.last_project_id || "—") +
+          "  ·  events: " + a.event_count +
+          (a.last_event_at ? "  ·  " + a.last_event_at : ""),
+        ]);
+        row.appendChild(head);
+        row.appendChild(meta);
+        list.appendChild(row);
+      }
+    }
+
+    function renderTimeline(timeline) {
+      const wrap = document.getElementById("timeline");
+      wrap.innerHTML = "";
+      for (const t of timeline) {
+        const item = el("div", { className: "tl-item " + statusHealth(t.status) });
+        item.appendChild(
+          el("div", { className: "tl-meta" }, [
+            (t.created_at || "") + "  ·  " +
+            t.project_id + "  ·  " + t.agent_id +
+            (t.phase_id ? "  ·  " + t.phase_id : "") +
+            "  ·  " + t.status,
+          ])
+        );
+        item.appendChild(el("div", { className: "tl-summary" }, t.summary || ""));
+        wrap.appendChild(item);
+      }
+    }
+
+    function statusHealth(s) {
+      return ({
+        PASS: "green", FAIL: "red", BLOCKED: "red", PARTIAL: "yellow",
+        PAUSED: "gray", SKIPPED: "gray", RELEASED: "green", ACTIVE: "green",
+      })[s] || "gray";
+    }
+
+    // -------------------------------- main -------------------------------
+    (async () => {
+      try {
+        const data = await loadData();
+        document.getElementById("generated-at").textContent =
+          "generated " + (data.generated_at || "(unknown)");
+        document.getElementById("schema-version").textContent =
+          data.schema_version || "?";
+        renderSummary(data.summary || {});
+        renderProjects(data.projects || []);
+        renderAgents(data.agents || []);
+        renderTimeline(data.timeline || []);
+      } catch (e) {
+        // banner already shown by loadData()
+        console.error(e);
+      }
+    })();
+  </script>
+</body>
+</html>

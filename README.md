@@ -135,6 +135,7 @@ git push  →  GitHub Actions / Cloudflare Pages  →  在线 dashboard 刷新
 ```
 agent-project-control-tower/
 ├── README.md                  ← 你正在读的文件
+├── Makefile                   ← ACT-1: validate / build / site / test
 ├── docs/                      ← 设计文档
 │   ├── PROJECT_VISION.md
 │   ├── USAGE_SIMULATION.md
@@ -145,21 +146,120 @@ agent-project-control-tower/
 │   ├── OPEN_SOURCE_PLAN.md
 │   ├── DEPLOYMENT_PLAN.md
 │   └── RISKS_AND_BOUNDARIES.md
-├── examples/                  ← 可直接复制的注册表 + 示例事件
+├── examples/                  ← ACT-1 的"事实源"
 │   ├── projects.yml
 │   ├── agents.yml
-│   └── events/
-├── scripts/                   ← ACT-2 开始填：register_*, report_*, build_index
-├── reports/                   ← 阶段报告
-│   └── PHASE_ACT0_PROJECT_DESIGN_REPORT.md
-└── (未来) site/ 或 dashboard/ ← ACT-3 起的静态站点源
+│   ├── events/                ← 3 个事件 JSON
+│   └── README.md
+├── scripts/                   ← ACT-1 起填：build_index, validate, build_embedded_site
+│   ├── lib/
+│   │   └── yaml_mini.py       ← 零依赖 YAML 解析（仅服务当前格式）
+│   ├── validate_examples.py
+│   ├── build_index.py
+│   └── build_embedded_site.py
+├── tests/
+│   └── smoke.py               ← ACT-1 验收检查
+├── generated/                 ← .gitignore，由 build 生成
+│   └── index.json
+├── site/                      ← ACT-1 dashboard 静态源
+│   ├── index.html             ← fetch 版本（需 HTTP server）
+│   └── index.embedded.html    ← 内嵌数据版本（双击即可打开）
+└── reports/
+    ├── PHASE_ACT0_PROJECT_DESIGN_REPORT.md
+    └── PHASE_ACT1_LOCAL_DATA_FLOW_REPORT.md
 ```
 
 ## 当前阶段
 
-**ACT-0：Project Design and Architecture**——只做设计，不写运行时。
+**ACT-1：Local Data Flow Prototype** — ✅ COMPLETE
 
-下一阶段 **ACT-1** 会先在 `examples/` 里跑通"手写 YAML/JSON → 渲染成一张静态总览页"的全链路。
+最小数据流已经跑通：examples 里的 YAML/JSON → `generated/index.json` → `site/index.embedded.html`（双击可看）。
+
+### 怎么本地跑一遍
+
+需要 Python 3.10+（仅用标准库，**不**需要 `pip install` 任何东西）。
+
+```bash
+# 一次性：跑完整流水线
+make all
+
+# 或者分步
+make validate   # 校验 examples/projects.yml + agents.yml + events/*.json
+make build      # 生成 generated/index.json
+make site       # 生成 site/index.embedded.html
+make test       # 跑 smoke test（验收检查）
+```
+
+### 怎么看 dashboard
+
+两种方式，二选一：
+
+**方式 A（最简单）：双击 embedded HTML**
+
+```bash
+# Linux
+xdg-open site/index.embedded.html
+# macOS
+open site/index.embedded.html
+# Windows
+start site/index.embedded.html
+```
+
+数据已经内嵌在 HTML 里。`file://` 协议下浏览器**不**会发 fetch 请求，所以这版永远能开。
+
+**方式 B（开发调试用）：起本地 HTTP server**
+
+```bash
+make build
+python3 -m http.server 8000 --directory .
+# 浏览器打开 http://localhost:8000/site/index.html
+```
+
+`site/index.html` 走 `fetch('../generated/index.json')`，需要 HTTP server（`file://` 下 fetch 因 CORS 失败）。
+
+### ACT-1 证明了什么
+
+- ✅ YAML 配置文件能被零依赖解析成 dict
+- ✅ events/*.json 能被聚合为 project / agent / timeline 三个视图
+- ✅ health 派生（PASS→green / FAIL→red / PARTIAL→yellow）正确
+- ✅ dashboard 能在零框架、零 build tool、零 npm 下双击打开
+- ✅ pipeline 是可重跑的：`make all` 重新生成全套产物
+
+### ACT-1 还没有做什么
+
+- ❌ 没有 `tower` CLI——events 是手写的 JSON 文件
+- ❌ 没有 GitHub Actions——dashboard 不会"自动更新"
+- ❌ 没有 cloud 部署——只能本地看
+- ❌ dashboard 视觉极简——无暗色切换、无动画、无 view transitions
+- ❌ 没有项目详情页、agent 详情页（ACT-1 只有首页）
+
+这些都在 ACT-2 ~ ACT-5 的范围里。
+
+### 关键心法（再读一次）
+
+> **原项目提交代码，控制塔提交进展 event，dashboard 读取控制塔 generated 数据。**
+
+三者关系：
+
+```
+原项目仓库 (local-book-tool)
+   ↓  git push (人类/agent 写代码)
+   ↓
+GitHub 提交历史
+   ↓
+tower report phase --commit <sha>  ← 控制塔只记指针
+   ↓
+控制塔仓库 (agent-project-control-tower)
+   ↓  examples/projects.yml + events/*.json
+   ↓
+generated/index.json  ← 脚本 build 出来的扁平数据
+   ↓
+site/index.embedded.html  ← 浏览器可读
+   ↓
+访客看到的状态
+```
+
+控制塔本身**永远不**复制原项目代码。它只存"哪个项目在跑、跑到第几阶段、谁跑的、commit 是多少"。
 
 ## License
 

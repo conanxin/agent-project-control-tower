@@ -7,9 +7,9 @@
 ## 全景时间线
 
 ```
-ACT-0  (现在)   设计与架构        ← 你在这里
+ACT-0  ✅ 设计与架构        (2026-06-11, commit adcd937)
   ↓
-ACT-1          示例数据 + 手写 index
+ACT-1  ✅ 本地数据流原型     (2026-06-11) ← ACT-2 准备接手
   ↓
 ACT-2          tower CLI (Python)
   ↓
@@ -32,30 +32,62 @@ ACT-7+         通知 / 统计 / 修正流 (可选)
 
 > **目标**：证明"Git + JSON + 静态生成"这个最小循环能跑。
 
+### 状态：✅ COMPLETE (2026-06-11)
+
 ### 范围
 
-- [ ] 完成 `examples/projects.yml`、`examples/agents.yml`（3 个项目 / 3 个 agent）
-- [ ] 完成 3 个示例 event JSON（覆盖 PASS / FAIL / 跨 agent 场景）
-- [ ] 写一个**手写**的 `examples/generated/index.json`——不跑脚本，纯手写
-- [ ] 写一个**手写**的 `examples/site/index.html`——静态 HTML + 内联 JSON 渲染
-- [ ] 在 `examples/README.md` 里说明"打开 index.html 就能看 dashboard 效果"
+- [x] 完成 `examples/projects.yml`、`examples/agents.yml`（2 个项目 / 3 个 agent）
+- [x] 完成 3 个示例 event JSON（覆盖 PASS / FAIL / 跨 agent 场景）
+- [x] **写一个零依赖的 YAML 解析器**（`scripts/lib/yaml_mini.py`）—— 不引入 PyYAML
+- [x] `scripts/validate_examples.py` 校验 registry + events（schema / enum / cross-ref）
+- [x] `scripts/build_index.py` 读 registry + events → 写 `generated/index.json`
+- [x] `scripts/build_embedded_site.py` 把 index.json 内嵌到 `site/index.embedded.html`
+- [x] `site/index.html` 提供 fetch 版本（HTTP server 下用）+ embedded fallback
+- [x] `tests/smoke.py` 验收 14 项检查（counts、health 派生、timeline 顺序、内嵌数据）
+- [x] `Makefile` 提供 `validate / build / site / test / all / clean` 6 个 target
 
-### 不在范围
+### 不在范围（保持 ACT-1 极简）
 
-- ❌ 不写任何 Python 脚本
-- ❌ 不引入 Astro / npm
+- ❌ 不写任何前端框架
+- ❌ 不引入 Astro / npm / Tailwind
 - ❌ 不接 GitHub Actions
 - ❌ 不接真实项目
+- ❌ 不写 `tower` CLI
+- ❌ 不做暗色主题、动画、view transitions
+- ❌ 不做项目详情页 / agent 详情页（只有首页）
 
-### 验收
+### 实际验收（由 `tests/smoke.py` 强制执行）
 
-- [ ] `xdg-open examples/site/index.html` 能看到至少 2 个项目 + 1 个失败事件
-- [ ] 离线、零依赖、双击就能开
-- [ ] 整个 `examples/` 目录 < 200 KB
+```
+[ok] summary.project_count == 2
+[ok] summary.agent_count == 3
+[ok] summary.event_count == 3
+[ok] local-book-tool current_status == FAIL
+[ok] local-book-tool current_health == red
+[ok] local-book-tool current_phase_id == L2
+[ok] local-book-tool last_agent_id == local-codex
+[ok] local-book-tool event_count == 2
+[ok] cloud-art-site current_status == PASS
+[ok] cloud-art-site current_health == green
+[ok] cloud-art-site event_count == 1
+[ok] timeline is sorted newest-first
+[ok] embedded HTML contains __TOWER_DATA__ block
+[ok] inline data summary.project_count == 2
 
-### 退出条件
+SMOKE TEST PASSED
+```
 
-> 我对自己说："哦，dashboard 长这样就够了，剩下就是把数据生成自动化。"
+### 退出条件（已达成）
+
+> ✅ "我对自己说：dashboard 长这样就够了，剩下就是把数据生成自动化。"
+>
+> 实际上手写 dashboard 在 ACT-1 没做——直接就是脚本 build 的；但 ACT-1 证明了"build 出来的数据 + 静态 HTML = 可双击的 dashboard"是成立的。
+
+### 留给 ACT-2 的桥
+
+- 现在的 event 是手写 JSON——ACT-2 把手写变成 `tower report phase`
+- 现在的 YAML 解析是自家的——ACT-2 可以替换为 PyYAML（如果 ACT-3 起引入更多 YAML 字段）
+- 现在的 `generated/index.json` 是平铺的——ACT-3 起如果要做项目详情页，可能要补 `generated/projects/<id>.json`
 
 ---
 
