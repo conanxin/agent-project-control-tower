@@ -1,6 +1,10 @@
 # Agent Project Control Tower
 
 > 一个统一的"项目管理控制塔"——把分散在不同机器、不同 agent 上的多个开源项目，集中到一个 Git 仓库 + 一个静态网页里。
+>
+> 🌍 **GitHub**: <https://github.com/conanxin/agent-project-control-tower>（public，ACT-4B 已 push）
+> 🟢 **状态**: ACT-4B ✅ COMPLETE（仓库就位，CI 跑通，Cloudflare Pages 配置文档化）
+> ⏸ **下一步**: ACT-5（用户手动 Connect Cloudflare Pages → 首次在线部署）
 
 ---
 
@@ -428,6 +432,60 @@ CF/GP  → astro build         →  apps/dashboard/dist/  (deployed)
 ```
 
 **绝不**让 agent 直接写 `public-data/`——把"判断哪些可公开"留给人类。
+
+### ACT-4B GitHub Push and First Online Publish Path（**已完成**）
+
+ACT-4B 把仓库推到公开 GitHub，并文档化 Cloudflare Pages 配置。**ACT-5** 才实际连接 Cloudflare。
+
+**4 个决策点**（已确认）：
+
+| 决策 | 选择 | 理由 |
+| --- | --- | --- |
+| Hosting | **Cloudflare Pages** | CN-friendly + CDN + 免费 |
+| public-data 范围 | **examples 导出 (2/3/3) 占位** | 不公开真实 data/，demo 友好 |
+| GitHub 仓库名 | **`agent-project-control-tower`** | 用户原有名字，保留 |
+| agent ID 命名 | **`local-hermes` / `local-codex` / `cloud-openclaw`** | demo 数据可接受 |
+
+**已完成的 push**：
+
+```
+GitHub repo:   https://github.com/conanxin/agent-project-control-tower
+Push:          7 commits (ACT-0 ~ ACT-4A) → origin/main
+CI:            run 27323347041 — 3 jobs 全 PASS
+  ├─ zero-dep-acceptance (make all)            ✅ PASS (9s)
+  ├─ astro-dashboard       (make dashboard)    ✅ PASS
+  └─ publish-preflight    (ACT-4A)            ✅ PASS (修复 PyYAML bug 后)
+```
+
+**当前公开边界**：
+
+| 内容 | 状态 |
+| --- | --- |
+| 仓库元数据（README / docs / LICENSE） | ✅ 公开 |
+| `public-data/` (2/3/3 from examples) | ✅ 公开 |
+| `examples/` (sanitized seed) | ✅ 公开 |
+| `data/` (local real control tower) | ❌ gitignored，**不**公开 |
+| `generated/` (build artifact) | ❌ gitignored，CI 重生成 |
+| `apps/dashboard/dist/` (Astro build) | ❌ gitignored，CI 上传 artifact |
+| `site/index.embedded.html` (zero-dep snapshot) | ✅ 公开（反映 public-data） |
+
+**Cloudflare Pages 推荐配置**（ACT-5 在 Dashboard 手动 Connect）：
+
+| 字段 | 值 |
+| --- | --- |
+| Project name | `agent-project-control-tower` |
+| Git repository | `conanxin/agent-project-control-tower` |
+| Production branch | `main` |
+| Root directory | `apps/dashboard` |
+| Build command | `npm ci && npm run build` |
+| Build output directory | `dist` |
+| Environment variables | （无必需变量） |
+
+**当前还没有公开真实 data/**—— `public-data/` 只含 examples 导出。ACT-5 决定是否升级到真实脱敏子集。
+
+**ACT-4B 期间发现并修复的 bug**：
+
+`scripts/export_public_data.py` 第 144 行 `import yaml` 在 CI runner（PyYAML 未装）**立即**抛 `ModuleNotFoundError`，**先于** try/except 保护。修：先 try `yaml_mini`（已 sys.path.insert），fall back PyYAML，最后 fallback 报错。已在 venv（无 PyYAML）模拟 CI 环境验证。
 
 ### ACT-2 关键命令
 

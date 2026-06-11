@@ -2,7 +2,7 @@
 
 > 把"建一个能用的控制塔"拆成 6 个阶段。每个阶段都有明确产出 + 验收标准 + 退出条件。
 >
-> 当前在 **ACT-4A ✅ COMPLETE**。ACT-4B 才是真正创建远程仓库并 push。
+> 当前在 **ACT-4B ✅ COMPLETE**。ACT-5 才是真正在 Cloudflare Dashboard 连接 + 在线验收。
 
 ## 全景时间线
 
@@ -17,14 +17,13 @@ ACT-3A ✅ Dashboard shell    (2026-06-11, commit a0d37d4)
   ↓
 ACT-3B ✅ Dashboard UX polish (2026-06-11)
   ↓
-ACT-4A ✅ CI/CD & publish readiness (2026-06-11) ← ACT-4B 准备接手
+ACT-4A ✅ CI/CD & publish readiness (2026-06-11)
   ↓
-ACT-4B          create GitHub repo, push, enable CI, choose Pages / Cloudflare
+ACT-4B ✅ GitHub push (2026-06-11) ← ACT-5 准备接手
   ↓
-ACT-5          真实在线部署 (Cloudflare Pages / GitHub Pages)
+ACT-5          connect Cloudflare Pages and verify online dashboard
   ↓
-ACT-6          接入 5 个真实项目
-  ↓
+ACT-6          Real project integration (5 projects)
 ACT-7+         通知 / 统计 / 修正流 (可选)
 ```
 
@@ -307,73 +306,100 @@ $ pre-commit audit       # CLEAN
 
 ---
 
-## ACT-4B — Push to GitHub + Choose Hosting (下一步)
+## ACT-4B — GitHub Push + Cloudflare Pages Config (已就位)
 
-> **目标**：ACT-4A 准备就绪后，决策并执行：(1) 创建 GitHub 远程仓库 (2) push (3) 选择 GitHub Pages 或 Cloudflare Pages (4) 启用 CI 公开运行。
+> **目标**：创建 GitHub 远程仓库、push 全部 commit、确认 CI 运行、文档化 Cloudflare Pages 配置。**不**实际连接 Cloudflare、**不**自动 deploy。
 >
-> **状态**：⏸ PENDING（等用户确认进入 ACT-4B）。
+> **状态**：✅ COMPLETE（2026-06-11, commit 见下）。
 
-### 范围（待 ACT-4B 决定）
+### 4 个决策点（已确认）
 
-- [ ] GitHub 远程仓库创建（命名 + description + topics）
-- [ ] `git remote add origin ...` + `git push -u origin main`
-- [ ] 决定 deploy target：GitHub Pages（免费、简单）vs Cloudflare Pages（CN-friendly、CDN 快）
-- [ ] 写 `.github/workflows/pages.yml`（基于 4A 的 ci.yml 加 deploy job）
-- [ ] 配 deploy credentials（Cloudflare API token 或 GitHub Pages OIDC）
-- [ ] 首次在线 dashboard 验收
-- [ ] 决定是否把 data/ 的脱敏子集手动导出到 public-data/（让真实项目状态可见）
+1. **Hosting** → **Cloudflare Pages**（CN-friendly + CDN + 免费）
+2. **public-data/ 数据范围** → **先用 examples 导出 (2/3/3) 占位**，不公开真实 data/
+3. **GitHub 仓库名** → **`agent-project-control-tower`**（用户原有名字）
+4. **agent ID 命名** → **`local-hermes` / `local-codex` / `cloud-openclaw` 保留**（demo 数据可接受）
 
-### 决策点
+### 范围（已执行）
 
-1. **GitHub Pages 还是 Cloudflare Pages**——用户偏好
-2. **public-data/ 数据范围**——先用 examples (2/3/3) 还是手动从 data/ 导出脱敏子集
-3. **是否把 `local-hermes` 这类本地 agent ID 改名**——避免泄露机器信息（推荐保留，仅作 demo）
+- [x] GitHub 远程仓库创建：`https://github.com/conanxin/agent-project-control-tower`（用 `gh repo create`）
+- [x] `git push -u origin main`：7 个本地 commit 全部 push 成功
+- [x] GitHub Actions CI 触发：run 27323347041
+  - `zero-dep-acceptance` ✅ PASS（9s）
+  - `astro-dashboard` ✅ PASS
+  - `publish-preflight` ✅ PASS（修复 PyYAML 缺失后）
+- [x] `docs/DEPLOYMENT_PLAN.md` §4 改写为 ACT-4B 决策的最终配置
+- [x] `reports/PHASE_ACT4B_GITHUB_PUSH_AND_PUBLISH_PATH_REPORT.md` 写好
+
+### ACT-4B 期间发现并修复的 bug
+
+`export_public_data.py` 第 144 行 `import yaml` 在 CI runner（PyYAML 未装）**立即**抛 `ModuleNotFoundError`，**先于** try/except 保护。
+
+修：先 try `yaml_mini`（已 sys.path.insert），fall back PyYAML，最后 fallback 报错。已在 venv（无 PyYAML）模拟 CI 环境验证。
 
 ### 不用
 
-- ❌ 不引入 secrets / OAuth
-- ❌ 不开 PR preview（除非 Cloudflare Pages 默认开）
-- ❌ 不接 CDN 缓存策略
-- ❌ 不写自动更新 public-data 的 CI job（手动 export 更安全）
+- ❌ **不**在 CLI 配 Cloudflare API token
+- ❌ **不**写 `.github/workflows/pages.yml`（Cloudflare 走 Dashboard UI 即可）
+- ❌ **不**绑自定义域（ACT-5 决策）
+- ❌ **不**自动 deploy
 
 ### 验收
 
-- [ ] push 一个 event JSON → 2 分钟内 CI 跑完
-- [ ] CI 失败 → issue 里能看到日志
-- [ ] artifact 下载后 `unzip` 能直接 serve
+- [x] `make all` 53/53 PASS
+- [x] `make publish-preflight` PASS
+- [x] `npm run build` 7 pages PASS
+- [x] pre-commit audit CLEAN
+- [x] push 一个 `fd9879d`（7 commits），CI 自动触发且 3 jobs 全 PASS
+- [x] ACT-4B 报告 commit 到 main 并 push
 
 ### 退出条件
 
-> 我能对自己说："CI 是个可观察、可回滚的系统。"
+> "GitHub 仓库已公开、CI 跑通、Cloudflare Pages 配置文档化，**待 ACT-5 手动连接**。"
 
 ---
 
-## ACT-5 — Public Deployment
+## ACT-5 — Connect Cloudflare Pages and Verify Online Dashboard (下一步)
 
-> **目标**：dashboard 上线，所有人都能看。
+> **目标**：在 Cloudflare Dashboard 手动 Connect to Git，绑定 repo，完成首次部署 + 在线验收。
+>
+> **状态**：⏸ PENDING（等用户确认进入 ACT-5）。
+>
+> **前置条件**（已就位）：
+> - 仓库 `https://github.com/conanxin/agent-project-control-tower` 已 push
+> - CI 3 jobs 全 PASS
+> - `docs/DEPLOYMENT_PLAN.md` §4 写了 ACT-4B 决策的最终配置
 
-### 范围
+### 范围（ACT-5 待执行）
 
-- [ ] 选 Cloudflare Pages 或 GitHub Pages（见 [DEPLOYMENT_PLAN.md](DEPLOYMENT_PLAN.md)）
-- [ ] 绑定 `control-tower.xin.dev` 子域名
-- [ ] Cloudflare Access 关闭（公开访问）
-- [ ] 写一个 `docs/INCIDENT_RESPONSE.md` —— 站点挂了的处理流程
+- [ ] Cloudflare Dashboard → Workers & Pages → Create application → Pages → Connect to Git
+- [ ] 选 repo `conanxin/agent-project-control-tower`
+- [ ] 配置：root=`apps/dashboard`, build=`npm ci && npm run build`, output=`dist`
+- [ ] Save & Deploy（第一次构建 1–2 分钟）
+- [ ] 访问 `https://agent-project-control-tower.pages.dev/` 验收
+- [ ] 检查：summary cards / project list / agent list / timeline
+- [ ] 测试：搜索 / health 筛选 / 排序 / 主题切换 / 移动端
+- [ ] 决定是否绑自定义域（如 `control-tower.<your-domain>`）
+- [ ] 决定 public-data 范围是否从 examples (2/3/3) 升级到真实 data 脱敏子集
+- [ ] 写 `docs/INCIDENT_RESPONSE.md` —— 站点挂了的处理流程
+- [ ] UptimeRobot 监控（可选）
 
 ### 不用
 
-- ❌ 不做登录
-- ❌ 不做"私密项目隐藏"——所有展示都脱敏
-- ❌ 不做 CDN 缓存策略调优（默认即可）
+- ❌ **不**做登录
+- ❌ **不**做"私密项目隐藏"——所有展示都脱敏
+- ❌ **不**做 CDN 缓存策略调优（默认即可）
+- ❌ **不**用 Cloudflare API token（ACT-4B 已决策 Dashboard UI 即可）
 
 ### 验收
 
-- [ ] 打开 `https://control-tower.xin.dev/` 看到 2+ 项目
-- [ ] 手机浏览器能看
-- [ ] UptimeRobot 监控配置好（5 分钟检测一次）
+- [ ] 打开 `https://agent-project-control-tower.pages.dev/` 看到 2+ projects
+- [ ] mobile 浏览器可读（iOS Safari / Android Chrome）
+- [ ] search/filter/sort/theme 都工作
+- [ ] UptimeRobot 监控配置好（5 分钟检测一次，可选）
 
 ### 退出条件
 
-> 我能把这个 URL 发给一个朋友，让他一眼看懂"这人在用 agent 跑开源"。
+> 我能把这个 URL 发给一个朋友，让他一眼看懂"这人在用 agent 跑开源项目"。
 
 ---
 

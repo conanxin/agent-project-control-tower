@@ -80,25 +80,65 @@ make publish-preflight
 - 用户对 deploy target（Cloudflare vs GitHub Pages）还没决策
 - 自动 deploy 会让 "push 一个 typo" → 公开站点行为异常
 
-## 4. Cloudflare Pages 方案（ACT-4B 决策后启用）
+## 4. Cloudflare Pages 方案（**ACT-4B 已决策** —— 当前推荐配置）
 
-### 4.1 一次性配置
+> ACT-4B 决策：使用 Cloudflare Pages。仓库 `conanxin/agent-project-control-tower` 已 push，**待 ACT-5** 在 Cloudflare Dashboard 手动 Connect to Git（不在 CLI 写 token）。
+>
+> 当前阶段（ACT-4B）：仓库已就位。下一阶段（ACT-5）用户在 Cloudflare Dashboard 走"Connect to Git"绑定即可。
+
+### 4.1 推荐配置（ACT-4B 决策的最终值）
+
+| 字段 | 值 |
+| --- | --- |
+| Project name | `agent-project-control-tower` |
+| Git repository | `conanxin/agent-project-control-tower` |
+| Production branch | `main` |
+| **Root directory** | `apps/dashboard` |
+| **Build command** | `npm ci && npm run build` |
+| **Build output directory** | `dist` |
+| Environment variables | （无必需变量） |
+
+**关键点**：
+
+- Root directory 设 `apps/dashboard` —— 让 Cloudflare 直接在该子目录跑 npm 命令
+- Build command 不需要 `cd apps/dashboard &&` —— 因为 root 已经在那
+- Build output directory 是 `dist` 而不是 `apps/dashboard/dist` —— 因为是相对 root 而言
+
+### 4.2 备选配置（如果不想用 Root directory 字段）
+
+如果 Cloudflare Pages 的 Root directory 留空，指向 repo root：
+
+| 字段 | 值 |
+| --- | --- |
+| Project name | `agent-project-control-tower` |
+| Git repository | `conanxin/agent-project-control-tower` |
+| Production branch | `main` |
+| **Root directory** | （留空 = repo root） |
+| **Build command** | `cd apps/dashboard && npm ci && npm run build` |
+| **Build output directory** | `apps/dashboard/dist` |
+| Environment variables | （无必需变量） |
+
+**两种配置等价**——选你 Cloudflare 账户 UI 上更顺手的那种。
+
+### 4.3 一次性配置（ACT-5 执行）
 
 ```bash
 # 1. 登录 Cloudflare Dashboard
 # 2. Workers & Pages → Create application → Pages → Connect to Git
-# 3. 选择 GitHub repo (ACT-4B 创建)
-# 4. 配置（推荐）：
-#    - Project name: agent-control-tower
-#    - Production branch: main
-#    - Build command:  npm ci && npm run build
-#    - Build output directory: dist
-#    - Root directory:    apps/dashboard
-# 5. 绑定自定义域: control-tower.<your-domain>
+# 3. 选择 GitHub repo: conanxin/agent-project-control-tower
+# 4. 配置（按 §4.1 或 §4.2）
+# 5. 绑定自定义域：control-tower.<your-domain>
 #    - Cloudflare 自动加 CNAME、加 SSL
 ```
 
-### 4.2 三种 root directory 配置对比
+**ACT-4B 故意不做的**：
+
+- ❌ 不在 CLI 配 Cloudflare API token（避免 token 泄露风险）
+- ❌ 不写 `.github/workflows/pages.yml` 走 GitHub Actions → Cloudflare（增加 token 复杂度）
+- ❌ 不自动 deploy（用户在 Dashboard 手动 Connect + Save & Deploy）
+- ❌ 不绑自定义域（ACT-5 决策）
+
+### 4.4 三种 root directory 配置对比
 
 | Root directory | Build command | Output directory | 备注 |
 | --- | --- | --- | --- |
@@ -106,7 +146,7 @@ make publish-preflight
 | repo root | `cd apps/dashboard && npm ci && npm run build` | `apps/dashboard/dist` | 也行——更明确 |
 | 不用——直接让 CI 处理 | — | — | ACT-4A 默认用此模式（CI 跑 `make publish-preflight` + 上传 `apps/dashboard/dist`） |
 
-### 4.3 触发条件
+### 4.5 触发条件
 
 只让"公开数据 / dashboard 源码"变化触发部署：
 
@@ -121,13 +161,13 @@ Watch paths:
 
 `docs/`、`reports/`、`examples/` 变化不触发 dashboard rebuild（dashboard 不读）。
 
-### 4.4 域名 + HTTPS
+### 4.6 域名 + HTTPS
 
 - **主域**：`control-tower.<your-domain>`（CNAME 指向 Cloudflare Pages 默认域）
 - **HTTPS**：Cloudflare 自动签发 + 续期
 - **HSTS**：默认开，trust 1 year
 
-### 4.5 监控（可选）
+### 4.7 监控（可选）
 
 - **UptimeRobot**（免费）：HTTP HEAD 监控 `https://control-tower.<your-domain>/`，5 分钟一次
 - 失败 → Telegram 通知
@@ -181,25 +221,66 @@ jobs:
 
 `https://<user>.github.io/<repo>/`
 
-## 6. ACT-4B 部署清单（待用户决策）
+## 6. ACT-4B 部署清单（**已完成**——仓库就位、Cloudflare 待 ACT-5 手动连接）
 
-ACT-4B 执行（**不**是 ACT-4A）：
+### 6.1 ACT-4B 已完成 ✅
 
-- [ ] 决定 deploy target：Cloudflare Pages 还是 GitHub Pages
-- [ ] GitHub 远程仓库创建（命名 + description + topics + LICENSE）
-- [ ] `git remote add origin <url>` + `git push -u origin main`
-- [ ] 如果 Cloudflare Pages：
-  - [ ] 创建 Pages project、绑定 GitHub repo
-  - [ ] 配置 root / build / output
-  - [ ] 配自定义域 DNS
-  - [ ] 第一次部署后 URL 验收
-- [ ] 如果 GitHub Pages：
-  - [ ] 写 `.github/workflows/pages.yml`
-  - [ ] 启用 Pages OIDC
-  - [ ] 第一次部署后 URL 验收
-- [ ] 决定 `public-data/` 数据范围（先 examples 还是从真实 data 导脱敏子集）
-- [ ] 首次在线 dashboard 验收（搜索/筛选/主题切换/移动端）
+- [x] **决策 deploy target**：Cloudflare Pages（用户偏好：CN-friendly + CDN + 免费）
+- [x] **决策 public-data 范围**：先用 examples 导出 (2/3/3) 占位，不公开真实 data/
+- [x] **决策 GitHub 仓库名**：`agent-project-control-tower`
+- [x] **决策 agent ID 命名**：`local-hermes` / `local-codex` / `cloud-openclaw` 保留作为 demo
+- [x] **GitHub 远程仓库创建**：`https://github.com/conanxin/agent-project-control-tower`
+- [x] **`git push -u origin main`**：7 个本地 commit 全部 push 成功
+- [x] **GitHub Actions CI 触发**：run 27323347041
+  - zero-dep-acceptance ✅ PASS（9s）
+  - astro-dashboard ✅ PASS
+  - publish-preflight ✅ PASS（修复 PyYAML 缺失后）
+
+### 6.2 ACT-5 待执行（用户在 Cloudflare Dashboard 手动操作）
+
+- [ ] Cloudflare Dashboard → Workers & Pages → Create application → Pages → Connect to Git
+- [ ] 选 repo `conanxin/agent-project-control-tower`
+- [ ] 配置：root=`apps/dashboard`, build=`npm ci && npm run build`, output=`dist`
+- [ ] Save & Deploy（第一次构建 1–2 分钟）
+- [ ] 访问 `https://agent-project-control-tower.pages.dev/` 验收
+- [ ] 决定是否绑自定义域（如 `control-tower.<your-domain>`）
+- [ ] 决定 public-data 范围是否从 examples 升级到真实 data 脱敏子集
 - [ ] UptimeRobot 监控（可选）
+
+### 6.3 ACT-4B 故意不做的
+
+- ❌ **不**在 CLI 配 Cloudflare API token（避免 token 泄露）
+- ❌ **不**写 `.github/workflows/pages.yml`（决策 Cloudflare 后用 Dashboard UI 更稳）
+- ❌ **不**自动 deploy（用户在 Dashboard 手动 Save & Deploy）
+- ❌ **不**绑自定义域（ACT-5 决策）
+
+### 6.4 完整 deploy 流程（ACT-5 决策完后再看）
+
+**Step 1**: Cloudflare Dashboard 绑定
+1. https://dash.cloudflare.com/ → Workers & Pages → Create application
+2. Pages tab → Connect to Git → Authorize Cloudflare（首次）
+3. 选 `conanxin` org / `agent-project-control-tower` repo
+4. 配置（按 §4.1）：
+   - Project name: `agent-project-control-tower`
+   - Production branch: `main`
+   - Root directory: `apps/dashboard`
+   - Build command: `npm ci && npm run build`
+   - Build output directory: `dist`
+5. Save and Deploy
+
+**Step 2**: 等待首次部署
+- Cloudflare Pages 第一次 build 大约 1–2 分钟
+- 部署后 URL：`https://agent-project-control-tower.pages.dev/`
+
+**Step 3**: 验收
+- 访问 `https://agent-project-control-tower.pages.dev/`
+- 检查：summary cards / 项目列表 / agent 列表 / timeline
+- 测试：搜索 / health 筛选 / 排序 / 主题切换 / 移动端
+
+**Step 4**: 绑自定义域（可选，ACT-5 决定）
+- Pages project → Custom domains → Set up a custom domain
+- 输入 `control-tower.<your-domain>` → Continue
+- Cloudflare 自动配 CNAME + SSL
 
 ## 7. 不在 MVP 部署里的
 

@@ -141,12 +141,23 @@ def main() -> int:
     print()
 
     # ---- registries ----
-    import yaml  # type: ignore
+    # Prefer the stdlib-only yaml_mini shipped in scripts/lib/.
+    # Fall back to PyYAML only if it's installed (rare; we don't add it
+    # to the project on purpose). Either way, this block never raises
+    # ModuleNotFoundError.
     try:
         from yaml_mini import load as _load  # type: ignore
     except Exception:
-        # tower ships with lib/yaml_mini.py — fall back to PyYAML if installed.
-        _load = lambda p: yaml.safe_load(p.read_text(encoding="utf-8"))  # noqa: E731
+        try:
+            import yaml  # type: ignore
+            _load = lambda p: yaml.safe_load(p.read_text(encoding="utf-8"))  # noqa: E731
+        except Exception:
+            print(
+                "  [FAIL] no YAML loader available — install PyYAML or "
+                "ensure scripts/lib/yaml_mini.py is importable",
+                file=sys.stderr,
+            )
+            return 2
 
     all_warns: list[str] = []
     all_fails: list[str] = []
