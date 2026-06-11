@@ -1,6 +1,8 @@
 {
-  "agent_filter": null,
-  "event_count": 11,
+  "agent_filter": [
+    "local-hermes"
+  ],
+  "event_count": 12,
   "max_events_per_project": 20,
   "project_filter": [
     "agent-project-control-tower",
