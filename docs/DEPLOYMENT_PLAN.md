@@ -80,13 +80,17 @@ make publish-preflight
 - 用户对 deploy target（Cloudflare vs GitHub Pages）还没决策
 - 自动 deploy 会让 "push 一个 typo" → 公开站点行为异常
 
-## 4. Cloudflare Pages 方案（**ACT-4B 已决策** —— 当前推荐配置）
+## 4. Cloudflare Pages 方案（**ACT-5 已上线** —— 推荐配置即实际配置）
 
-> ACT-4B 决策：使用 Cloudflare Pages。仓库 `conanxin/agent-project-control-tower` 已 push，**待 ACT-5** 在 Cloudflare Dashboard 手动 Connect to Git（不在 CLI 写 token）。
+> ACT-4B 决策：使用 Cloudflare Pages。仓库 `conanxin/agent-project-control-tower` 已 push。
+> **ACT-5 已完成**：用户手动 Connect to Git，**首次部署已成功**。
 >
-> 当前阶段（ACT-4B）：仓库已就位。下一阶段（ACT-5）用户在 Cloudflare Dashboard 走"Connect to Git"绑定即可。
+> - 在线 URL：<https://agent-project-control-tower.pages.dev/>
+> - 首次 build command：`npm ci && npm run build`（在 `apps/dashboard/` root dir）
+> - 部署结果：7 个静态页全 HTTP 200，summary 显示 2 projects / 3 agents / 3 events
+> - 部署时间：~30s（CF Pages 首次 build + deploy）
 
-### 4.1 推荐配置（ACT-4B 决策的最终值）
+### 4.1 实际 Cloudflare Pages 配置（ACT-5 落定）
 
 | 字段 | 值 |
 | --- | --- |
@@ -97,6 +101,7 @@ make publish-preflight
 | **Build command** | `npm ci && npm run build` |
 | **Build output directory** | `dist` |
 | Environment variables | （无必需变量） |
+| Default subdomain | `agent-project-control-tower.pages.dev` |
 
 **关键点**：
 
@@ -221,40 +226,38 @@ jobs:
 
 `https://<user>.github.io/<repo>/`
 
-## 6. ACT-4B 部署清单（**已完成**——仓库就位、Cloudflare 待 ACT-5 手动连接）
+## 6. ACT-5 部署清单（**已完成** —— 首次在线部署已上线、7/7 URL 全 200）
 
-### 6.1 ACT-4B 已完成 ✅
+### 6.1 ACT-5 已完成 ✅
 
-- [x] **决策 deploy target**：Cloudflare Pages（用户偏好：CN-friendly + CDN + 免费）
-- [x] **决策 public-data 范围**：先用 examples 导出 (2/3/3) 占位，不公开真实 data/
-- [x] **决策 GitHub 仓库名**：`agent-project-control-tower`
-- [x] **决策 agent ID 命名**：`local-hermes` / `local-codex` / `cloud-openclaw` 保留作为 demo
-- [x] **GitHub 远程仓库创建**：`https://github.com/conanxin/agent-project-control-tower`
-- [x] **`git push -u origin main`**：7 个本地 commit 全部 push 成功
-- [x] **GitHub Actions CI 触发**：run 27323347041
-  - zero-dep-acceptance ✅ PASS（9s）
-  - astro-dashboard ✅ PASS
-  - publish-preflight ✅ PASS（修复 PyYAML 缺失后）
+- [x] **Cloudflare Dashboard → Workers & Pages → Create application → Pages → Connect to Git**
+- [x] 选 repo `conanxin/agent-project-control-tower`
+- [x] 配置：root=`apps/dashboard`, build=`npm ci && npm run build`, output=`dist`
+- [x] **Save & Deploy** 成功
+- [x] 首次部署 URL：<https://agent-project-control-tower.pages.dev/> 已公开
+- [x] **本地验证**（`make all` + `make publish-preflight` + `npm run build` + precommit audit）全 PASS
+- [x] **在线验收**（7/7 URL HTTP 200，2/3/3 entity 全可见）
+- [x] **隐私扫描**：0 命中（无 home 路径 / 无 IP / 无 token / 无 smoke 泄漏 / 无 data/ 泄漏）
+- [x] `tower.py report-phase ACT-5` 已写入（PASS / health=green）
 
-### 6.2 ACT-5 待执行（用户在 Cloudflare Dashboard 手动操作）
+### 6.2 ACT-5 已知限制
 
-- [ ] Cloudflare Dashboard → Workers & Pages → Create application → Pages → Connect to Git
-- [ ] 选 repo `conanxin/agent-project-control-tower`
-- [ ] 配置：root=`apps/dashboard`, build=`npm ci && npm run build`, output=`dist`
-- [ ] Save & Deploy（第一次构建 1–2 分钟）
-- [ ] 访问 `https://agent-project-control-tower.pages.dev/` 验收
-- [ ] 决定是否绑自定义域（如 `control-tower.<your-domain>`）
-- [ ] 决定 public-data 范围是否从 examples 升级到真实 data 脱敏子集
-- [ ] UptimeRobot 监控（可选）
+- ❌ **无自定义域名** — 当前只跑在 `*.pages.dev` 默认子域，未绑 `control-tower.<your-domain>`。下一步 ACT-5B 可选
+- ❌ **demo 数据，不含真实运行 data/** — 当前 public-data/ 只含 examples 导出 (2/3/3)。真实 data/ **仍不公开**。下一步 ACT-6 可选：接入脱敏子集
+- ❌ **无 Web Analytics** — Cloudflare 默认 Analytics 面板有，但未启用 Web Analytics（CF Pages 的新版统计）
+- ❌ **无自定义 404 页** — CF Pages 默认 404
+- ❌ **build error 通知未配** — 默认只发 CF 账号邮箱，没接 Telegram
+- ❌ **未配置 UptimeRobot** — 当前依赖人工 curl 验证
 
-### 6.3 ACT-4B 故意不做的
+### 6.3 ACT-5 故意不做的
 
 - ❌ **不**在 CLI 配 Cloudflare API token（避免 token 泄露）
-- ❌ **不**写 `.github/workflows/pages.yml`（决策 Cloudflare 后用 Dashboard UI 更稳）
-- ❌ **不**自动 deploy（用户在 Dashboard 手动 Save & Deploy）
-- ❌ **不**绑自定义域（ACT-5 决策）
+- ❌ **不**绑自定义域（推到 ACT-5B 决策）
+- ❌ **不**接入真实 data/（推到 ACT-6 决策）
+- ❌ **不**启用 Web Analytics（推到 ACT-5B 或更后）
+- ❌ **不**改 `apps/dashboard/` 任何源码（部署问题一律在 CF Pages UI 解决）
 
-### 6.4 完整 deploy 流程（ACT-5 决策完后再看）
+### 6.4 ACT-5 完整 deploy 流程（已跑通）
 
 **Step 1**: Cloudflare Dashboard 绑定
 1. https://dash.cloudflare.com/ → Workers & Pages → Create application
@@ -315,8 +318,6 @@ jobs:
 
 ## 9. 回滚
 
-如果某次部署炸了：
-
 ### Cloudflare Pages
 
 ```
@@ -332,6 +333,31 @@ git revert <bad-commit-sha>
 git push origin main
 # 等 CI 重新跑（2–3 分钟）
 ```
+
+## 9.5 ACT-5 实际验收结果（7 URL × HTTP 200）
+
+| URL | HTTP | 关键 entity 可见 | 备注 |
+| --- | --- | --- | --- |
+| `/` | 200 | 2 projects + 3 agents + 3 events | 首页 summary |
+| `/timeline/` | 200 | 3 events 全部 + agent / project links | timeline 含搜索 / 筛选 |
+| `/projects/local-book-tool/` | 200 | 2 events 关联 | 顶部 health pill + next actions |
+| `/projects/cloud-art-site/` | 200 | 1 event 关联 | 同上 |
+| `/agents/local-hermes/` | 200 | 1 project 关联 | machine pill + event-type breakdown |
+| `/agents/local-codex/` | 200 | 1 project 关联 | 同上 |
+| `/agents/cloud-openclaw/` | 200 | 1 project 关联 | 同上 |
+
+**敏感模式扫描结果（0 命中）**：
+
+| 模式 | 命中 |
+| --- | --- |
+| `/home/conanxin/` | 0 |
+| 任何 `/home/<user>/` 路径 | 0 |
+| IPv4 | 0 |
+| `api_key=...` / `token=` / `secret=` / `password=` | 0 |
+| `sk-` / `ghp_` 前缀 | 0 |
+| `~/.ssh/` / `~/.aws/` / `.env` 引用 | 0 |
+| smoke 测试数据 (`smoke-1/2/proj`) | 0 |
+| `data/` 路径泄漏 | 0 |
 
 ## 10. 成本估算
 

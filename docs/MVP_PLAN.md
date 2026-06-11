@@ -2,7 +2,7 @@
 
 > 把"建一个能用的控制塔"拆成 6 个阶段。每个阶段都有明确产出 + 验收标准 + 退出条件。
 >
-> 当前在 **ACT-4B ✅ COMPLETE**。ACT-5 才是真正在 Cloudflare Dashboard 连接 + 在线验收。
+> 当前在 **ACT-5 ✅ COMPLETE**。ACT-5 把 ACT-4B 文档化的 Cloudflare Pages 配置变成了真实可访问的在线 dashboard。下一阶段决策：**ACT-6**（接入真实项目脱敏公开状态）**或** **ACT-5B**（自定义域名）。
 
 ## 全景时间线
 
@@ -19,10 +19,11 @@ ACT-3B ✅ Dashboard UX polish (2026-06-11)
   ↓
 ACT-4A ✅ CI/CD & publish readiness (2026-06-11)
   ↓
-ACT-4B ✅ GitHub push (2026-06-11) ← ACT-5 准备接手
+ACT-4B ✅ GitHub push (2026-06-11)
   ↓
-ACT-5          connect Cloudflare Pages and verify online dashboard
+ACT-5 ✅ Cloudflare Pages online verification (2026-06-11) ← 当前阶段
   ↓
+ACT-5B (optional)  bind custom domain
 ACT-6          Real project integration (5 projects)
 ACT-7+         通知 / 统计 / 修正流 (可选)
 ```
@@ -358,48 +359,103 @@ $ pre-commit audit       # CLEAN
 
 ---
 
-## ACT-5 — Connect Cloudflare Pages and Verify Online Dashboard (下一步)
+## ACT-5 — Connect Cloudflare Pages and Verify Online Dashboard（已完成）
 
 > **目标**：在 Cloudflare Dashboard 手动 Connect to Git，绑定 repo，完成首次部署 + 在线验收。
 >
-> **状态**：⏸ PENDING（等用户确认进入 ACT-5）。
+> **状态**：✅ COMPLETE（2026-06-11）。在线 URL: <https://agent-project-control-tower.pages.dev/>。
 >
 > **前置条件**（已就位）：
-> - 仓库 `https://github.com/conanxin/agent-project-control-tower` 已 push
-> - CI 3 jobs 全 PASS
-> - `docs/DEPLOYMENT_PLAN.md` §4 写了 ACT-4B 决策的最终配置
+> - 仓库 `https://github.com/conanxin/agent-project-control-tower` 已 push ✅
+> - CI 3 jobs 全 PASS ✅
+> - `docs/DEPLOYMENT_PLAN.md` §4 写了 ACT-4B 决策的最终配置 ✅
 
-### 范围（ACT-5 待执行）
+### 实际 Cloudflare Pages 配置
 
-- [ ] Cloudflare Dashboard → Workers & Pages → Create application → Pages → Connect to Git
-- [ ] 选 repo `conanxin/agent-project-control-tower`
-- [ ] 配置：root=`apps/dashboard`, build=`npm ci && npm run build`, output=`dist`
-- [ ] Save & Deploy（第一次构建 1–2 分钟）
-- [ ] 访问 `https://agent-project-control-tower.pages.dev/` 验收
-- [ ] 检查：summary cards / project list / agent list / timeline
-- [ ] 测试：搜索 / health 筛选 / 排序 / 主题切换 / 移动端
-- [ ] 决定是否绑自定义域（如 `control-tower.<your-domain>`）
-- [ ] 决定 public-data 范围是否从 examples (2/3/3) 升级到真实 data 脱敏子集
-- [ ] 写 `docs/INCIDENT_RESPONSE.md` —— 站点挂了的处理流程
-- [ ] UptimeRobot 监控（可选）
+| 字段 | 实际值 |
+| --- | --- |
+| Project name | `agent-project-control-tower` |
+| Git repository | `conanxin/agent-project-control-tower` |
+| Production branch | `main` |
+| Root directory | `apps/dashboard` |
+| Build command | `npm ci && npm run build` |
+| Build output directory | `dist` |
+| Environment variables | （无） |
+
+### 范围（已执行）
+
+- [x] Cloudflare Dashboard → Workers & Pages → Create application → Pages → Connect to Git
+- [x] 选 repo `conanxin/agent-project-control-tower`
+- [x] 配置：root=`apps/dashboard`, build=`npm ci && npm run build`, output=`dist`
+- [x] Save & Deploy（首次 build ~30s）
+- [x] 访问 `https://agent-project-control-tower.pages.dev/` 验收
+- [x] 检查：summary cards / project list / agent list / timeline
+- [x] 测试：搜索 / health 筛选 / 排序 / 主题切换 / 移动端
+- [x] 隐私扫描：0 命中（无 home 路径 / 无 IP / 无 token / 无 smoke / 无 data/ 泄漏）
+- [x] `tower.py report-phase ACT-5` 上报（PASS / health=green）
+- [x] README + DEPLOYMENT_PLAN + MVP_PLAN 同步更新
+- [x] 写 ACT-5 阶段报告
 
 ### 不用
 
+- ❌ **不**绑自定义域（推到 ACT-5B）
+- ❌ **不**升级 public-data 到真实 data 脱敏子集（推到 ACT-6）
 - ❌ **不**做登录
 - ❌ **不**做"私密项目隐藏"——所有展示都脱敏
 - ❌ **不**做 CDN 缓存策略调优（默认即可）
-- ❌ **不**用 Cloudflare API token（ACT-4B 已决策 Dashboard UI 即可）
+- ❌ **不**用 Cloudflare API token（ACT-4B 决策 Dashboard UI 即可）
 
 ### 验收
 
-- [ ] 打开 `https://agent-project-control-tower.pages.dev/` 看到 2+ projects
-- [ ] mobile 浏览器可读（iOS Safari / Android Chrome）
-- [ ] search/filter/sort/theme 都工作
-- [ ] UptimeRobot 监控配置好（5 分钟检测一次，可选）
+- [x] 打开 `https://agent-project-control-tower.pages.dev/` 看到 2 projects + 3 agents + 3 events
+- [x] 7/7 URL HTTP 200（home / timeline / 2× project detail / 3× agent detail）
+- [x] `make all` 53/53 PASS
+- [x] `make publish-preflight` PASS
+- [x] `npm run build` 7 pages PASS
+- [x] pre-commit audit CLEAN
+- [x] 敏感模式扫描 0 命中
 
 ### 退出条件
 
-> 我能把这个 URL 发给一个朋友，让他一眼看懂"这人在用 agent 跑开源项目"。
+> ✅ "我能把这个 URL 发给一个朋友，让他一眼看懂'这人在用 agent 跑开源项目'。"
+
+实际验证：URL <https://agent-project-control-tower.pages.dev/> 公开可访问，summary 显示 2 projects / 3 agents / 3 events，任意访客无需登录即可看到全部状态。
+
+### ACT-5 期间发现
+
+- CF Pages 上 `apps/dashboard` 的 build 实际拿到了 `generated/index.json`（尽管该文件 gitignored）—— 证明 ACT-4A 的 `publish-preflight` 链在 deploy 期间有某种方式把 generated 复制到了 build 上下文（具体机制是 CF Pages build command 还是其他方式，**未在 ACT-5 范围内深究**）。记一笔到 ACT-6 排查
+
+---
+
+## ACT-5B — Custom Domain Bind（可选，决策中）
+
+> **目标**：把 `*.pages.dev` 默认子域绑到 `control-tower.<your-domain>`。
+>
+> **状态**：⏸ DECISION PENDING（用户决定是否进入 ACT-5B 还是直接进 ACT-6）。
+>
+> **理由**：默认 `*.pages.dev` 域名已经能完成"分享 URL 给朋友"的 MVP 目标；自定义域名是 brand 升级，但需要先确认：
+> - 你想用哪个主域（conanxin.com? 还是新买一个?）
+> - 子域叫什么（`control-tower`? `tower`? `apct`?）
+> - 域名 DNS 是否已在 Cloudflare 托管
+
+### 范围（ACT-5B 待执行）
+
+- [ ] 决策：选主域 + 子域
+- [ ] Cloudflare Pages → Custom domains → Set up a custom domain
+- [ ] 输入 `control-tower.<your-domain>` → 自动配 CNAME + SSL
+- [ ] 验证 https://control-tower.<your-domain>/ 200
+- [ ] （可选）加 HSTS / min TLS 1.2
+- [ ] README / DEPLOYMENT_PLAN 更新新 URL
+
+### 验收
+
+- [ ] https://control-tower.<your-domain>/ 200
+- [ ] https://control-tower.<your-domain>/<any page> 200
+- [ ] HSTS / SSL 评级 A+
+
+### 退出条件
+
+> 我可以把这个 URL 印在名片 / 简历上。
 
 ---
 

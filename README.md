@@ -3,8 +3,9 @@
 > 一个统一的"项目管理控制塔"——把分散在不同机器、不同 agent 上的多个开源项目，集中到一个 Git 仓库 + 一个静态网页里。
 >
 > 🌍 **GitHub**: <https://github.com/conanxin/agent-project-control-tower>（public，ACT-4B 已 push）
-> 🟢 **状态**: ACT-4B ✅ COMPLETE（仓库就位，CI 跑通，Cloudflare Pages 配置文档化）
-> ⏸ **下一步**: ACT-5（用户手动 Connect Cloudflare Pages → 首次在线部署）
+> 🚀 **Online Dashboard**: <https://agent-project-control-tower.pages.dev/>（ACT-5 ✅ 已上线，**demo data only**）
+> 🟢 **状态**: ACT-5 ✅ COMPLETE（Cloudflare Pages 首次在线部署完成，curl 7/7 URL 全 200）
+> ⏸ **下一步**: ACT-6（接入真实项目脱敏公开状态） **或** ACT-5B（自定义域名）
 
 ---
 
@@ -481,11 +482,124 @@ CI:            run 27323347041 — 3 jobs 全 PASS
 | Build output directory | `dist` |
 | Environment variables | （无必需变量） |
 
-**当前还没有公开真实 data/**—— `public-data/` 只含 examples 导出。ACT-5 决定是否升级到真实脱敏子集。
+**当前还没有公开真实 data/**—— `public-data/` 只含 examples 导出。ACT-5 决定是否升级到真实脱敏子集。ACT-5 已确认继续走 demo-only 路径，真实 data/ **仍不公开**。
 
 **ACT-4B 期间发现并修复的 bug**：
 
 `scripts/export_public_data.py` 第 144 行 `import yaml` 在 CI runner（PyYAML 未装）**立即**抛 `ModuleNotFoundError`，**先于** try/except 保护。修：先 try `yaml_mini`（已 sys.path.insert），fall back PyYAML，最后 fallback 报错。已在 venv（无 PyYAML）模拟 CI 环境验证。
+
+### ACT-5 Cloudflare Pages Online Dashboard Verification（**已完成**）
+
+ACT-5 把 ACT-4B 文档化的"推荐配置"变成**真实可访问**的在线 dashboard，并完成 7 个 URL + 内容 + 隐私三层验收。
+
+**在线 URL（首次部署）**：
+
+```
+https://agent-project-control-tower.pages.dev/
+```
+
+**实际 Cloudflare Pages 配置**（与 ACT-4B 文档化的"推荐值"一致）：
+
+| 字段 | 实际值 |
+| --- | --- |
+| Project name | `agent-project-control-tower` |
+| Production branch | `main` |
+| Root directory | `apps/dashboard` |
+| Build command | `npm ci && npm run build` |
+| Build output directory | `dist` |
+| Environment variables | （无） |
+
+**为什么 root directory 是 `apps/dashboard` 而不是 repo root**：
+
+- `apps/dashboard` 是个**自包含**的 Astro 站点（自己的 `package.json` / `node_modules` / `astro.config.mjs` / `src/` / `dist/`）
+- build 命令 `npm ci && npm run build` 必须能在 root 目录里独立解析 `package.json`
+- repo root 里的 `Makefile` / `scripts/` / `data/` / `public-data/` 都不属于"被部署的产物"
+- 在 root 设 build 的话，要么 repo root 凭空多一个 `package.json`（引入 npm 依赖，违反"零依赖"承诺），要么 CF Pages 找不到 build 入口
+- `apps/dashboard` 的 build 期间 Astro 从 root 的 `generated/index.json` 静态 import 实体数据；该文件由 `make publish-preflight` 最后一步 `public-build-final` 用 public-data 写入
+
+**在线页面验收结果**（`curl -I -L` + 内容扫描）：
+
+| URL | HTTP | 实体可见 |
+| --- | --- | --- |
+| `/` | 200 | 2 projects + 3 agents + 3 events |
+| `/timeline/` | 200 | 同上 |
+| `/projects/local-book-tool/` | 200 | 单项目页 + 关联 2 agents |
+| `/projects/cloud-art-site/` | 200 | 单项目页 + 关联 1 agent |
+| `/agents/local-hermes/` | 200 | 单 agent 页 + 关联 1 project |
+| `/agents/local-codex/` | 200 | 单 agent 页 + 关联 1 project |
+| `/agents/cloud-openclaw/` | 200 | 单 agent 页 + 关联 1 project |
+
+**敏感扫描结果**（所有 7 个页面）：
+
+| 模式 | 命中 |
+| --- | --- |
+| `/home/conanxin/` 真实路径 | 0 |
+| 任何 `/home/<user>/` 路径 | 0 |
+| IPv4 地址 | 0 |
+| `api_key=...` / `token=` / `secret=` / `password=` | 0 |
+| `sk-` / `ghp_` 前缀 | 0 |
+| `~/.ssh/` / `~/.aws/` / `.env` 引用 | 0 |
+| smoke 测试数据 (`smoke-1/2/proj`) | 0 |
+| `data/` 路径泄漏 | 0 |
+
+**当前公开边界**（ACT-5 落定）：
+
+| 内容 | 状态 |
+| --- | --- |
+| 在线 dashboard（Cloudflare Pages） | ✅ 公开，URL 公开可访问 |
+| 仓库元数据（README / docs / LICENSE） | ✅ 公开 |
+| `public-data/` (2 projects / 3 agents / 3 events) | ✅ 公开 |
+| `examples/` (sanitized seed) | ✅ 公开 |
+| `data/` (local real control tower) | ❌ gitignored，**仍不公开** |
+| `generated/` (build artifact) | ❌ gitignored，CF Pages 重新 build |
+| `apps/dashboard/dist/` (Astro build) | ❌ gitignored，CF Pages build 输出 |
+
+**当前 public-data 统计**（2/3/3）：
+
+```yaml
+projects:
+  - local-book-tool  (scope=local, primary_agent=local-hermes)
+  - cloud-art-site   (scope=cloud, primary_agent=cloud-openclaw)
+agents:
+  - local-hermes     (machine=local, type=hermes)
+  - local-codex      (machine=local, type=codex)
+  - cloud-openclaw   (machine=cloud, type=openclaw)
+events:
+  - 2026-06-11: local-book-tool L1 PASS  (local-hermes)
+  - 2026-06-11: local-book-tool L2 FAIL  (local-codex)
+  - 2026-06-11: cloud-art-site  C1 PASS  (cloud-openclaw)
+```
+
+**如何更新 public-data 并触发部署**：
+
+```bash
+# 1) 编辑 public-data/registry/*.yml 或 public-data/events/*.json
+#    （也可以从真实 data/ 重新生成：make public-data）
+
+# 2) 本地验证
+make publish-preflight    # 跑完整 build 链，确认无 FAIL
+
+# 3) commit + push — CF Pages 自动 re-deploy
+git add public-data/
+git commit -m "data: update public-data for ..."
+git push origin main
+# → Cloudflare Pages 在 ~30s 内检测到新 commit，触发 build
+# → 失败时 CF Pages Dashboard 显示 build error，发邮件
+```
+
+**已知限制**：
+
+- ❌ **无自定义域名** — URL 是 `*.pages.dev`，未绑 `control-tower.your-domain.com`
+- ❌ **demo 数据，不含真实运行 data/** — 想看真实项目进展，需要先 ACT-6 接入脱敏子集
+- ❌ **Cloudflare Pages Dashboard 上手动 Connect 完成** — ACT-5 之前用户手动在 cloudflare.com 配了 Root directory / Build command
+- ❌ **无 analytics** — 没有访问量统计，CF Pages 提供的 Web Analytics 也未启用
+- ❌ **无 fallback / 错误页** — 404 由 CF 默认处理，没有自定义
+- ❌ **无 RSS / API** — dashboard 是纯静态，外部不能"订阅"事件流
+
+**ACT-5 期间发现并修复 / 记录**：
+
+- `public-data` 与 `data/` 的 build 顺序：`make publish-preflight` 必须最后一步跑 `public-data → build_index.py → generated/index.json`（在 `make dashboard` 之前），否则 Astro build 会拿 stale 的 data 版 index.json。已在 `publish-preflight` final-pass 中显式做。
+- 第一次 `npm run build` 在某些 Linux 环境下需要 `node-gyp` 编译原生模块——Astro 当前没用，所以本仓库没踩坑。记一笔以防后续加依赖。
 
 ### ACT-2 关键命令
 
