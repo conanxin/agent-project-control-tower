@@ -1,0 +1,23 @@
+---
+// AgentCard.astro — compact card for the agents list.
+import type { Agent } from "../lib/tower-data";
+
+interface Props {
+  agent: Agent;
+}
+const { agent: a } = Astro.props;
+---
+<div class="row gray">
+  <div class="head">
+    <span class="title">
+      <a href={`/agents/${a.agent_id}/`}>{a.name}</a>
+    </span>
+    <span class="tl-type">{a.machine}</span>
+  </div>
+  <div class="meta-line">
+    role: {a.role} ·
+    last project: {a.last_project_id ?? "—"} ·
+    events: {a.event_count}
+    {a.last_event_at && ` · ${a.last_event_at}`}
+  </div>
+</div>

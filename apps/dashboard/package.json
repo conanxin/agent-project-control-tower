@@ -1,0 +1,16 @@
+{
+  "name": "agent-project-control-tower-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Astro dashboard shell for Agent Project Control Tower. Reads the static generated/index.json from the repo root.",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "astro": "^5.0.0"
+  }
+}

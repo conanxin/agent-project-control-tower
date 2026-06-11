@@ -1,0 +1,13 @@
+---
+// StatCard.astro — small label + value card.
+interface Props {
+  label: string;
+  value: number | string;
+  colorClass?: "" | "green" | "yellow" | "red" | "gray";
+}
+const { label, value, colorClass = "" } = Astro.props;
+---
+<div class={`card ${colorClass}`}>
+  <div class="label">{label}</div>
+  <div class="value">{value}</div>
+</div>

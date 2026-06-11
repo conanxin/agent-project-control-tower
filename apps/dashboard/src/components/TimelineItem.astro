@@ -1,0 +1,42 @@
+---
+// TimelineItem.astro — single row in the global timeline.
+import type { TimelineEntry, Health } from "../lib/tower-data";
+
+interface Props {
+  entry: TimelineEntry;
+}
+const { entry: t } = Astro.props;
+
+const TYPE_LABEL: Record<string, string> = {
+  AGENT_REGISTERED:   "AGENT REG",
+  PROJECT_REGISTERED: "PROJECT REG",
+  PHASE_REPORT:       "PHASE",
+  REVIEW_REPORT:      "REVIEW",
+  HANDOFF:            "HANDOFF",
+  RELEASE:            "RELEASE",
+  FAILURE:            "FAILURE",
+  BLOCK:              "BLOCK",
+  UNBLOCK:            "UNBLOCK",
+  ARCHIVE:            "ARCHIVE",
+};
+const lbl = TYPE_LABEL[t.event_type] ?? t.event_type;
+
+function healthFromStatus(s: string): Health {
+  return ({
+    PASS: "green", FAIL: "red", BLOCKED: "red", PARTIAL: "yellow",
+    PAUSED: "gray", SKIPPED: "gray", RELEASED: "green", ACTIVE: "green",
+  } as Record<string, Health>)[s] ?? "gray";
+}
+const h: Health = t.health ?? healthFromStatus(t.status);
+---
+<div class={`tl-item ${h}`}>
+  <div class="tl-meta">
+    <span class={`tl-type tl-type-${t.event_type}`}>{lbl}</span>
+    {(t.created_at || "")} ·
+    {t.project_id || "(no project)"} ·
+    {t.agent_id || "(no agent)"}
+    {t.phase_id && ` · ${t.phase_id}`} ·
+    {t.status}
+  </div>
+  <div class="tl-summary">{t.summary ?? ""}</div>
+</div>

@@ -1,0 +1,46 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import TimelineItem from "../../components/TimelineItem.astro";
+import { tower, projectTimeline } from "../../lib/tower-data";
+
+// Pre-render one page per project. Astro requires this in getStaticPaths.
+export function getStaticPaths() {
+  return tower.projects.map((p) => ({
+    params: { project_id: p.project_id },
+  }));
+}
+
+const { project_id } = Astro.params;
+const project = tower.projects.find((p) => p.project_id === project_id)!;
+const timeline = projectTimeline(project_id);
+---
+<BaseLayout title={`${project.name} — Agent Project Control Tower`}>
+  <section>
+    <h2>Project</h2>
+    <dl class="detail-grid">
+      <dt>ID</dt>           <dd><code>{project.project_id}</code></dd>
+      <dt>Name</dt>         <dd>{project.name}</dd>
+      <dt>Repo</dt>         <dd>{project.repo ? <a href={project.repo}>{project.repo}</a> : "—"}</dd>
+      <dt>Location</dt>     <dd>{project.location}</dd>
+      <dt>Category</dt>     <dd>{project.category}</dd>
+      <dt>Status</dt>       <dd><code>{project.current_status}</code></dd>
+      <dt>Health</dt>       <dd><code>{project.current_health}</code></dd>
+      <dt>Current phase</dt><dd>{project.current_phase_id ?? "—"} {project.current_phase_name && `· ${project.current_phase_name}`}</dd>
+      <dt>Last agent</dt>   <dd>{project.last_agent_id ? <a href={`/agents/${project.last_agent_id}/`}>{project.last_agent_id}</a> : "—"}</dd>
+      <dt>Last event at</dt><dd>{project.last_event_at ?? "—"}</dd>
+      <dt>Event count</dt>  <dd>{project.event_count}</dd>
+      <dt>Last summary</dt> <dd>{project.last_summary ?? "—"}</dd>
+      <dt>Next</dt>         <dd>{project.next ?? "—"}</dd>
+    </dl>
+  </section>
+
+  <section>
+    <h2>Timeline</h2>
+    {timeline.length === 0
+      ? <p>(no events yet)</p>
+      : <div class="timeline">
+          {timeline.map((t) => <TimelineItem entry={t} />)}
+        </div>
+    }
+  </section>
+</BaseLayout>

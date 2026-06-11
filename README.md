@@ -186,9 +186,11 @@ agent-project-control-tower/
 
 ## 当前阶段
 
-**ACT-2：Tower CLI and Event Reporting** — ✅ COMPLETE
+**ACT-3A：Astro Dashboard Shell** — ✅ COMPLETE
 
-agent 现在可以用命令直接写进展，**不再**需要手写 event JSON。
+控制塔现在有**两套 dashboard**：
+- `site/index.embedded.html`（ACT-1/2 零依赖版，**默认入口**）
+- `apps/dashboard/dist/`（ACT-3A Astro 增强版，**可选**）
 
 ### examples/ vs data/
 
@@ -224,7 +226,47 @@ open site/index.embedded.html
 start site/index.embedded.html
 ```
 
-embedded.html 是双击可看的；如果你用 `python -m http.server`，可以打开 `site/index.html`（fetch 版本）体验另一种风格。
+控制塔本身**永远不**复制原项目代码。它只存"哪个项目在跑、跑到第几阶段、谁跑的、commit 是多少"。
+
+### ACT-3A Astro Dashboard Shell（可选增强）
+
+ACT-1/2 的 `site/index.embedded.html` 是**双击可看**的零依赖单页——所有访客的默认入口。
+ACT-3A **额外**提供 `apps/dashboard/`，是一个 Astro 静态站，**4 个预渲染 page**：
+
+| 路径 | 内容 |
+| --- | --- |
+| `/` | Summary 卡片 + 项目列表 + Agent 列表 + 最近 10 条 timeline |
+| `/projects/[project_id]/` | 单项目详情：repo / location / status / phase / timeline |
+| `/agents/[agent_id]/` | 单 agent 详情：machine / role / last project / timeline |
+| `/timeline/` | 所有事件倒序 + 事件类型颜色标签 |
+
+数据源：所有 page **build-time** 读取 `generated/index.json`（root）——**没有运行时 API、没有 SSR、没有外部 fetch**。
+
+```bash
+# 首次：安装依赖
+cd apps/dashboard
+npm install
+
+# Build
+cd ..
+make dashboard
+# → apps/dashboard/dist/  (8 个静态 HTML + 1 个 CSS)
+
+# 本地预览
+cd apps/dashboard
+npm run preview
+# 浏览器打开 http://localhost:4321/
+```
+
+`make all` **不**包含 `make dashboard`——根目录的零依赖链路保持完整。**任何想用 Astro 的用户单独跑**。
+
+**为什么 ACT-3A 不替代 ACT-1/2 的 vanilla HTML**：
+
+- ACT-1/2 的 `site/index.embedded.html` 是**双击可看**——零安装、零网络、零运行时
+- 很多场景（CI artifact / 个人本地 / 服务器静态托管 / 邮件附件）需要"开箱即用"
+- Astro 站**需要** `npm install` 一次性，运行时需要 JS hydration
+- 两套并存的成本：~88 KB dist vs ~20 KB embedded HTML，可接受
+- 未来**真正**对外发布（ACT-5）会选 `apps/dashboard/dist/`，embedded.html 留作离线归档
 
 ### ACT-2 关键命令
 

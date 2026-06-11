@@ -1,0 +1,18 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import TimelineItem from "../components/TimelineItem.astro";
+import { tower } from "../lib/tower-data";
+
+// tower.timeline is already sorted newest-first by build_index.py.
+---
+<BaseLayout title="Timeline — Agent Project Control Tower">
+  <section>
+    <h2>All events (newest first)</h2>
+    <p style="color: var(--text-dim); font-size: 13px;">
+      {tower.timeline.length} events total · sorted by created_at desc
+    </p>
+    <div class="timeline">
+      {tower.timeline.map((t) => <TimelineItem entry={t} />)}
+    </div>
+  </section>
+</BaseLayout>

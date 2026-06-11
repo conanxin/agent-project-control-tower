@@ -1,0 +1,39 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import TimelineItem from "../../components/TimelineItem.astro";
+import { tower, agentTimeline } from "../../lib/tower-data";
+
+export function getStaticPaths() {
+  return tower.agents.map((a) => ({
+    params: { agent_id: a.agent_id },
+  }));
+}
+
+const { agent_id } = Astro.params;
+const agent = tower.agents.find((a) => a.agent_id === agent_id)!;
+const timeline = agentTimeline(agent_id);
+---
+<BaseLayout title={`${agent.name} — Agent Project Control Tower`}>
+  <section>
+    <h2>Agent</h2>
+    <dl class="detail-grid">
+      <dt>ID</dt>             <dd><code>{agent.agent_id}</code></dd>
+      <dt>Name</dt>           <dd>{agent.name}</dd>
+      <dt>Machine</dt>        <dd><code>{agent.machine}</code></dd>
+      <dt>Role</dt>           <dd>{agent.role}</dd>
+      <dt>Last event at</dt>  <dd>{agent.last_event_at ?? "—"}</dd>
+      <dt>Last project</dt>   <dd>{agent.last_project_id ? <a href={`/projects/${agent.last_project_id}/`}>{agent.last_project_id}</a> : "—"}</dd>
+      <dt>Event count</dt>    <dd>{agent.event_count}</dd>
+    </dl>
+  </section>
+
+  <section>
+    <h2>Timeline</h2>
+    {timeline.length === 0
+      ? <p>(no events yet)</p>
+      : <div class="timeline">
+          {timeline.map((t) => <TimelineItem entry={t} />)}
+        </div>
+    }
+  </section>
+</BaseLayout>

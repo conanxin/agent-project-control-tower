@@ -188,36 +188,58 @@ CLI SMOKE TEST PASSED
 
 > **目标**：把 ACT-1 的手写 HTML 替换成 Astro 项目，CI 之前能本地预览。
 
-### 范围
+### 拆解
 
-- [ ] `site/` 目录初始化 Astro 项目（**仅 Astro + 内置 markdown**，不引入 Tailwind / React）
-- [ ] `site/src/pages/index.astro` — 首页（项目卡片 + agent 卡片 + 最近活动）
-- [ ] `site/src/pages/projects/[id].astro` — 项目详情
-- [ ] `site/src/pages/agents/[id].astro` — agent 详情
-- [ ] `site/src/pages/timeline.astro` — 全局时间线
-- [ ] `site/src/pages/about.astro` — 关于页
-- [ ] `site/src/components/HealthDot.astro` — 复用组件
-- [ ] `site/src/lib/render.ts` — 从 `generated/index.json` 读数据
-- [ ] `site/public/data/index.json` — `build_index.py` 写到此处（CI 之前手动 cp）
-- [ ] 极简 CSS（裸 CSS variables，无框架）
+- [x] **ACT-3A**（已完成）— Dashboard shell：4 个 page + 1 个 layout + 4 个组件 + 暗色 CSS；npm install + npm run build PASS；不替代 ACT-1/2 的 embedded.html
+- [ ] **ACT-3B**（待规划）— 视觉/交互增强：search / filter / sort / 暗色主题切换 / view transitions
+- [ ] **ACT-3C**（可选）— SEO + 暗色主题切换 + accessibility
 
-### 不用
+> 详细 ACT-3A 报告：[PHASE_ACT3A_ASTRO_DASHBOARD_SHELL_REPORT.md](../reports/PHASE_ACT3A_ASTRO_DASHBOARD_SHELL_REPORT.md)
 
-- ❌ 不引入 Tailwind / UnoCSS / Styled Components
-- ❌ 不引入 React / Vue / Svelte
-- ❌ 不引入 TypeScript 严格模式（`tsconfig.json` 留 loose 即可）
-- ❌ 不做暗色主题切换（MVP 只一种浅色）
+### 范围（ACT-3A 最终交付）
 
-### 验收
+- [x] `apps/dashboard/` 初始化 Astro 5 项目（**仅 Astro，无 Tailwind / React**）
+- [x] `apps/dashboard/src/pages/index.astro` — 首页
+- [x] `apps/dashboard/src/pages/projects/[project_id].astro` — 项目详情
+- [x] `apps/dashboard/src/pages/agents/[agent_id].astro` — agent 详情
+- [x] `apps/dashboard/src/pages/timeline.astro` — 全局时间线
+- [x] `apps/dashboard/src/lib/tower-data.ts` — 从 `../../../../generated/index.json` 读
+- [x] 5 个组件（BaseLayout + StatCard + ProjectCard + AgentCard + TimelineItem）
+- [x] 极简 CSS（暗色 + 纯 CSS variables，无框架）
+- [x] 保留 `site/index.html` + `site/index.embedded.html`（ACT-1/2 零依赖版不动）
+- [x] `make dashboard` target，**不**进 `make all`
 
-- [ ] `cd site && npm run dev` 本地起服务，访问 `localhost:4321` 看到至少 2 个项目
-- [ ] `cd site && npm run build` 生成 `site/dist/`
-- [ ] Lighthouse 性能分 ≥ 90
-- [ ] 首屏 < 50KB（不引外部资源）
+### 不做（ACT-3A 故意不解决）
 
-### 退出条件
+- ❌ 不做 search / filter / sort（前端的 JS 交互）
+- ❌ 不做暗色主题切换（MVP 只一种暗色，亮色后续）
+- ❌ 不做 view transitions / 动画
+- ❌ 不做 about / RSS / sitemap
+- ❌ 不做部署
+- ❌ 不做 GitHub Actions
+- ❌ 不做登录
 
-> 我能对自己说："dashboard 在视觉上能对外展示了，可以部署了。"
+### 验收（ACT-3A 实际跑过）
+
+- ✅ `cd apps/dashboard && npm install` → 277 packages OK
+- ✅ `cd apps/dashboard && npm run build` → 8 page(s) built in 1.01s
+- ✅ `make dashboard` target OK
+- ✅ `make all`（零依赖路径） 53/53 仍 PASS
+- ✅ dist/ 包含 8 HTML + 1 CSS，~88 KB
+- ✅ 首页显示 3 projects / 3 agents / 7 events（与 ACT-2D 后 `generated/index.json` 一致）
+- ✅ 项目详情页 / agent 详情页 / timeline 页正确数据
+- ✅ 无运行时 API、无 SSR、无外部 fetch
+
+### 退出条件（已达成）
+
+> "dashboard 在视觉/路由/可部署性上"完整。
+
+### 留给 ACT-3B 的桥
+
+- 当前 `tower-data.ts` 写死读 `generated/index.json`——如果未来想支持"读自 examples" 切换，加 `BUILD_TARGET` env var 即可
+- `project_id` 维度是 `getStaticPaths()` 展开——新增项目后**必须**重新 build（不破坏 schema）
+- 暗色 CSS 变量已抽出——ACT-3B 加 `prefers-color-scheme` 媒体查询是 5 行 CSS
+- timeline 用 `sort by created_at desc`——已 build-time 排好，client 无需重排
 
 ---
 

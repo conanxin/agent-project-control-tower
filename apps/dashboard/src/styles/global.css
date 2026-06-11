@@ -1,0 +1,241 @@
+/* global.css — ACT-3A dashboard shell.
+ *
+ * Dark theme, plain CSS, no Tailwind / no UI library.
+ * Mirrors the look-and-feel of site/index.html (the vanilla ACT-1/2
+ * dashboard) so the two experiences feel related, but adds typography
+ * polish suitable for the Astro static site.
+ */
+
+:root {
+  --bg:          #0f172a;
+  --panel:       #1e293b;
+  --panel-2:     #273449;
+  --text:        #e2e8f0;
+  --text-dim:    #94a3b8;
+  --accent:      #60a5fa;
+  --border:      #334155;
+  --link:        #93c5fd;
+
+  --health-green:  #16a34a;
+  --health-yellow: #eab308;
+  --health-red:    #dc2626;
+  --health-gray:   #6b7280;
+
+  --type-AGENT_REGISTERED:    #93c5fd;
+  --type-PROJECT_REGISTERED:  #93c5fd;
+  --type-PHASE_REPORT:        #4ade80;
+  --type-REVIEW_REPORT:       #facc15;
+  --type-HANDOFF:             #cbd5e1;
+  --type-RELEASE:             #86efac;
+  --type-FAILURE:             #fca5a5;
+  --type-BLOCK:               #fca5a5;
+  --type-UNBLOCK:             #4ade80;
+  --type-ARCHIVE:             #cbd5e1;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+               "Helvetica Neue", Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.55;
+  font-size: 15px;
+}
+
+a { color: var(--link); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+header.site {
+  padding: 24px 32px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+header.site h1 {
+  margin: 0 0 4px;
+  font-size: 22px;
+  font-weight: 600;
+}
+header.site .meta {
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+nav.site-nav {
+  padding: 12px 32px;
+  background: var(--panel-2);
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+nav.site-nav a {
+  margin-right: 18px;
+  color: var(--text-dim);
+}
+nav.site-nav a:hover { color: var(--text); }
+
+main {
+  padding: 24px 32px 64px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+section { margin-bottom: 32px; }
+
+h2 {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin: 0 0 12px;
+}
+h3 { margin: 0 0 6px; font-size: 16px; font-weight: 600; }
+
+p { margin: 0 0 8px; }
+
+/* --- summary cards --- */
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+.card .label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+}
+.card .value {
+  font-size: 28px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+.card.green  .value { color: var(--health-green); }
+.card.yellow .value { color: var(--health-yellow); }
+.card.red    .value { color: var(--health-red); }
+.card.gray   .value { color: var(--health-gray); }
+
+/* --- project / agent rows --- */
+.row-list { display: flex; flex-direction: column; gap: 8px; }
+.row {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--health-gray);
+  border-radius: 6px;
+  padding: 12px 16px;
+}
+.row.green  { border-left-color: var(--health-green); }
+.row.yellow { border-left-color: var(--health-yellow); }
+.row.red    { border-left-color: var(--health-red); }
+.row.gray   { border-left-color: var(--health-gray); }
+.row .head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.row .head .title { font-weight: 600; }
+.row .head .title a { color: var(--text); }
+.row .meta-line {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+.row .body { margin-top: 8px; font-size: 14px; }
+.row .next {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--accent);
+}
+.row .next::before { content: "→ "; opacity: 0.7; }
+
+/* --- timeline --- */
+.timeline { position: relative; padding-left: 20px; }
+.timeline::before {
+  content: "";
+  position: absolute;
+  left: 6px; top: 6px; bottom: 6px;
+  width: 2px;
+  background: var(--border);
+}
+.tl-item {
+  position: relative;
+  padding: 8px 12px 12px 16px;
+}
+.tl-item::before {
+  content: "";
+  position: absolute;
+  left: -19px; top: 14px;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--health-gray);
+}
+.tl-item.green::before  { background: var(--health-green); }
+.tl-item.yellow::before { background: var(--health-yellow); }
+.tl-item.red::before    { background: var(--health-red); }
+.tl-item.gray::before   { background: var(--health-gray); }
+.tl-item .tl-meta {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.tl-item .tl-summary { font-size: 14px; margin-top: 2px; }
+.tl-type {
+  display: inline-block;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  background: var(--panel-2);
+  color: var(--text-dim);
+  margin-right: 6px;
+}
+.tl-type-AGENT_REGISTERED,
+.tl-type-PROJECT_REGISTERED { color: var(--type-AGENT_REGISTERED); }
+.tl-type-PHASE_REPORT       { color: var(--type-PHASE_REPORT); }
+.tl-type-REVIEW_REPORT      { color: var(--type-REVIEW_REPORT); }
+.tl-type-HANDOFF            { color: var(--type-HANDOFF); }
+.tl-type-RELEASE            { color: var(--type-RELEASE); }
+.tl-type-FAILURE            { color: var(--type-FAILURE); }
+.tl-type-BLOCK              { color: var(--type-BLOCK); }
+.tl-type-UNBLOCK            { color: var(--type-UNBLOCK); }
+.tl-type-ARCHIVE            { color: var(--type-ARCHIVE); }
+
+/* --- detail pages --- */
+.detail-grid {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 4px 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+}
+.detail-grid dt { color: var(--text-dim); font-size: 13px; }
+.detail-grid dd { margin: 0; font-size: 14px; }
+
+footer.site {
+  padding: 24px 32px;
+  border-top: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 12px;
+  text-align: center;
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  background: var(--panel-2);
+  padding: 1px 6px;
+  border-radius: 4px;
+}

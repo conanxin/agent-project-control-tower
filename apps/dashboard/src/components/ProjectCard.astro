@@ -1,0 +1,29 @@
+---
+// ProjectCard.astro — compact card for the projects list.
+import type { Project } from "../lib/tower-data";
+
+interface Props {
+  project: Project;
+}
+const { project: p } = Astro.props;
+const phaseLabel = p.current_phase_id
+  ? `${p.current_phase_id} · ${p.current_status}`
+  : p.current_status;
+---
+<div class={`row ${p.current_health}`}>
+  <div class="head">
+    <span class="title">
+      <a href={`/projects/${p.project_id}/`}>{p.name}</a>
+    </span>
+    <span class={`tl-type tl-type-${p.last_event_type ?? "PHASE_REPORT"}`}>
+      {phaseLabel}
+    </span>
+  </div>
+  <div class="meta-line">
+    location: {p.location} · category: {p.category} ·
+    last agent: {p.last_agent_id ?? "—"} · events: {p.event_count}
+    {p.last_event_at && ` · ${p.last_event_at}`}
+  </div>
+  <div class="body">{p.last_summary ?? "(no events yet)"}</div>
+  {p.next && <div class="next">{p.next}</div>}
+</div>

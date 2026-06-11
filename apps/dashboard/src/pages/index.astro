@@ -1,0 +1,46 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import StatCard from "../components/StatCard.astro";
+import ProjectCard from "../components/ProjectCard.astro";
+import AgentCard from "../components/AgentCard.astro";
+import TimelineItem from "../components/TimelineItem.astro";
+import { tower } from "../lib/tower-data";
+
+const s = tower.summary;
+const recent = tower.timeline.slice(0, 10);
+---
+<BaseLayout title="Agent Project Control Tower">
+  <section>
+    <h2>Summary</h2>
+    <div class="summary-grid">
+      <StatCard label="Projects" value={s.project_count} />
+      <StatCard label="Agents"   value={s.agent_count} />
+      <StatCard label="Events"   value={s.event_count} />
+      <StatCard label="Green"    value={s.green_count}   colorClass="green" />
+      <StatCard label="Yellow"   value={s.yellow_count}  colorClass="yellow" />
+      <StatCard label="Red"      value={s.red_count}     colorClass="red" />
+      <StatCard label="Blocked"  value={s.blocked_count} colorClass="red" />
+    </div>
+  </section>
+
+  <section>
+    <h2>Projects</h2>
+    <div class="row-list">
+      {tower.projects.map((p) => <ProjectCard project={p} />)}
+    </div>
+  </section>
+
+  <section>
+    <h2>Agents</h2>
+    <div class="row-list">
+      {tower.agents.map((a) => <AgentCard agent={a} />)}
+    </div>
+  </section>
+
+  <section>
+    <h2>Recent activity (newest 10)</h2>
+    <div class="timeline">
+      {recent.map((t) => <TimelineItem entry={t} />)}
+    </div>
+  </section>
+</BaseLayout>
