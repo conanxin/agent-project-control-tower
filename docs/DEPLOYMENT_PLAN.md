@@ -1,6 +1,7 @@
 # Deployment Plan
 
 > 怎么把"Git 仓库里的 events"变成"任何浏览器都能看的 dashboard"。
+> **当前（ACT-4A 之后）**：所有 CI 已写好、文档已就位。**仍未**创建远程仓库、**未** push、**未**部署。下一阶段 ACT-4B 才执行。
 
 ## 0. 设计判断
 
@@ -9,9 +10,9 @@
 - 没有任何 server-side 逻辑
 - 没有数据库
 - 没有用户系统
-- 部署目标：把 `site/dist/` 放到一个 CDN 上
+- 部署目标：把 `apps/dashboard/dist/` 放到一个静态托管平台
 
-候选部署平台对比：
+### 平台候选
 
 | 平台 | 优点 | 缺点 | 推荐度 |
 | --- | --- | --- | --- |
@@ -21,107 +22,142 @@
 | **Vercel** | 类同 Cloudflare | 偏 JS 框架导向 | ⭐⭐⭐ |
 | **自托管（Caddy/Nginx）** | 完全可控 | 要自己维护 HTTPS、CDN | ⭐ |
 
-**推荐 Cloudflare Pages**，理由：
+**首选 Cloudflare Pages**——免费 + CDN + 国内访问体验好。
+**备选 GitHub Pages**——如果不想再多一个 Cloudflare 账户。
 
-1. 已有 Cloudflare 账户（子域名管理顺手）
-2. Free plan 包含 unlimited bandwidth + unlimited requests
-3. 与 GitHub 集成简单，push 触发 deploy
-4. 每次 PR 自动生成 preview URL（适合 ACT-3+ 测试 dashboard 改动）
-5. 国内访问体验比 GitHub Pages 好
+## 1. 当前数据职责划分（ACT-4A 落定）
 
-**次选 GitHub Pages**（如果不想再开 Cloudflare 账户）。
+| 目录 | 角色 | 是否 tracked | 谁读 |
+| --- | --- | --- | --- |
+| `data/` | 本地真实控制塔数据 | ❌ gitignored | 本地 `tower.py` |
+| `examples/` | 脱敏示例数据 / seed | ✅ tracked | `make seed`、CI smoke test |
+| `public-data/` | 准备发布的脱敏快照 | ✅ tracked | 公开 dashboard |
+| `generated/` | 构建产物（index.json） | ❌ gitignored | `apps/dashboard/dist/` 静态 import |
+| `site/index.embedded.html` | 离线双击打开的快照 | ✅ tracked | 离线浏览 / 邮件附件 / CI artifact |
+| `apps/dashboard/dist/` | Astro build 输出 | ❌ gitignored | Cloudflare Pages / GitHub Pages |
 
-## 1. Cloudflare Pages 方案
+**关键不变量**：
 
-### 1.1 一次性配置
+1. `data/` 永远不进入公开仓库——可能含本地真实路径、token、IP
+2. `public-data/` 是**唯一**可发布数据源——必须经过 `scripts/export_public_data.py` 自动 redaction
+3. `generated/index.json` 是**唯一** dashboard 数据源——可由 `data/` 或 `public-data/` 重建
+4. `site/index.embedded.html` 是 `generated/index.json` 的离线副本
+
+## 2. ACT-4A 本地验证流程
+
+在 push GitHub 之前，ACT-4A 已经把所有路径在本地验证过：
+
+```bash
+# 零依赖回归（任何机器任何时候）
+make all
+
+# 公开数据出口 + dashboard 全链路
+make publish-preflight
+# 内部步骤：
+#   1. public-data     → export_public_data.py 从 examples 写到 public-data/
+#   2. public-build    → validate + build 跑 public-data → generated/index.json
+#   3. site-only       → build_embedded_site.py 读 generated/ 写 site/embedded
+#   4. dashboard       → npm run build → apps/dashboard/dist/
+```
+
+`make publish-preflight` 跑完后，**不部署任何东西**——只确认"如果 push 上去、CI 跑出来会是什么样"。
+
+## 3. GitHub Actions CI（已写）
+
+`.github/workflows/ci.yml` 在 push / PR to `main` 触发，**3 个 job**：
+
+| Job | 干什么 | 依赖 |
+| --- | --- | --- |
+| `zero-dep-acceptance` | `make all`（validate + build + testsmoke + clismoke） | — |
+| `astro-dashboard` | `make dashboard`（npm ci + npm run build） | needs zero-dep-acceptance |
+| `publish-preflight` | `make publish-preflight`（public-data → generated → embed → astro） | needs zero-dep-acceptance |
+
+每个 job 上传 artifact 7 天保留——`generated/index.json` (data) / `dashboard-dist` / `public-data-manifest` / `generated/index.json` (public) / `site-embedded-public`。
+
+**为什么** ACT-4A **不**自动部署到 Pages：
+
+- 公开数据策略还没最终确认——examples 是占位数据
+- 用户对 deploy target（Cloudflare vs GitHub Pages）还没决策
+- 自动 deploy 会让 "push 一个 typo" → 公开站点行为异常
+
+## 4. Cloudflare Pages 方案（ACT-4B 决策后启用）
+
+### 4.1 一次性配置
 
 ```bash
 # 1. 登录 Cloudflare Dashboard
 # 2. Workers & Pages → Create application → Pages → Connect to Git
-# 3. 选择 xin/agent-project-control-tower 仓库
-# 4. 配置：
+# 3. 选择 GitHub repo (ACT-4B 创建)
+# 4. 配置（推荐）：
 #    - Project name: agent-control-tower
 #    - Production branch: main
-#    - Build command: (留空，由 GitHub Actions 处理，见 §1.2)
-#    - Build output directory: site/dist
-# 5. 绑定自定义域：control-tower.xin.dev
+#    - Build command:  npm ci && npm run build
+#    - Build output directory: dist
+#    - Root directory:    apps/dashboard
+# 5. 绑定自定义域: control-tower.<your-domain>
 #    - Cloudflare 自动加 CNAME、加 SSL
 ```
 
-### 1.2 Build 在哪跑
+### 4.2 三种 root directory 配置对比
 
-**两条路**：
+| Root directory | Build command | Output directory | 备注 |
+| --- | --- | --- | --- |
+| `apps/dashboard` | `npm ci && npm run build` | `dist` | **推荐**——Astro 自己处理 |
+| repo root | `cd apps/dashboard && npm ci && npm run build` | `apps/dashboard/dist` | 也行——更明确 |
+| 不用——直接让 CI 处理 | — | — | ACT-4A 默认用此模式（CI 跑 `make publish-preflight` + 上传 `apps/dashboard/dist`） |
 
-| 方案 | 优点 | 缺点 |
-| --- | --- | --- |
-| **A. Cloudflare 直接 build** | 配置最少、UI 友好 | 不能跑 Python（要预生成 `site/public/data/index.json`） |
-| **B. GitHub Actions 跑全链路，artifact 推到 Cloudflare** | 灵活、可加测试 | 配置多一步 |
+### 4.3 触发条件
 
-**推荐方案 A**（简化），但需要在 `package.json` 里加一个 `prebuild` 步骤：
-
-```json
-{
-  "scripts": {
-    "build:data": "python ../scripts/build_index.py --output public/data/index.json",
-    "prebuild": "npm run build:data",
-    "build": "astro build"
-  }
-}
-```
-
-> Cloudflare Pages 支持 build command 链式调用；Python 3 默认在 build 环境里。
-
-### 1.3 触发条件
-
-只让"event / registry 变化"触发部署，避免无意义的 rebuild：
+只让"公开数据 / dashboard 源码"变化触发部署：
 
 ```
-Settings → Builds → Configure build → Watch paths:
-  - registry/**
-  - events/**
-  - site/**
+Watch paths:
+  - public-data/**
+  - apps/dashboard/**
   - scripts/**
   - package.json
+  - apps/dashboard/package-lock.json
 ```
 
-`docs/`、`reports/`、`examples/` 变化不触发 dashboard rebuild（它们是给人看的，dashboard 不读）。
+`docs/`、`reports/`、`examples/` 变化不触发 dashboard rebuild（dashboard 不读）。
 
-### 1.4 域名 + HTTPS
+### 4.4 域名 + HTTPS
 
-- **主域**：`control-tower.xin.dev`（CNAME 指向 Cloudflare Pages 默认域）
+- **主域**：`control-tower.<your-domain>`（CNAME 指向 Cloudflare Pages 默认域）
 - **HTTPS**：Cloudflare 自动签发 + 续期
 - **HSTS**：默认开，trust 1 year
 
-### 1.5 监控
+### 4.5 监控（可选）
 
-- **UptimeRobot**（免费）：HTTP HEAD 监控 `https://control-tower.xin.dev/`，5 分钟一次
-- 失败 → Telegram 通知到我个人 chat
-- 监控 endpoint：`/healthz`（ACT-3 加一个静态 HTML 返回 200，仅用于探活）
+- **UptimeRobot**（免费）：HTTP HEAD 监控 `https://control-tower.<your-domain>/`，5 分钟一次
+- 失败 → Telegram 通知
+- 监控 endpoint：`/`（简单可用，因为站点是 SPA-like 多页）
 
-## 2. GitHub Pages 方案（备选）
+## 5. GitHub Pages 方案（备选）
 
 如果不想用 Cloudflare：
 
-### 2.1 配置
+### 5.1 启用 Pages
+
+```bash
+# Settings → Pages → Source = "GitHub Actions"
+```
+
+### 5.2 写 deploy workflow（ACT-4B 时再加）
+
+参考 ACT-4A 的 `ci.yml` 模板，加一个 deploy job：
 
 ```yaml
-# .github/workflows/deploy-pages.yml
-name: deploy-pages
+# .github/workflows/pages.yml  (ACT-4B 才会写)
+name: pages
 on:
   push:
     branches: [main]
-    paths:
-      - 'registry/**'
-      - 'events/**'
-      - 'site/**'
-      - 'scripts/**'
-
 permissions:
   pages: write
   id-token: write
-
 jobs:
-  build-deploy:
+  deploy:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -129,40 +165,43 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: '3.11' }
-      - run: pip install -r scripts/requirements.txt
-      - run: python scripts/build_index.py --output site/public/data/index.json
+        with: { python-version: '3.12' }
+      - run: make publish-preflight
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
-      - run: cd site && npm ci && npm run build
       - uses: actions/configure-pages@v4
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: site/dist
+          path: apps/dashboard/dist
       - id: deployment
         uses: actions/deploy-pages@v4
 ```
 
-### 2.2 访问地址
+### 5.3 访问地址
 
-`https://xin.github.io/agent-project-control-tower/`
+`https://<user>.github.io/<repo>/`
 
-## 3. 部署清单（Deployment Checklist）
+## 6. ACT-4B 部署清单（待用户决策）
 
-ACT-5 阶段执行：
+ACT-4B 执行（**不**是 ACT-4A）：
 
-- [ ] 选 Cloudflare Pages 或 GitHub Pages
-- [ ] 仓库 Settings → Pages → Source = GitHub Actions（如果是 Pages）
-- [ ] Cloudflare Pages 项目创建，绑定 GitHub repo
-- [ ] 自定义域 DNS 配好（CNAME）
-- [ ] `prebuild` 脚本在 `package.json` 配置
-- [ ] Watch paths 配置正确
-- [ ] 第一次 push 触发部署，等待 2 分钟
-- [ ] 访问 `https://control-tower.xin.dev/` 看到 dashboard
-- [ ] UptimeRobot 监控配好
-- [ ] 写一篇 `docs/INCIDENT_RESPONSE.md`：站点挂了怎么办
+- [ ] 决定 deploy target：Cloudflare Pages 还是 GitHub Pages
+- [ ] GitHub 远程仓库创建（命名 + description + topics + LICENSE）
+- [ ] `git remote add origin <url>` + `git push -u origin main`
+- [ ] 如果 Cloudflare Pages：
+  - [ ] 创建 Pages project、绑定 GitHub repo
+  - [ ] 配置 root / build / output
+  - [ ] 配自定义域 DNS
+  - [ ] 第一次部署后 URL 验收
+- [ ] 如果 GitHub Pages：
+  - [ ] 写 `.github/workflows/pages.yml`
+  - [ ] 启用 Pages OIDC
+  - [ ] 第一次部署后 URL 验收
+- [ ] 决定 `public-data/` 数据范围（先 examples 还是从真实 data 导脱敏子集）
+- [ ] 首次在线 dashboard 验收（搜索/筛选/主题切换/移动端）
+- [ ] UptimeRobot 监控（可选）
 
-## 4. 不在 MVP 部署里的
+## 7. 不在 MVP 部署里的
 
 明确**不做**：
 
@@ -170,18 +209,19 @@ ACT-5 阶段执行：
 - ❌ **用户系统 / 登录**：MVP 公开访问
 - ❌ **服务端渲染**：所有页面都 pre-render
 - ❌ **API**：dashboard 拉的是静态 JSON，不是 fetch 实时数据
-- ❌ **WebSocket / Server-Sent Events**：实时性不是 MVP 目标
+- ❌ **WebSocket / SSE**：实时性不是 MVP 目标
 - ❌ **CDN 缓存策略调优**：默认缓存即可
 - ❌ **多 region 部署**：Cloudflare 自动全球
+- ❌ **PR preview**：MVP 不开（Cloudflare Pages 自动开的话可保留）
 
-## 5. 未来扩展：Private Dashboard
+## 8. 未来扩展：Private Dashboard
 
 如果某天有商业项目想用控制塔追踪，但又不能公开：
 
 ### 方案
 
-- 第二个控制塔仓库（私有）`xin-private/agent-project-control-tower-private`
-- 第二个 Cloudflare Pages 项目，绑定 `control-tower-private.xin.dev`
+- 第二个控制塔仓库（私有）`<user>-private/agent-project-control-tower-private`
+- 第二个 Cloudflare Pages 项目，绑定 `control-tower-private.<your-domain>`
 - 启用 Cloudflare Access（zero-trust 登录）—— 输入邮箱 → 收到一次性链接 → 进入
 
 ### 代价
@@ -192,7 +232,7 @@ ACT-5 阶段执行：
 
 **不推荐同时维护公开 + 私有两份**——除非真的有必要。
 
-## 6. 回滚
+## 9. 回滚
 
 如果某次部署炸了：
 
@@ -212,12 +252,12 @@ git push origin main
 # 等 CI 重新跑（2–3 分钟）
 ```
 
-## 7. 成本估算
+## 10. 成本估算
 
 | 项目 | 月成本 |
 | --- | --- |
 | Cloudflare Pages | $0（free tier 无限） |
-| 自定义域 `xin.dev` 子域 | $0（已在 xin.dev 下） |
+| 自定义域 `<your-domain>` 子域 | $0（已在 `<your-domain>` 下） |
 | UptimeRobot 监控 | $0（free tier 50 个 monitor） |
 | **合计** | **$0/月** |
 

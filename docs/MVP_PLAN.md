@@ -2,7 +2,7 @@
 
 > 把"建一个能用的控制塔"拆成 6 个阶段。每个阶段都有明确产出 + 验收标准 + 退出条件。
 >
-> 当前在 **ACT-3B ✅ COMPLETE**。ACT-4 是 GitHub Actions CI 起步。
+> 当前在 **ACT-4A ✅ COMPLETE**。ACT-4B 才是真正创建远程仓库并 push。
 
 ## 全景时间线
 
@@ -15,9 +15,11 @@ ACT-2  ✅ Tower CLI         (2026-06-11, commit 0bfbb70)
   ↓
 ACT-3A ✅ Dashboard shell    (2026-06-11, commit a0d37d4)
   ↓
-ACT-3B ✅ Dashboard UX polish (2026-06-11) ← ACT-4 准备接手
+ACT-3B ✅ Dashboard UX polish (2026-06-11)
   ↓
-ACT-4          GitHub Actions CI
+ACT-4A ✅ CI/CD & publish readiness (2026-06-11) ← ACT-4B 准备接手
+  ↓
+ACT-4B          create GitHub repo, push, enable CI, choose Pages / Cloudflare
   ↓
 ACT-5          真实在线部署 (Cloudflare Pages / GitHub Pages)
   ↓
@@ -247,24 +249,92 @@ CLI SMOKE TEST PASSED
 
 ---
 
-## ACT-4 — GitHub Actions CI
+## ACT-4A — CI/CD & Publish Readiness (本地准备)
 
-> **目标**：每次 push 自动 build + 部署到 staging。
+> **目标**：在 push GitHub 之前，把 CI workflow、public-data 出口、文档全部就位。本阶段**不**创建远程仓库、**不** push。
+>
+> **状态**：✅ COMPLETE。
 
 ### 范围
 
-- [ ] `.github/workflows/build-dashboard.yml`
-- [ ] 触发条件：`push` to `main`，`paths: [registry/**, events/**, scripts/**, site/**]`
-- [ ] 步骤：`checkout` → `setup-python` → `pip install` → `build_index.py` → `setup-node` → `npm ci` → `npm run build`
-- [ ] 产物上传为 artifact（30 天保留）
-- [ ] 失败时通过 issue comment 通知（用 `peter-evans/create-or-update-comment`）
-- [ ] `docs/CI_GUIDE.md` — 怎么改 workflow 不会炸
+- [x] `public-data/` 新建：被公开 dashboard 读取的脱敏数据快照（tracked）
+- [x] `scripts/export_public_data.py`：从 `examples/` 或 `data/` 导出到 `public-data/`，自动 redaction，FAIL 直接拒绝
+- [x] `scripts/{build_index,validate,tower}.py` 增加 `--source public-data`
+- [x] `Makefile` 增加 `public-data` / `public-build` / `site-only` / `publish-preflight`
+- [x] `.github/workflows/ci.yml`：3 jobs（zero-dep acceptance / astro dashboard / publish preflight）
+- [x] 5 篇文档更新（README / DEPLOYMENT_PLAN / OPEN_SOURCE_PLAN / MVP_PLAN / AGENT_WORKFLOW）
+- [x] `reports/PHASE_ACT4A_CICD_PUBLISH_READINESS_REPORT.md`
+
+### 数据职责划分（ACT-4A 落定）
+
+| 目录 | 角色 | 是否 tracked |
+| --- | --- | --- |
+| `data/` | 本地真实控制塔数据 | ❌ gitignored |
+| `examples/` | 脱敏示例数据 / seed | ✅ tracked |
+| `public-data/` | 准备发布的脱敏快照 | ✅ tracked |
+| `generated/` | 构建产物（index.json 等） | ❌ gitignored（CI 重生成） |
+| `site/index.embedded.html` | 离线双击打开的快照 | ✅ tracked |
+| `apps/dashboard/dist/` | Astro build 输出 | ❌ gitignored（CI 上传为 artifact） |
+
+### 为什么不解开 data/ gitignore
+
+ACT-4A 决定**保持 data/ gitignored**——详细分析见 `reports/PHASE_ACT4A_CICD_PUBLISH_READINESS_REPORT.md`。简言之：本地真实数据可能含私密路径、token、IP；公开路径必须经 `export_public_data.py` 强制 redaction。
+
+### 不用（ACT-4A 故意不解决）
+
+- ❌ **不**写 `.github/workflows/pages.yml`——部署在 ACT-4B 决策后再加，避免公开策略未确认就自动上线
+- ❌ **不** push GitHub
+- ❌ **不**创建远程仓库
+- ❌ **不**引入 secrets / tokens
+- ❌ **不**新增 UI 功能（dashboard 已经是 ACT-3B 终态）
+- ❌ **不**重构 ACT-2 数据流
+
+### 验收（实际跑过）
+
+```
+$ make all               # 53/53 PASS
+$ make publish-preflight # PASS
+$ npm run build          # 7 page(s) built in 1.21s (public data → dist)
+$ pre-commit audit       # CLEAN
+```
+
+### 留给 ACT-4B 的桥
+
+- CI workflow 已可工作——ACT-4B 只需要 (a) 选 GitHub Pages 或 Cloudflare Pages (b) 写 `pages.yml` (c) 配 `Settings > Pages` 或 Cloudflare 项目
+- `public-data/` 数据齐全 (2 projects / 3 agents / 3 events from examples)，可立刻作为公开 dashboard 数据源
+- `apps/dashboard/dist/` 已经能完整构建，部署只需上传
+- 0 个 secrets、0 个 IP、0 个私密路径需要清理（pre-commit audit CLEAN）
+
+---
+
+## ACT-4B — Push to GitHub + Choose Hosting (下一步)
+
+> **目标**：ACT-4A 准备就绪后，决策并执行：(1) 创建 GitHub 远程仓库 (2) push (3) 选择 GitHub Pages 或 Cloudflare Pages (4) 启用 CI 公开运行。
+>
+> **状态**：⏸ PENDING（等用户确认进入 ACT-4B）。
+
+### 范围（待 ACT-4B 决定）
+
+- [ ] GitHub 远程仓库创建（命名 + description + topics）
+- [ ] `git remote add origin ...` + `git push -u origin main`
+- [ ] 决定 deploy target：GitHub Pages（免费、简单）vs Cloudflare Pages（CN-friendly、CDN 快）
+- [ ] 写 `.github/workflows/pages.yml`（基于 4A 的 ci.yml 加 deploy job）
+- [ ] 配 deploy credentials（Cloudflare API token 或 GitHub Pages OIDC）
+- [ ] 首次在线 dashboard 验收
+- [ ] 决定是否把 data/ 的脱敏子集手动导出到 public-data/（让真实项目状态可见）
+
+### 决策点
+
+1. **GitHub Pages 还是 Cloudflare Pages**——用户偏好
+2. **public-data/ 数据范围**——先用 examples (2/3/3) 还是手动从 data/ 导出脱敏子集
+3. **是否把 `local-hermes` 这类本地 agent ID 改名**——避免泄露机器信息（推荐保留，仅作 demo）
 
 ### 不用
 
-- ❌ 不做 release workflow
-- ❌ 不做 staging / production 分支分离
-- ❌ 不做 PR preview（Cloudflare Pages 那侧做）
+- ❌ 不引入 secrets / OAuth
+- ❌ 不开 PR preview（除非 Cloudflare Pages 默认开）
+- ❌ 不接 CDN 缓存策略
+- ❌ 不写自动更新 public-data 的 CI job（手动 export 更安全）
 
 ### 验收
 

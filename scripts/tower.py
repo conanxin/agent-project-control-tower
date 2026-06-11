@@ -612,7 +612,7 @@ def cmd_report_release(args: argparse.Namespace) -> int:
 
 def _add_common_source(p: argparse.ArgumentParser) -> None:
     p.add_argument(
-        "--source", choices=("data", "examples"), default="data",
+        "--source", choices=("data", "examples", "public-data"), default="data",
         help="dataset to operate on (default: data)"
     )
 

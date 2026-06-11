@@ -1,0 +1,8 @@
+{
+  "event_count": 3,
+  "registry_files": [
+    "agents.yml",
+    "projects.yml"
+  ],
+  "source": "examples"
+}

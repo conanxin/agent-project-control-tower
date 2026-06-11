@@ -156,8 +156,10 @@ def _timeline(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def build(source: str = "data", root: Path | None = None) -> dict[str, Any]:
-    if source not in ("data", "examples"):
-        raise ValueError(f"source must be 'data' or 'examples', got {source!r}")
+    if source not in ("data", "examples", "public-data"):
+        raise ValueError(
+            f"source must be 'data', 'examples', or 'public-data', got {source!r}"
+        )
     base = root or ROOT
     src_root = base / source
     projects_raw = _load_yaml(src_root / "registry" / "projects.yml")
@@ -198,7 +200,7 @@ def main() -> int:
     p = argparse.ArgumentParser(description="build dashboard data layer")
     p.add_argument(
         "--source",
-        choices=("data", "examples"),
+        choices=("data", "examples", "public-data"),
         default="data",
         help="which dataset to read (default: data)",
     )

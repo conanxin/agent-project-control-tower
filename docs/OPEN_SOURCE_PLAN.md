@@ -124,6 +124,45 @@ python scripts/redaction_check.py --strict
 - **方案 B**：第二份私有控制塔（见 [DEPLOYMENT_PLAN.md §5](DEPLOYMENT_PLAN.md)）
 - **方案 C**：原项目用 private repo，控制塔用 public（控制塔只存 commit SHA + status，不存代码）
 
+### 4.4 ACT-4A 公开数据出口：public-data/ 流程
+
+`public-data/` 是**唯一**可发布的数据源——所有写入都强制经过 redaction：
+
+```bash
+# 默认：从 examples/ 导出（占位数据，无任何真实信息）
+python scripts/export_public_data.py
+
+# 或：从本地 data/ 导出（先 redaction 检查）
+python scripts/export_public_data.py --source data
+
+# dry-run：扫描但不写文件
+python scripts/export_public_data.py --dry-run
+```
+
+工具行为：
+
+- 读源 `registry/*.yml` 的 `id / display_name / operator / machine / repo / location / description` 等字段
+- 读源 `events/*.json` 的 `summary / phase_name / next / source_repo / release_url / reason / failure_reason` 等字段
+- 每个字段过 `scripts/lib/redaction.py` 的 `check_text()`
+- **FAIL**（明显 secret / 真实 home 路径 / 真 token）：直接拒绝写入，返回 exit 1
+- **WARN**（疑似本地路径 / IP）：写入但打印警告
+- **PASS**：静默通过
+
+写入后产出 `public-data/MANIFEST.json` 记录来源 + 文件清单——CI 验证时一眼能看出用了哪份数据。
+
+**关键约束**：
+
+- `data/` 仍 gitignored——本地真实数据**不**进入仓库
+- `public-data/` 提交进仓库——公开 dashboard 直接读它
+- `generated/` 仍由 CI 重建——dashboard dist 永远从 `public-data/` 派生
+- 真实项目接入时，先在 `data/` 调试，确认 redaction 通过，**手动**执行 `export_public_data.py --source data` 把脱敏子集写入 `public-data/`，再 commit
+
+**绝不** 出现：
+
+- `data/` 文件名出现在 `public-data/`
+- `data/` 的 event 摘要原样进 `public-data/`
+- 任何 `data/` 的私密路径 / IP / token 出现在 `public-data/`（被 redaction 拦截）
+
 ## 5. 示例数据必须脱敏
 
 ACT-1 的 `examples/` 目录：

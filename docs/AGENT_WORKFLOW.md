@@ -335,6 +335,54 @@ tower report review \
 
 无需"通知"被复查者——`reviewed-agent` 字段自动指向。
 
+### 3.3 公开数据出口（ACT-4A 新增）
+
+agent 自身**不**直接写 `public-data/`——避免 agent 误把私密信息塞进公开数据。
+
+```
+         ┌────────────────────────────────────────────────────┐
+         │                  AGENT                              │
+         │                                                    │
+agent ─► tower report-phase ─► data/         （本地真实控制塔）│
+         │       (private)      gitignored                   │
+         │                                                    │
+human ─► export_public_data ─► public-data/  （脱敏公开数据）  │
+         │   --source data      tracked                      │
+         │   (re-grep FAIL/WARN 强制脱敏)                     │
+         │                                                    │
+CI     ─► tower build ─────► generated/       (build artifact) │
+         │   --source public-data gitignored                  │
+         │                                                    │
+CF/GP  ─► astro build ─────► apps/dashboard/dist/             │
+         │                  → 静态托管 → 用户浏览器           │
+         └────────────────────────────────────────────────────┘
+```
+
+**为什么 agent 只写 `data/` 而不写 `public-data/`**：
+
+- `data/` 是 agent 工作环境——可能有 `/home/xin/...`、`sk-...` 真实凭据
+- agent 没有能力判断哪些信息"该公开"——它的命令是"如实汇报"
+- `public-data/` 出口由**人**控制——审阅后再 `export_public_data.py --source data`
+- CI 永远从 `public-data/` build——即使 agent 误写 `data/`，公开站点不会受影响
+
+**日常节奏**：
+
+```bash
+# 1. agent 上报（每天多次）
+tower report-phase --project X --agent local-hermes --phase L1 --status PASS \
+  --summary "fixed parser bug" --source-commit abc123
+
+# 2. 准备发布（手动，一次/周）
+export_public_data.py --source data         # 写 public-data/ + MANIFEST.json
+git diff public-data/                        # 人眼 review
+git add public-data/ && git commit -m "..."
+
+# 3. CI 验证（自动，每次 push）
+make publish-preflight                       # 跑 export + validate + build
+```
+
+**绝不** 让 agent 跑 `export_public_data.py`——把"判断哪些可公开"留给人类。
+
 ## 4. 错误恢复模式
 
 ### 4.1 上报错了想撤回

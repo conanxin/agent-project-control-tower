@@ -231,7 +231,7 @@ def main() -> int:
     p = argparse.ArgumentParser(description="validate control tower data")
     p.add_argument(
         "--source",
-        choices=("data", "examples", "both"),
+        choices=("data", "examples", "both", "public-data"),
         default="data",
         help="which dataset to validate (default: data)",
     )

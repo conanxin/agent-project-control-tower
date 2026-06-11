@@ -351,6 +351,84 @@ npm run preview
 | 移动端 | 基础 CSS | 媒体查询优化 |
 | 适用场景 | CI artifact / 邮件附件 / 双击查看 | 真正对外发布 / 个人主页嵌入 |
 
+### ACT-4A CI/CD and Publish Readiness
+
+ACT-4A 在 push GitHub 之前把所有"线上之前需要就位的东西"准备好。本阶段**不**创建远程仓库、**不** push、**不**部署。
+
+**数据职责划分**（ACT-4A 落定）：
+
+| 目录 | 角色 | 是否 tracked |
+| --- | --- | --- |
+| `data/` | 本地真实控制塔数据 | ❌ gitignored |
+| `examples/` | 脱敏示例数据 / seed | ✅ tracked |
+| `public-data/` | 准备发布的脱敏快照 | ✅ tracked |
+| `generated/` | 构建产物（index.json） | ❌ gitignored（CI 重生成） |
+| `site/index.embedded.html` | 离线双击打开的快照 | ✅ tracked |
+| `apps/dashboard/dist/` | Astro build 输出 | ❌ gitignored |
+
+**新增的 4 个东西**：
+
+1. **`public-data/`** — 公开 dashboard 唯一数据源。从 `examples/` 或 `data/` 通过 `export_public_data.py` 强制 redaction 后写入。
+2. **`scripts/export_public_data.py`** — 一行命令导出，自动扫描所有 text 字段，遇到真 secret / 真实 home 路径直接 FAIL 拒绝写入。
+3. **`Makefile` 新 target**：`public-data` / `public-build` / `site-only` / `publish-preflight`。
+4. **`.github/workflows/ci.yml`** — 3 jobs：zero-dep acceptance + astro dashboard + publish preflight。**不**自动部署。
+
+**本地发布前检查**（ACT-4A 起跑）：
+
+```bash
+# 零依赖回归（必须 PASS）
+make all
+
+# 公开数据 → dashboard 全链路验证（不部署任何东西）
+make publish-preflight
+# 内部 4 步：
+#   1. public-data     → export_public_data.py 从 examples 写 public-data/
+#   2. public-build    → validate + build 跑 public-data → generated/index.json
+#   3. site-only       → build_embedded_site.py 读 generated/ 写 site/embedded
+#   4. dashboard       → npm run build → apps/dashboard/dist/
+```
+
+**为什么 ACT-4A 仍不 push GitHub**：
+
+- examples 是占位数据（2 projects / 3 events）——发布前用户可能想用真实项目脱敏子集替换
+- deploy target（Cloudflare Pages vs GitHub Pages）还没决策
+- 自动 deploy 会让 "push typo → 公开站点异常" 成为可能
+- ACT-4B 才是真正创建远程 + push + 选 hosting
+
+**为什么 data/ 仍 gitignored**：
+
+- 本地真实 event 可能含 `/home/xin/...`、`sk-...` token、真实 IP
+- 即使有意写"纯净"data，agent 自动写入时仍可能泄露
+- 公开路径必须**显式**经过 `export_public_data.py` 强校验——git history 一旦 push 不可逆
+- ACT-4A 提供 `public-data/` 作为安全的"出口"——既保留本地真实数据私密，又能让公开 dashboard 工作
+
+**CI 公开运行时会跑什么**（.github/workflows/ci.yml）：
+
+```
+zero-dep-acceptance       → make all
+astro-dashboard           → make dashboard
+publish-preflight         → make publish-preflight
+```
+
+跑通后才算 CI green。**artifact**（7 天保留）：
+
+- `generated/index.json`（data 版）
+- `dashboard-dist`（Astro dist/）
+- `public-data-manifest`（MANIFEST.json）
+- `generated/index.json`（public 版）
+- `site-embedded-public`（embedded HTML）
+
+**agent 工作流**（在 `docs/AGENT_WORKFLOW.md` 详述）：
+
+```
+agent  → tower report-phase  →  data/         (private, gitignored)
+human  → export_public_data  →  public-data/  (sanitized, tracked)
+CI     → tower build public  →  generated/    (build artifact)
+CF/GP  → astro build         →  apps/dashboard/dist/  (deployed)
+```
+
+**绝不**让 agent 直接写 `public-data/`——把"判断哪些可公开"留给人类。
+
 ### ACT-2 关键命令
 
 ```bash
