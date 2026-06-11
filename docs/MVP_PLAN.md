@@ -2,7 +2,7 @@
 
 > 把"建一个能用的控制塔"拆成 6 个阶段。每个阶段都有明确产出 + 验收标准 + 退出条件。
 >
-> 当前在 **ACT-6B ✅ COMPLETE**。ACT-6B 把第二个真实开源项目 `artvee-gallery` 接入公开 dashboard，当前 public-data 为 2 real projects / 1 agent / 11 events。下一阶段：**ACT-6C**（接入第 3 个真实开源项目）或 **ACT-7**（agent 上报模板与多机器使用手册）。
+> 当前在 **ACT-6C ✅ COMPLETE**。ACT-6C 把第三个真实开源项目 `booktrans-desk` 接入公开 dashboard，当前 public-data 为 3 real projects / 1 agent / 14 events。下一阶段：**ACT-7**（agent 上报模板与多机器使用手册）。
 
 ## 全景时间线
 
@@ -21,15 +21,16 @@ ACT-4A ✅ CI/CD & publish readiness (2026-06-11)
   ↓
 ACT-4B ✅ GitHub push (2026-06-11)
   ↓
-ACT-5 ✅ Cloudflare Pages online verification (2026-06-11)
+ACT-5  ✅ Cloudflare Pages online verification (2026-06-11)
   ↓
 ACT-5B ✅ Custom domain bind (2026-06-11)
   ↓
 ACT-6  ✅ First real project public export    (2026-06-11)
   ↓
-ACT-6B ✅ Second real project — Artvee Gallery (2026-06-11) ← 当前阶段
+ACT-6B ✅ Second real project — Artvee Gallery (2026-06-11)
   ↓
-ACT-6C         add 3rd real project
+ACT-6C ✅ Third real project — BookTrans Desk  (2026-06-11) ← 当前阶段
+  ↓
 ACT-7          agent 上报模板与多机器使用手册
 ACT-8+         通知 / 统计 / 修正流 (可选)
 ```

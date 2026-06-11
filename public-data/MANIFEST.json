@@ -2,11 +2,12 @@
   "agent_filter": [
     "local-hermes"
   ],
-  "event_count": 12,
+  "event_count": 14,
   "max_events_per_project": 20,
   "project_filter": [
     "agent-project-control-tower",
-    "artvee-gallery"
+    "artvee-gallery",
+    "booktrans-desk"
   ],
   "registry_files": [
     "agents.yml",

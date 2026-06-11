@@ -296,20 +296,51 @@ python scripts/export_public_data.py \
 - [ ] 已人工 `git diff public-data/` 并显式 `git add`（不用 `git add .`）
 - [ ] 未把 `data/`、`generated/`、`apps/dashboard/dist/` 加入 commit
 
-### 11.6 ACT-6B 当前 public-data 统计
+### 11.6 ACT-6C 当前 public-data 统计
 
 ```json
 {
   "source": "data",
-  "event_count": 11,
-  "project_filter": ["agent-project-control-tower", "artvee-gallery"],
+  "event_count": 14,
+  "project_filter": [
+    "agent-project-control-tower",
+    "artvee-gallery",
+    "booktrans-desk"
+  ],
   "agent_filter": ["local-hermes"],
   "max_events_per_project": 20,
   "repo_prefix": "conanxin"
 }
 ```
 
-11 个 event = agent-project-control-tower 8 个（PROJECT_REGISTERED + ACT-0/1/2/3A/5/5B/6）+ artvee-gallery 3 个（PROJECT_REGISTERED + P2 + P3B）。
+14 个 event = agent-project-control-tower 9 个（PROJECT_REGISTERED + ACT-0/1/2/3A/5/5B/6/6B）+ artvee-gallery 3 个（PROJECT_REGISTERED + P2 + P3B）+ booktrans-desk 2 个（PROJECT_REGISTERED + HP-33）。
+
+### 11.7 3+ 项目公开导出的审核清单
+
+当 `public-data/` 中已有 2 个或以上真实项目时，新增第 3 个及后续项目需额外关注：
+
+- [ ] 确认新项目的 `category` 与已有项目不重复（或重复是预期行为，如多个 `reading-tool`）
+- [ ] 确认新项目的 `repo` 字段不与已有项目冲突
+- [ ] 确认 `--max-events` 截断不会意外删除其他项目的早期关键事件
+- [ ] 确认 `--replace` 模式下，旧项目的 event 文件不会被意外删除
+- [ ] 确认 `public-data/MANIFEST.json` 的 `project_filter` 包含所有预期项目
+- [ ] 确认 dashboard 首页能正确显示 3+ 个项目卡片（无布局溢出）
+- [ ] 确认 timeline 页能正确显示所有项目的 event（无时间线断裂）
+- [ ] 确认每个项目详情页的 URL 可访问（`curl -L` HTTP 200）
+
+### 11.8 多项目并集导出的 Makefile 改进建议
+
+当前 `make public-data-real` 的 `PUBLIC_DATA_PROJECT` 变量只支持单 project。建议 ACT-7 时改为支持多 project：
+
+```makefile
+# 当前（单 project）
+PUBLIC_DATA_PROJECT ?= agent-project-control-tower
+
+# 建议（多 project，空格分隔）
+PUBLIC_DATA_PROJECTS ?= agent-project-control-tower artvee-gallery booktrans-desk
+```
+
+或保持现状，继续使用 `export_public_data.py` 的直接调用（已支持 `--project-id` 重复参数）。
 
 ## 12. 公开发布后的运营
 
@@ -318,9 +349,7 @@ python scripts/export_public_data.py \
 - **监控**：GitHub 的 "secret scanning" 会自动检测，如果推送了 token 会发邮件——收到后立即 rotate
 - **每月一次**：跑 `git log --all -p | grep -E '(api[_-]?key|password|token)'` 审计
 
-## 12. 不开源的备选
-
-如果某天决定**不公开**控制塔仓库：
+## 13. 不开源的备选
 
 - 仍可作为个人"内部工具"长期使用
 - 跳过 ACT-5（不上 Cloudflare Pages）

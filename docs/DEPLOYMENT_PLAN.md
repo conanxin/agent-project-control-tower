@@ -87,6 +87,7 @@ make publish-preflight
 > **ACT-5B 已完成**：custom domain `control-tower.conanxin.com` 绑定并验收。
 > **ACT-6 已完成**：公开数据从 demo `examples/` 2/3/3 升级为 `data/` 真实子集 1/1/7。
 > **ACT-6B 已完成**：公开数据升级为 2 real projects / 1 agent / 11 events（`agent-project-control-tower` + `artvee-gallery`）。
+> **ACT-6C 已完成**：公开数据升级为 3 real projects / 1 agent / 14 events（+ `booktrans-desk`）。
 >
 > - **主入口（custom domain）**：<https://control-tower.conanxin.com/>
 > - **备入口（pages.dev fallback）**：<https://agent-project-control-tower.pages.dev/>
@@ -94,6 +95,7 @@ make publish-preflight
 > - 首次 build command：`npm ci && npm run build`（在 `apps/dashboard/` root dir）
 > - **ACT-6 关键改进**：`npm run build` 现在**自动**从 public-data 重新生成 `generated/index.json`（prebuild 钩子），CF Pages build 不再依赖外部先生成 generated/
 > - **ACT-6B 关键改进**：`export_public_data.py` 支持 `--project-id` 重复参数，一次导出多项目并集
+> - **ACT-6C 关键改进**：验证 3 项目并集导出稳定，dashboard 6 页全部生成（home + timeline + 3 project detail + 1 agent detail）
 > - 部署时间：~30s（CF Pages 首次 build + deploy）
 
 ### 4.1 实际 Cloudflare Pages 配置（ACT-5 落定）
@@ -376,7 +378,50 @@ jobs:
 
 `https://<user>.github.io/<repo>/`
 
-## 6. ACT-6 部署清单（**已完成** —— public data 升级为真实子集 1/1/7、prebuild 钩子生效）
+### 6.2 ACT-6C 部署清单（**已完成** —— 3 real projects / 1 agent / 14 events）
+
+#### 6.2.1 ACT-6C 已完成 ✅
+
+- [x] **从 `data/` 导出 3 项目并集到 `public-data/`**：`agent-project-control-tower` + `artvee-gallery` + `booktrans-desk`
+- [x] **redaction 0 FAIL / 0 WARN**
+- [x] **`make all` PASS**（53/53，data/ 链路）
+- [x] **`make publish-preflight` PASS**（3/1/14，public-data 链路）
+- [x] **`cd apps/dashboard && npm run build` PASS**（6 pages：home + timeline + 3 project detail + 1 agent detail）
+- [x] **pre-commit audit CLEAN**
+- [x] **`tower.py report-phase ACT-6C` 上报到 data/**（PASS / health=green）
+- [x] **README / MVP_PLAN / OPEN_SOURCE_PLAN / AGENT_WORKFLOW / DEPLOYMENT_PLAN 同步更新**
+- [x] **写 ACT-6C 阶段报告**
+
+#### 6.2.2 ACT-6C 已知限制
+
+- ❌ **`make public-data-real` Makefile 变量仍只支持单 project** — 多 project 导出需要直接调用 `export_public_data.py`（已支持 `--project-id` 重复参数）
+- ❌ **未跑在线 URL 验收**（custom domain + pages.dev）—— ACT-6C 范围只验证本地 + 构建链路；在线重新部署由 `git push` 触发
+- ❌ **未配 pages.dev → custom domain 301 redirect** — 沿用 ACT-5B 决策
+- ❌ **HSTS / Web Analytics / UptimeRobot 未配** — 沿用 ACT-5B 限制
+- ❌ **无自定义 404 页** — CF Pages 默认 404
+
+#### 6.2.3 ACT-6C 完整 deploy 流程（已跑通）
+
+**Step 1**: 真实事件上报到 data/
+1. `python scripts/tower.py register-project --project-id booktrans-desk ...`（如未注册）
+2. `python scripts/tower.py report-phase --project-id booktrans-desk --phase-id HP-33 ...`
+
+**Step 2**: 导出 public-data 三项目并集
+1. `python scripts/export_public_data.py --source data --output public-data --project-id agent-project-control-tower --project-id artvee-gallery --project-id booktrans-desk --agent-id local-hermes --max-events 20 --repo-prefix conanxin --replace`
+2. 验证 redaction 0 FAIL
+
+**Step 3**: 验证构建链
+1. `make all` — data 链路 53/53
+2. `make publish-preflight` — public-data 链路 PASS
+3. `cd apps/dashboard && npm run build` — prebuild 钩子从 public-data 重写 generated/
+4. `python /tmp/precommit_audit.py` — CLEAN
+
+**Step 4**: 提交 + push
+1. `git add public-data/ site/ docs/ README.md reports/`
+2. `git commit -m "ACT-6C: publish BookTrans Desk status"`
+3. `git push origin main` → CF Pages 自动 re-deploy，custom domain 30s 内刷新
+
+### 6.3 ACT-6 部署清单（**已完成** —— public data 升级为真实子集 1/1/7、prebuild 钩子生效）
 
 ### 6.1 ACT-6 已完成 ✅
 

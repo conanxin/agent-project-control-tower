@@ -14,4 +14,13 @@
   status: ACTIVE
   description: Open-source art gallery and daily inspiration digest project.
   primary_agent: local-hermes
+- id: booktrans-desk
+  name: BookTrans Desk
+  repo: conanxin/conanxin-homepage
+  location: public
+  category: reading-tool
+  status: ACTIVE
+  description: PDF / EPUB reading, translation, structured extraction and export tool
+    with layout-aware content processing.
+  primary_agent: local-hermes
 

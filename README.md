@@ -5,8 +5,8 @@
 > 🌍 **GitHub**: <https://github.com/conanxin/agent-project-control-tower>（public，ACT-4B 已 push）
 > 🚀 **Online Dashboard (custom domain)**: <https://control-tower.conanxin.com/>（ACT-5B ✅ 已绑 custom domain）
 > 🔁 **Online Dashboard (pages.dev fallback)**: <https://agent-project-control-tower.pages.dev/>（ACT-5 ✅，与 custom domain 服务同一份 dist）
-> 🟢 **状态**: ACT-6B ✅ COMPLETE（公开数据包含两个真实项目：`agent-project-control-tower` + `Artvee Gallery`）
-> ⏸ **下一步**: ACT-6C（接入第 3 个真实开源项目）或 ACT-7（agent 上报模板与多机器使用手册）
+> 🟢 **状态**: ACT-6C ✅ COMPLETE（公开数据包含三个真实项目：`agent-project-control-tower` + `Artvee Gallery` + `BookTrans Desk`）
+> ⏸ **下一步**: ACT-7（agent 上报模板与多机器使用手册）
 
 ---
 
@@ -522,11 +522,12 @@ https://agent-project-control-tower.pages.dev/
 
 || URL | HTTP | 实体可见 |
 || --- | --- | --- |
-|| `/` | 200 | 2 real projects + 1 agent + 11 events |
+|| `/` | 200 | 3 real projects + 1 agent + 14 events |
 || `/timeline/` | 200 | 同上 |
-|| `/projects/agent-project-control-tower/` | 200 | 单项目页 + ACT-6 事件 |
+|| `/projects/agent-project-control-tower/` | 200 | 单项目页 + ACT-6B 事件 |
 || `/projects/artvee-gallery/` | 200 | 单项目页 + P2/P3B 事件 |
-|| `/agents/local-hermes/` | 200 | 单 agent 页 + 关联 2 projects |
+|| `/projects/booktrans-desk/` | 200 | 单项目页 + HP-33 事件 |
+|| `/agents/local-hermes/` | 200 | 单 agent 页 + 关联 3 projects |
 
 **敏感扫描结果**（所有 7 个页面）：
 
@@ -547,23 +548,27 @@ https://agent-project-control-tower.pages.dev/
 || --- | --- |
 || 在线 dashboard（Cloudflare Pages） | ✅ 公开，URL 公开可访问 |
 || 仓库元数据（README / docs / LICENSE） | ✅ 公开 |
-|| `public-data/` (2 real projects / 1 agent / 11 events) | ✅ 公开，**唯一** publish 数据源 |
+|| `public-data/` (3 real projects / 1 agent / 14 events) | ✅ 公开，**唯一** publish 数据源 |
 || `examples/` (sanitized seed) | ✅ 公开 |
 || `data/` (local real control tower) | ❌ gitignored，**仍不公开** |
 || `generated/` (build artifact) | ❌ gitignored，CF Pages 重新 build |
 || `apps/dashboard/dist/` (Astro build) | ❌ gitignored，CF Pages build 输出 |
 
-**当前 public-data 统计**（ACT-6B 后：2 real projects / 1 agent / 11 events）：
+**当前 public-data 统计**（ACT-6C 后：3 real projects / 1 agent / 14 events）：
 
 ```yaml
 projects:
   - agent-project-control-tower  (category=agent-infra, primary_agent=local-hermes)
   - artvee-gallery               (category=art-gallery, primary_agent=local-hermes)
+  - booktrans-desk               (category=reading-tool, primary_agent=local-hermes)
+
 agents:
   - local-hermes                 (machine=local, type=hermes)
+
 events:
-  - agent-project-control-tower: PROJECT_REGISTERED, ACT-0 ~ ACT-6 (8 events)
+  - agent-project-control-tower: PROJECT_REGISTERED, ACT-0 ~ ACT-6B (9 events)
   - artvee-gallery:              PROJECT_REGISTERED, P2 PASS, P3B PASS (3 events)
+  - booktrans-desk:              PROJECT_REGISTERED, HP-33 PASS (2 events)
 ```
 
 **如何更新 public-data 并触发部署**：
@@ -585,11 +590,12 @@ git push origin main
 
 **已知限制**：
 
-- ❌ **demo 数据已替换为真实子集，但仍不是完整 data/** — 想看全部项目进展，需要继续 ACT-6C/ACT-7
+- ❌ **demo 数据已替换为真实子集，但仍不是完整 data/** — 想看全部项目进展，需要继续 ACT-7
 - ❌ **Cloudflare Pages Dashboard 上手动 Connect 完成** — ACT-5 之前用户手动在 cloudflare.com 配了 Root directory / Build command
 - ❌ **无 analytics** — 没有访问量统计，CF Pages 提供的 Web Analytics 也未启用
 - ❌ **无 fallback / 错误页** — 404 由 CF 默认处理，没有自定义
 - ❌ **无 RSS / API** — dashboard 是纯静态，外部不能"订阅"事件流
+- ❌ **`make public-data-real` Makefile 变量仍只支持单 project** — 多 project 导出需要直接调用 `export_public_data.py`（已支持 `--project-id` 重复参数）
 
 **ACT-5 期间发现并修复 / 记录**：
 
@@ -979,6 +985,139 @@ events:
 - ❌ **`make public-data-real` Makefile 变量仍只支持单 project** — 多 project 导出需要直接调用 `export_public_data.py`（已支持 `--project-id` 重复参数）
 - ❌ **未跑在线 URL 验证** — ACT-6B 范围只验证本地 + 构建链路；在线重新部署由 push 触发，CF Pages build 30s 内完成
 - ❌ **artvee-gallery 的 public demo / digest 尚未发布到独立 URL** — 控制塔只展示项目状态，不托管图库原图
+
+### ACT-6C Third Real Project Public Export — BookTrans Desk（**已完成**）
+
+ACT-6C 把第三个真实项目 `booktrans-desk` 接入控制塔公开 dashboard，与 `agent-project-control-tower`、`artvee-gallery` 同时在线展示。
+
+**重大决策点**：
+
+|| 维度 | ACT-6B（2 real） | ACT-6C（3 real） |
+|| --- | --- | --- |
+|| 数据源 | `data/`（多项目脱敏切片） | `data/`（3 项目脱敏切片） |
+|| 公开 projects | 2 real | 3 real（+ `booktrans-desk`） |
+|| 公开 agents | 1 real | 1 real（`local-hermes`） |
+|| 公开 events | 11 real | 14 real（9 + 3 + 2） |
+|| `export_public_data.py` | 多 project 并集导出 | 多 project 并集导出（3 project） |
+|| 真实 `data/` | gitignored | gitignored（**仍不公开**） |
+
+**BookTrans Desk 本地状态来源**：
+
+- 项目目录：`/home/conanxin/workspace/projects/conanxin-homepage/projects/booktrans-desk`
+- 项目页：`index.html`（PDF/EPUB 阅读、翻译、结构化抽取和导出工具）
+- 案例研究：`case-study/index.html`（完整复盘：把阅读从消费变成生产）
+- 最近 commit：`db3825d`（Phase HP-33: Final public launch QA）
+- 当前阶段：HP-33 PASS（Final public launch QA）
+- 下一步：稳定 EPUB 支持、优化大文档性能、探索更多导出格式
+
+**控制塔本地注册与上报命令**：
+
+```bash
+python scripts/tower.py register-project \
+  --project-id booktrans-desk --name "BookTrans Desk" \
+  --repo "conanxin/conanxin-homepage" --location "public" \
+  --category "reading-tool" --status ACTIVE \
+  --description "PDF / EPUB reading, translation, structured extraction and export tool with layout-aware content processing." \
+  --agent-id local-hermes
+
+python scripts/tower.py report-phase \
+  --project-id booktrans-desk --agent-id local-hermes \
+  --phase-id HP-33 --phase-name "Final Public Launch QA" --status PASS \
+  --summary "Completed final public launch QA for BookTrans Desk: project page and case study published at conanxin.com/projects/booktrans-desk/, layout-aware PDF/EPUB reading, translation, structured extraction and Markdown export verified." \
+  --source-repo "conanxin/conanxin-homepage" \
+  --source-commit db3825d437d8b0e4b13c0dd7f022bafe5978ea6e \
+  --next "Stabilize EPUB support, optimize large-document performance, and explore export formats beyond Markdown."
+```
+
+**三项目导出命令**：
+
+```bash
+python scripts/export_public_data.py \
+  --source data --output public-data \
+  --project-id agent-project-control-tower \
+  --project-id artvee-gallery \
+  --project-id booktrans-desk \
+  --agent-id local-hermes --max-events 20 \
+  --repo-prefix conanxin --replace
+# → public-data: 3 projects / 1 agent / 14 events
+# → redaction summary: FAIL=0, WARN=0
+```
+
+**当前 public-data 统计**（ACT-6C 后：3/1/14）：
+
+```yaml
+projects:
+  - id: agent-project-control-tower
+    name: Agent Project Control Tower
+    repo: conanxin/agent-project-control-tower
+    category: agent-infra
+    status: ACTIVE
+    primary_agent: local-hermes
+  - id: artvee-gallery
+    name: Artvee Gallery
+    repo: conanxin/artvee-library
+    location: public
+    category: art-gallery
+    status: ACTIVE
+    primary_agent: local-hermes
+  - id: booktrans-desk
+    name: BookTrans Desk
+    repo: conanxin/conanxin-homepage
+    location: public
+    category: reading-tool
+    status: ACTIVE
+    primary_agent: local-hermes
+
+agents:
+  - id: local-hermes
+    type: hermes
+    machine: local
+    display_name: Local Hermes (notebook)
+    operator: xin
+
+events:
+  agent-project-control-tower:
+    - PROJECT_REGISTERED
+    - ACT-0 PASS
+    - ACT-1 PASS
+    - ACT-2 PASS
+    - ACT-3A PASS
+    - ACT-5 PASS
+    - ACT-5B PASS
+    - ACT-6 PASS
+    - ACT-6B PASS
+  artvee-gallery:
+    - PROJECT_REGISTERED
+    - P2 PASS  (Public Demo Export)
+    - P3B PASS (Daily Inspiration Digest)
+  booktrans-desk:
+    - PROJECT_REGISTERED
+    - HP-33 PASS (Final Public Launch QA)
+```
+
+**`public-data/MANIFEST.json` 升级**：
+
+```json
+{
+  "agent_filter": ["local-hermes"],
+  "event_count": 14,
+  "max_events_per_project": 20,
+  "project_filter": [
+    "agent-project-control-tower",
+    "artvee-gallery",
+    "booktrans-desk"
+  ],
+  "registry_files": ["agents.yml", "projects.yml"],
+  "repo_prefix": "conanxin",
+  "source": "data"
+}
+```
+
+**已知限制**：
+
+- ❌ **`make public-data-real` Makefile 变量仍只支持单 project** — 多 project 导出需要直接调用 `export_public_data.py`（已支持 `--project-id` 重复参数）
+- ❌ **artvee-gallery 的 public demo / digest 尚未发布到独立 URL** — 控制塔只展示项目状态，不托管图库原图
+- ❌ **booktrans-desk 的公开 demo 未独立部署** — 控制塔只展示项目页和案例研究状态
 
 ### ACT-2 关键命令
 
