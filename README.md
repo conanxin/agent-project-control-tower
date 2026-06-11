@@ -526,7 +526,7 @@ https://agent-project-control-tower.pages.dev/
 || `/timeline/` | 200 | 同上 |
 || `/projects/agent-project-control-tower/` | 200 | 单项目页 + ACT-6B 事件 |
 || `/projects/artvee-gallery/` | 200 | 单项目页 + P2/P3B 事件 |
-|| `/projects/booktrans-desk/` | 200 | 单项目页 + HP-33 事件 |
+|| `/projects/booktrans-desk/` | 200 | 单项目页 + S13 事件（ACT-6C hotfix 后） |
 || `/agents/local-hermes/` | 200 | 单 agent 页 + 关联 3 projects |
 
 **敏感扫描结果**（所有 7 个页面）：
@@ -568,7 +568,7 @@ agents:
 events:
   - agent-project-control-tower: PROJECT_REGISTERED, ACT-0 ~ ACT-6B (9 events)
   - artvee-gallery:              PROJECT_REGISTERED, P2 PASS, P3B PASS (3 events)
-  - booktrans-desk:              PROJECT_REGISTERED, HP-33 PASS (2 events)
+  - booktrans-desk:              S13 PARTIAL (1 event; ACT-6C hotfix corrected repo + stage; HP-33 was mis-attributed)
 ```
 
 **如何更新 public-data 并触发部署**：

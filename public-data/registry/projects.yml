@@ -16,11 +16,10 @@
   primary_agent: local-hermes
 - id: booktrans-desk
   name: BookTrans Desk
-  repo: conanxin/conanxin-homepage
+  repo: conanxin/booktrans-desk
   location: public
   category: reading-tool
   status: ACTIVE
-  description: PDF / EPUB reading, translation, structured extraction and export tool
-    with layout-aware content processing.
+  description: Open-source desktop tool for structured PDF and EPUB translation workflows.
   primary_agent: local-hermes
 

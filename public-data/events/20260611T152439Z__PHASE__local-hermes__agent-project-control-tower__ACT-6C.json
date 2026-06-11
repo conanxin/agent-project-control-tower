@@ -1,0 +1,16 @@
+{
+  "agent_id": "local-hermes",
+  "created_at": "2026-06-11T15:24:39Z",
+  "event_id": "f7abf510-35b1-47b2-ab26-36f915903fcf",
+  "event_type": "PHASE_REPORT",
+  "health": "green",
+  "next": "Enter ACT-7: write the multi-machine agent usage playbook.",
+  "phase_id": "ACT-6C",
+  "phase_name": "Third Real Project Public Export",
+  "project_id": "agent-project-control-tower",
+  "source_commit": "eb19c49",
+  "source_commit_url": null,
+  "source_repo": "conanxin/agent-project-control-tower",
+  "status": "PASS",
+  "summary": "Published BookTrans Desk as the third real project in public-data and verified the online dashboard. public-data now contains 3 real projects / 1 agent / 14 events."
+}

@@ -313,7 +313,7 @@ python scripts/export_public_data.py \
 }
 ```
 
-14 个 event = agent-project-control-tower 9 个（PROJECT_REGISTERED + ACT-0/1/2/3A/5/5B/6/6B）+ artvee-gallery 3 个（PROJECT_REGISTERED + P2 + P3B）+ booktrans-desk 2 个（PROJECT_REGISTERED + HP-33）。
+14 个 event = agent-project-control-tower 9 个（PROJECT_REGISTERED + ACT-0/1/2/3A/5/5B/6/6B）+ artvee-gallery 3 个（PROJECT_REGISTERED + P2 + P3B）+ booktrans-desk 1 个（S13；ACT-6C hotfix 后 HP-33 已剔除，repo 改为 conanxin/booktrans-desk）。注：原始 ACT-6C 计数包含 PROJECT_REG + HP-33 共 2 个，hotfix 后为 1 个 S13。
 
 ### 11.7 3+ 项目公开导出的审核清单
 
