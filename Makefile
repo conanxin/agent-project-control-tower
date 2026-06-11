@@ -6,7 +6,7 @@
 PYTHON ?= python3
 
 .PHONY: help seed validate build site site-only dashboard test test-cli clean all reset \
-        public-data public-build publish-preflight
+        public-data public-build public-build-final publish-preflight
 
 help:
 	@echo "make targets:"
@@ -48,7 +48,10 @@ site-only:
 
 # ACT-3B: build polished Astro dashboard. Requires `npm install` (one-time).
 # `make all` deliberately does NOT run this — keeping the zero-dep path.
-dashboard:
+# `dashboard` depends on `build` because Astro's `tower-data.ts` imports
+# `generated/index.json` at build time. The dependency ensures the file
+# exists regardless of how `dashboard` is invoked (locally or in CI).
+dashboard: build
 	@echo "→ npm run build in apps/dashboard/"
 	cd apps/dashboard && npm run build
 
@@ -83,6 +86,14 @@ public-build:
 	@echo "→ build generated/index.json from public-data"
 	$(PYTHON) scripts/tower.py build --source public-data
 
+# public-build-final: same as public-build, but with a different name so
+# `make` doesn't deduplicate it in the publish-preflight chain. Used as
+# the LAST step of publish-preflight to overwrite whatever default-data
+# build `dashboard: build` left in generated/.
+public-build-final:
+	@echo "→ final pass: regenerate generated/index.json from public-data"
+	$(PYTHON) scripts/tower.py build --source public-data
+
 # publish-preflight: end-to-end local verification of the public publish
 # path, without actually deploying. CI runs this on every push.
 # Sequence:
@@ -91,7 +102,11 @@ public-build:
 #   3. regenerate generated/index.json from public-data
 #   4. regenerate site/index.embedded.html (zero-dep public snapshot)
 #   5. build the Astro dashboard dist/ (requires `npm install` once)
-publish-preflight: public-data public-build site-only dashboard
+#   6. (last) re-run public-build so the working tree's generated/
+#      reflects public-data (not data/, which `dashboard: build` rewrote
+#      in step 5). After this target, generated/ and dist/ both
+#      correspond to public-data, which is what gets uploaded/published.
+publish-preflight: public-data public-build site-only dashboard public-build-final
 	@echo ""
 	@echo "==========================================================="
 	@echo "PUBLISH PREFLIGHT: PASS"
