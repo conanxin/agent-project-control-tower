@@ -33,8 +33,9 @@ ACT-6  ✅ First real project public export    (2026-06-11)
 ACT-6B ✅ Second real project — Artvee Gallery (2026-06-11)
   ↓
 ACT-6C ✅ Third real project — BookTrans Desk  (2026-06-11) + ACT-6C hotfix
-ACT-7  ✅ Multi-machine Agent Usage Playbook (2026-06-12) ← 当前阶段
-ACT-8          real multi-agent onboarding trial (planned)
+ACT-7  ✅ Multi-machine Agent Usage Playbook (2026-06-12)
+ACT-8  ✅ Real Multi-agent Onboarding Trial (2026-06-12) ← 当前阶段
+ACT-9          harden automation around recurring public-data exports (planned)
 ```
 
 每个 ACT 的预算：**1–2 周业余时间**，不超过 30 个 commit。
@@ -772,17 +773,73 @@ ACT-7 的目标是**把控制塔从"项目已经能跑"升级为"其他 agent / 
 
 ---
 
+## ACT-8 — Real Multi-agent Onboarding Trial（**已完成**）
+
+ACT-7 写完了 playbook，ACT-8 验证 playbook 是不是真的能被第二个 agent 跑通。试验 agent 是 **cloud-openclaw**（VPS 上的真实 agent，与 local-hermes 跨机器），不是同机多 agent。**完全跨机器**试验 — `git clone` 真实发生；`make all` / `validate` / `register-agent` / `register-project` / `report-review` 全部在 cloud 跑；trial agent 只写自己的 `data/`，从未 push public-data。
+
+**试验路径（trial 实际跑过的步骤）**：
+
+1. trial agent 在 cloud VPS 上 `git clone` 控制塔
+2. trial agent 跑 `make all` → **第一个真实缺口被发现**：`data/` 不存在，validate FAIL
+3. trial agent 用 `cp -r examples data` bootstrap 后重跑 → `make all` PASS
+4. trial agent 跑 `make test` → **第二个真实缺口被发现**：`tests/smoke.py` hardcode `python`，但 box 只有 `python3` → `FileNotFoundError`
+5. trial agent `sudo ln -sf /usr/bin/python3 /usr/local/bin/python` → `make test` PASS
+6. trial agent `register-agent cloud-openclaw`（idempotent：examples 已注册，无副作用）
+7. trial agent 想直接 `report-review` → **第三个真实缺口被发现**：cloud 上 `data/registry/projects.yml` 没有 `agent-project-control-tower`，validate 会 FAIL
+8. trial agent 先 `register-project agent-project-control-tower` → `report-review --target-*` 成功
+9. trial agent 写完 `data/events/20260611T234825Z__REVIEW__cloud-openclaw__agent-project-control-tower__ACT-8-review.json`
+10. trial agent **从未** `git add` 任何东西；**从未**跑 `export_public_data.py`；**从未** push 任何东西
+
+**9 个 trial 真实发现的问题分类**：
+
+| 类别 | 问题 | 是否文档修正 |
+| --- | --- | --- |
+| playbook unclear | `data/` 不存在时 validate FAIL，没提示 bootstrap | 是（AGENT_USAGE §2） |
+| playbook unclear | `make publish-preflight` 是 opt-in，新 agent 可能误以为必做 | 是（AGENT_USAGE §2 + MULTI_MACHINE §4.1） |
+| playbook unclear | trial agent 不知道需先 `register-project` 才能 review 该项目 | 是（AGENT_USAGE §7） |
+| template wrong | `report-review` 不支持 `--source-repo` / `--source-commit` | 是（AGENT_USAGE §7 + report-review.txt） |
+| template wrong | `report-review` 不支持 `--design-reason` / `--impact-analysis` | 是（AGENT_USAGE §7 + report-review.txt） |
+| tool limitation | `tests/smoke.py` hardcode `python`，与 Makefile `$(PYTHON)=python3` 不一致 | 是（workaround 写入 MULTI_MACHINE §4.1） |
+| tool limitation | `validate.py` 在 data/ 缺失时直接 FAIL，不给引导 | 是（bootstrap 步骤写入 AGENT_USAGE §2） |
+| agent mistake | trial agent 第一次 `report-review` 时试加 `--source-*`，被 CLI 拒绝 | 已写入 §7 anti-pattern |
+| agent mistake | trial agent 第一次用 multi-line `\` 命令 + 空格分隔长参数，bash 解析时把多行 join 到一个 arg | 文档中已建议"single-line" |
+
+**未触动**（trial 没踩到的坑，留给后续 act）：
+
+- 多台机器同时 push 冲突的协作（trial 没用 push，所以没测）
+- `data/` 在两台机器间的不一致（trial 的 data/ 在 cloud 上独立存在，local-hermes 用 `scp` 拉一个事件过来，**没有 git 合并 data/**——data/ 一直是 gitignored）
+- 自动化 export 流程（trial agent 没尝试，符合"双门"设计）
+
+**文档修正（最小范围）**：
+
+- `docs/AGENT_USAGE_PLAYBOOK.md` §2 加 bootstrap 步骤 + publish-preflight opt-in note + python alias hint
+- `docs/AGENT_USAGE_PLAYBOOK.md` §7 整个 `report-review` 块重写（移除错误字段，列出实际 CLI 必填项，加 ACT-8 trial notes）
+- `docs/MULTI_MACHINE_SETUP.md` §4.1 加 bootstrap + python alias + publish-preflight opt-in note
+- `templates/telegram/report-review.txt` 全部重写以匹配 CLI 实际参数
+
+**验证**：
+
+- `make all` / `make publish-preflight` / `npm run build` / pre-commit 等效扫描 CLEAN
+- 文档敏感扫描 CLEAN（所有"命中"为预期教学文本）
+- 线上 dashboard 仍正常：3 real projects + 2 agents（local-hermes + cloud-openclaw）+ 16 events（含 ACT-7 + ACT-8-review）
+- ACT-6C 回归检查仍 PASS（booktrans-desk 仍 `conanxin/booktrans-desk` / S13 / 16f38b6 / PARTIAL）
+- working tree clean
+
+详见 `reports/PHASE_ACT8_REAL_MULTI_AGENT_ONBOARDING_TRIAL_REPORT.md`。
+
+---
+
 ## ACT-7+ — Future Optional Enhancements
 
-> ACT-7 完成后讨论的扩展。**不要提前做**。
+> ACT-8 完成后讨论的扩展。**不要提前做**。
 
-- **ACT-7B**（候选）：templates → CLI command generator（`scripts/tower.py cmd ...`）
-- **ACT-8**（候选）：real multi-agent onboarding trial
-- **ACT-9**：统计（`generated/stats.json`、跨项目聚合页）
-- **ACT-10**：错误修正流（`correction` event 真正被 build_index 消费）
-- **ACT-11**：第二份控制塔（私密项目）—— 独立仓库 + 独立域名
-- **ACT-12**：Astro 升级到 v5，引入 view transitions
-- **ACT-13**：被其他人 fork → 写 CONTRIBUTING.md
+- **ACT-7B**（候选）：templates → CLI command generator（`scripts/tower.py cmd ...`）—— ACT-7 评估时优先级低于 ACT-8
+- **ACT-9**（候选）：harden automation around recurring public-data exports——让 `export_public_data.py` 在 CI 上自动跑（需 user 显式批准）
+- **ACT-10**：统计（`generated/stats.json`、跨项目聚合页）
+- **ACT-11**：错误修正流（`correction` event 真正被 build_index 消费）
+- **ACT-12**：第二份控制塔（私密项目）—— 独立仓库 + 独立域名
+- **ACT-13**：Astro 升级到 v5，引入 view transitions
+- **ACT-14**：被其他人 fork → 写 CONTRIBUTING.md
 - **未来**：通知（Discord / Telegram webhook 在 CI 末尾）—— ACT-4A 已决定不引入，避免增加 secret 管理负担
 
 ## 风险控制

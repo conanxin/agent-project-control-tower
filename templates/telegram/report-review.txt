@@ -9,15 +9,16 @@ Run on the agent's own machine, inside the tower repo:
 
 Fill in the placeholders before sending.
 
-  PROJECT_ID       = <PROJECT_ID>
-  AGENT_ID         = <AGENT_ID>
-  PHASE_ID         = <PHASE_ID>           # the phase being reviewed
-  PHASE_NAME       = "<short name>"
-  SUMMARY          = "<what was reviewed and the verdict>"
-  DESIGN_REASON    = "<why this design>"
-  IMPACT_ANALYSIS  = "<what changes if we proceed>"
-  SOURCE_REPO      = <owner>/<repo>
-  SOURCE_COMMIT    = <real commit hash from git log of SOURCE_REPO>
+  PROJECT_ID          = <PROJECT_ID>
+  AGENT_ID            = <AGENT_ID>              # the reviewer
+  PHASE_ID            = <PHASE_ID>              # the reviewer's own phase id
+  PHASE_NAME          = "<short name>"
+  STATUS              = PASS | FAIL | COMMENT_ONLY
+  SUMMARY             = "<what was reviewed + verdict + (optionally) design rationale + impact analysis. Do NOT include real tokens / home paths / IPs / .env refs.>"
+  NEXT                = "<what comes next, no secrets/paths/IPs>"
+  TARGET_AGENT_ID     = <AGENT_ID_BEING_REVIEWED>
+  TARGET_PHASE_ID     = <PHASE_ID_BEING_REVIEWED>
+  TARGET_COMMIT       = <real commit hash of the work being reviewed>
 
 Command:
 
@@ -26,15 +27,28 @@ Command:
     --agent-id         <AGENT_ID> \
     --phase-id         <PHASE_ID> \
     --phase-name       "<short name>" \
-    --summary          "<what was reviewed and the verdict>" \
-    --design-reason    "<why this design>" \
-    --impact-analysis  "<what changes if we proceed>" \
-    --source-repo      "<owner>/<repo>" \
-    --source-commit    <SOURCE_COMMIT>
+    --status           <STATUS> \
+    --summary          "<what was reviewed + verdict>" \
+    --next             "<what comes next>" \
+    --target-agent-id  <TARGET_AGENT_ID> \
+    --target-phase-id  <TARGET_PHASE_ID> \
+    --target-commit    <TARGET_COMMIT>
+
+ACT-8 onboarding trial notes (these are real, not aspirational):
+
+  - `report-review` is the only report-* command that does NOT accept
+    `--source-repo` / `--source-commit`. It uses --target-* instead.
+  - `report-review` does NOT accept --design-reason or --impact-analysis.
+    Put that content in the --summary field.
+  - `report-review` --status accepts PASS / FAIL / COMMENT_ONLY.
+  - If the target project is not yet in data/registry/projects.yml on
+    this machine, register-project first, then write the review. The
+    tower.py write succeeds without it, but `validate` will FAIL
+    after the write if the project is missing from the registry.
 
 Hard rules:
 
   - Do NOT include real tokens, real home paths, real IPs, or .env
-    references in any string field. The scanner will refuse to write.
+    references in --summary. The scanner will refuse to write.
   - Do NOT run git add . in this repo. Always list files explicitly.
   - data/ is gitignored. Do not attempt to commit it.

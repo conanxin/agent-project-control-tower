@@ -56,22 +56,50 @@ your job starts at `public-data/`.
 git clone https://github.com/conanxin/agent-project-control-tower.git
 cd agent-project-control-tower
 
-# 2. Verify the local data path
+# 2. Bootstrap local data/ (gitignored, fresh clone has no data/)
+#    Pick ONE of these two:
+#      (a) start from the curated examples/ seed (sanitized demo data):
+#            python scripts/tower.py seed --force
+#      (b) start from a real local project — register your agent, then
+#          your project, then start reporting.
+#
+#    Without this step, `python scripts/tower.py validate` will fail
+#    with "source dir missing: .../data", and so will `make all` (which
+#    runs validate first). ACT-8 onboarding trial hit this on a fresh
+#    cloud box; the playbook now calls it out explicitly.
+
+# 3. Verify the local data path
 python scripts/tower.py validate
 # expected: OVERALL: PASS
 
-# 3. Verify the public data path
+# 4. Verify the public data path
 python scripts/export_public_data.py --dry-run
 # expected: prints a planned diff, exits 0, writes nothing
 
-# 4. Run the full zero-dep build
+# 5. Run the full zero-dep build
 make all
 # expected: CLI SMOKE TEST PASSED
 
-# 5. (Optional) Build the public Astro dashboard
+# 6. (Optional) Build the public Astro dashboard
 make publish-preflight
 cd apps/dashboard && npm run build && cd ../..
 ```
+
+> **`make publish-preflight` is opt-in.** It is not part of `make all`,
+> and a new agent should not run it as part of onboarding. Only the
+> human reviewer (or a designated "exporter" agent) runs it, and only
+> when there is a real `public-data/` change to ship. ACT-8 onboarding
+> trial hit the assumption "publish-preflight is part of preflight";
+> it is not.
+
+> **The `python` command on Debian/Ubuntu.** `tests/smoke.py` hard-codes
+> the literal `python` while the rest of the build uses `$(PYTHON)=python3`.
+> On a box that does not have `/usr/bin/python` (most modern Debian /
+> Ubuntu), `make test` will fail with `FileNotFoundError: 'python'`.
+> Fix: `sudo ln -s /usr/bin/python3 /usr/local/bin/python` (or use a
+> user-level venv). This is a known tool limitation; ACT-8 trial
+> surfaced it. The recommended fix in the playbook is to add the
+> symlink during machine bootstrap.
 
 ### Hard rules on first-time setup
 
@@ -274,16 +302,47 @@ design review, an audit.
 
 ```bash
 python scripts/tower.py report-review \
-  --project-id <PROJECT_ID> \
-  --agent-id <AGENT_ID> \
-  --phase-id <PHASE_ID> \
-  --phase-name "<short name>" \
-  --summary "<what was reviewed and the verdict>" \
-  --design-reason "<why this design>" \
-  --impact-analysis "<what changes if we proceed>" \
-  --source-repo "<owner>/<repo>" \
-  --source-commit <real commit hash>
+  --project-id       <PROJECT_ID> \
+  --agent-id         <AGENT_ID> \
+  --phase-id         <PHASE_ID> \
+  --phase-name       "<short name>" \
+  --status           PASS|FAIL|COMMENT_ONLY \
+  --summary          "<what was reviewed and the verdict>" \
+  --next             "<what comes next>" \
+  --target-agent-id  <AGENT_ID_BEING_REVIEWED> \
+  --target-phase-id  <PHASE_ID_BEING_REVIEWED> \
+  --target-commit    <commit hash of the work being reviewed>
 ```
+
+### `report-review` specific notes (ACT-8 trial)
+
+- `report-review` is the **only** `report-*` command that does **not**
+  accept `--source-repo` / `--source-commit`. The work being reviewed
+  is described by `--target-agent-id` / `--target-phase-id` /
+  `--target-commit` instead.
+- It also does **not** accept `--design-reason` or `--impact-analysis`.
+  Put that content inside the `--summary` field. (The earlier playbook
+  draft listed those fields; the CLI was simpler. ACT-8 trial caught
+  the mismatch and the template is now aligned with the CLI.)
+- It does **not** require a pre-existing `register-project` for the
+  target project to succeed — but `validate` will fail after the
+  write if the project is not in `data/registry/projects.yml`. If
+  you are reviewing a project that you have not registered locally,
+  run `register-project` first.
+- `--status` accepts `PASS`, `FAIL`, and `COMMENT_ONLY`. `COMMENT_ONLY`
+  is for reviews that do not pass-or-fail (a "noted, no verdict"
+  review).
+
+### Anti-pattern: writing the wrong field shape
+
+`report-review` mirrors the structure of a "review" of someone else's
+work. The reviewer is `agent_id`; the reviewee is `target_agent_id`;
+the work under review is identified by `target_phase_id` and
+`target_commit`. Do **not** put the reviewee's commit in
+`--source-commit` (that field does not exist on `report-review`).
+Do **not** put the design rationale in `--design-reason` (that field
+does not exist either). Put the design rationale at the tail of
+`--summary`.
 
 ---
 

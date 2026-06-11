@@ -4,10 +4,20 @@
   display_name: Local Hermes (notebook)
   operator: xin
   capabilities:
-  - scaffolding
-  - orchestration
-  - long-running
+    - scaffolding
+    - orchestration
+    - long-running
   status: ACTIVE
   registered_at: '2026-06-11T09:00:00Z'
   last_seen_at: '2026-06-11T16:00:00Z'
-
+- id: cloud-openclaw
+  type: openclaw
+  machine: cloud
+  display_name: Cloud OpenClaw (VPS)
+  operator: xin
+  capabilities:
+    - long-running
+    - scraping
+    - deploy
+  status: ACTIVE
+  registered_at: '2026-06-11T09:30:00Z'

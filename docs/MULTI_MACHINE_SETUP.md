@@ -78,6 +78,23 @@ do neither.
 git clone https://github.com/conanxin/agent-project-control-tower.git
 cd agent-project-control-tower
 
+# Bootstrap local data/ (gitignored; fresh clone has none).
+# Pick ONE:
+#   (a) start from curated examples/ seed:
+#         python scripts/tower.py seed --force
+#   (b) start clean — register your agent and project next.
+# ACT-8 trial: without this step, `make all` fails at validate
+# with "source dir missing: .../data".
+
+# Fix the python / python3 mismatch on Debian / Ubuntu:
+#   tests/smoke.py hardcodes the literal `python`; if the box only has
+#   python3, `make test` will fail with FileNotFoundError.
+#   ACT-8 trial surfaced this. Add a symlink once per machine:
+sudo ln -sf /usr/bin/python3 /usr/local/bin/python
+# (or, on a box you cannot sudo, do it under ~/.local/bin and add
+#  ~/.local/bin to PATH; the goal is "python" must resolve to a
+#  Python 3.10+ interpreter).
+
 # Sanity check
 python scripts/tower.py validate     # OVERALL: PASS
 make all                            # CLI SMOKE TEST PASSED
@@ -92,6 +109,12 @@ python scripts/tower.py register-agent \
 
 # You're done. From now on, only report-* commands.
 ```
+
+> **Note on `make publish-preflight`.** It is opt-in and is **not** part
+> of `make all`. Do not run it during onboarding. Only the human
+> reviewer (or a designated "exporter" agent) runs it, and only when
+> there is a real `public-data/` change to ship. ACT-8 trial hit the
+> assumption that publish-preflight is part of preflight; it is not.
 
 ### 4.2 A second agent persona on the same machine
 

@@ -1,0 +1,16 @@
+{
+  "agent_id": "local-hermes",
+  "created_at": "2026-06-11T23:33:57Z",
+  "event_id": "0daf68d1-bba9-4591-835c-7665a3657156",
+  "event_type": "PHASE_REPORT",
+  "health": "green",
+  "next": "Enter ACT-8: run a real multi-agent onboarding trial on another machine or agent.",
+  "phase_id": "ACT-7",
+  "phase_name": "Multi-machine Agent Usage Playbook",
+  "project_id": "agent-project-control-tower",
+  "source_commit": "76fa50d",
+  "source_commit_url": null,
+  "source_repo": "conanxin/agent-project-control-tower",
+  "status": "PASS",
+  "summary": "Added multi-machine usage playbooks, Telegram command templates, and public-data review checklists for repeatable agent onboarding."
+}
