@@ -80,14 +80,17 @@ make publish-preflight
 - 用户对 deploy target（Cloudflare vs GitHub Pages）还没决策
 - 自动 deploy 会让 "push 一个 typo" → 公开站点行为异常
 
-## 4. Cloudflare Pages 方案（**ACT-5 已上线** —— 推荐配置即实际配置）
+## 4. Cloudflare Pages 方案（**ACT-5B 已上线** —— custom domain 已绑定）
 
 > ACT-4B 决策：使用 Cloudflare Pages。仓库 `conanxin/agent-project-control-tower` 已 push。
-> **ACT-5 已完成**：用户手动 Connect to Git，**首次部署已成功**。
+> **ACT-5 已完成**：首次部署到 `*.pages.dev`。
+> **ACT-5B 已完成**：custom domain `control-tower.conanxin.com` 绑定并验收。
 >
-> - 在线 URL：<https://agent-project-control-tower.pages.dev/>
+> - **主入口（custom domain）**：<https://control-tower.conanxin.com/>
+> - **备入口（pages.dev fallback）**：<https://agent-project-control-tower.pages.dev/>
+> - 两个 URL 服务**同一份** dist（更新数据 / re-deploy 时同步刷新）
 > - 首次 build command：`npm ci && npm run build`（在 `apps/dashboard/` root dir）
-> - 部署结果：7 个静态页全 HTTP 200，summary 显示 2 projects / 3 agents / 3 events
+> - 部署结果：custom domain 7/7 URL HTTP 200，summary 显示 2 projects / 3 agents / 3 events
 > - 部署时间：~30s（CF Pages 首次 build + deploy）
 
 ### 4.1 实际 Cloudflare Pages 配置（ACT-5 落定）
@@ -174,9 +177,81 @@ Watch paths:
 
 ### 4.7 监控（可选）
 
-- **UptimeRobot**（免费）：HTTP HEAD 监控 `https://control-tower.<your-domain>/`，5 分钟一次
+- **UptimeRobot**（免费）：HTTP HEAD 监控 `https://control-tower.conanxin.com/`，5 分钟一次
 - 失败 → Telegram 通知
 - 监控 endpoint：`/`（简单可用，因为站点是 SPA-like 多页）
+
+### 4.8 Custom Domain 配置（ACT-5B 已落定）
+
+> **Custom domain 已绑定**（ACT-5B 完成）。7/7 URL HTTP 200。
+
+| 字段 | 值 |
+| --- | --- |
+| Domain | `control-tower.conanxin.com` |
+| 父域 | `conanxin.com`（DNS 已在 Cloudflare 托管） |
+| DNS record 类型 | `CNAME`（Cloudflare Pages 自动创建） |
+| SSL/TLS | Cloudflare 自动签发 + 续期（Universal SSL） |
+| 状态 | Active |
+
+**配置步骤**（实际跑过的）：
+
+1. Cloudflare Dashboard → Workers & Pages → `agent-project-control-tower` project
+2. **Custom domains** tab → **Set up a custom domain**
+3. 输入 `control-tower.conanxin.com` → Continue
+4. Cloudflare 检测到父域 `conanxin.com` 已在托管 → **自动**创建 CNAME 记录
+5. 等待 ~30s（CNAME 传播 + SSL 签发）
+6. 状态显示 **Active**
+
+**Custom domain 与 pages.dev 的关系**：
+
+- Cloudflare Pages 1 个 project = 1 个 dist = N 个 domain
+- 默认 `*.pages.dev` 子域 + custom domain `control-tower.conanxin.com` **同时** 服务同一份 dist
+- 更新数据 → `git push origin main` → CF Pages re-build → 2 个 URL **同步**刷新
+- 流量分配：CF CDN edge 自动处理（user 不感知）
+
+**7 URL 验收结果**（ACT-5B 落定）：
+
+| URL | HTTP | SSR title |
+| --- | --- | --- |
+| `https://control-tower.conanxin.com/` | 200 | "Agent Project Control Tower" |
+| `https://control-tower.conanxin.com/timeline/` | 200 | (timeline) |
+| `https://control-tower.conanxin.com/projects/local-book-tool/` | 200 | "Local Book Tool — ..." |
+| `https://control-tower.conanxin.com/projects/cloud-art-site/` | 200 | "Cloud Art Site — ..." |
+| `https://control-tower.conanxin.com/agents/local-hermes/` | 200 | "Local Hermes (notebook) — ..." |
+| `https://control-tower.conanxin.com/agents/local-codex/` | 200 | "Local Codex (notebook) — ..." |
+| `https://control-tower.conanxin.com/agents/cloud-openclaw/` | 200 | "Cloud OpenClaw (VPS) — ..." |
+
+### 4.9 Pages.dev → Custom Domain 301 Redirect（**未配置**）
+
+> 当前**故意不配** redirect。访问 `*.pages.dev` 直接服务（**不** 301 跳到 custom domain）。
+
+**为什么保留两个 URL 同时服务**：
+
+- `*.pages.dev` 是 fallback——如果 custom domain SSL 过期 / DNS 出问题，`*.pages.dev` 仍可用
+- 已分享出去的旧 URL（之前用 `*.pages.dev` 发给朋友）继续工作
+- 公开 dashboard 不在乎"统一入口"——访客只要能进就行
+
+**如果未来想统一入口**（decision pending）：
+
+Cloudflare Pages → Custom domains → 选中 `agent-project-control-tower.pages.dev` → "Set as primary" 不行（CF Pages **没有**这个选项）。两条可行路径：
+
+1. **Cloudflare Rules**（Dashboard → Rules → Redirect Rules）：
+   ```
+   Source: hostname equals "agent-project-control-tower.pages.dev"
+   Target: https://control-tower.conanxin.com/$1
+   Status: 301
+   ```
+2. **`_redirects` 文件**（Astro 静态资源根）：
+   ```
+   https://agent-project-control-tower.pages.dev/*  https://control-tower.conanxin.com/:splat  301
+   ```
+   Cloudflare Pages 识别 Cloudflare-specific redirect 语法。
+
+**为什么 ACT-5B 不配**：
+
+- MVP 阶段不必要
+- 加 redirect = 加一个 future debug 路径（什么时候被触发？会不会和 SSR 冲突？）
+- 决策保留
 
 ## 5. GitHub Pages 方案（备选）
 
@@ -226,38 +301,40 @@ jobs:
 
 `https://<user>.github.io/<repo>/`
 
-## 6. ACT-5 部署清单（**已完成** —— 首次在线部署已上线、7/7 URL 全 200）
+## 6. ACT-5B 部署清单（**已完成** —— custom domain 已绑定、7/7 URL HTTP 200）
 
-### 6.1 ACT-5 已完成 ✅
+### 6.1 ACT-5B 已完成 ✅
 
-- [x] **Cloudflare Dashboard → Workers & Pages → Create application → Pages → Connect to Git**
-- [x] 选 repo `conanxin/agent-project-control-tower`
-- [x] 配置：root=`apps/dashboard`, build=`npm ci && npm run build`, output=`dist`
-- [x] **Save & Deploy** 成功
-- [x] 首次部署 URL：<https://agent-project-control-tower.pages.dev/> 已公开
+- [x] **Cloudflare Pages → Custom domains → Set up a custom domain**
+- [x] 输入 `control-tower.conanxin.com` → 父域 DNS 自动检测 → CNAME 自动创建
+- [x] SSL/TLS 30s 内签发，状态显示 **Active**
+- [x] **双 URL 同时服务同一份 dist**（custom domain + pages.dev fallback）
 - [x] **本地验证**（`make all` + `make publish-preflight` + `npm run build` + precommit audit）全 PASS
-- [x] **在线验收**（7/7 URL HTTP 200，2/3/3 entity 全可见）
-- [x] **隐私扫描**：0 命中（无 home 路径 / 无 IP / 无 token / 无 smoke 泄漏 / 无 data/ 泄漏）
-- [x] `tower.py report-phase ACT-5` 已写入（PASS / health=green）
+- [x] **在线验收**（custom domain 7/7 URL HTTP 200，2/3/3 entity 全可见）
+- [x] **隐私扫描**：0 命中
+- [x] `tower.py report-phase ACT-5B` 已写入（PASS / health=green）
+- [x] README / DEPLOYMENT_PLAN / MVP_PLAN 同步更新
+- [x] 写 ACT-5B 阶段报告
 
-### 6.2 ACT-5 已知限制
+### 6.2 ACT-5B 已知限制
 
-- ❌ **无自定义域名** — 当前只跑在 `*.pages.dev` 默认子域，未绑 `control-tower.<your-domain>`。下一步 ACT-5B 可选
-- ❌ **demo 数据，不含真实运行 data/** — 当前 public-data/ 只含 examples 导出 (2/3/3)。真实 data/ **仍不公开**。下一步 ACT-6 可选：接入脱敏子集
-- ❌ **无 Web Analytics** — Cloudflare 默认 Analytics 面板有，但未启用 Web Analytics（CF Pages 的新版统计）
+- ❌ **未配 pages.dev → custom domain 301 redirect** — 见 §4.9（决策：保留 fallback）
+- ❌ **HSTS 未显式启用** — Cloudflare 默认 SSL 已生效
+- ❌ **无 Web Analytics** — ACT-5 已知限制
 - ❌ **无自定义 404 页** — CF Pages 默认 404
-- ❌ **build error 通知未配** — 默认只发 CF 账号邮箱，没接 Telegram
 - ❌ **未配置 UptimeRobot** — 当前依赖人工 curl 验证
+- ❌ **demo 数据，不含真实运行 data/** — public-data/ 只含 examples 导出 (2/3/3)。真实 data/ **仍不公开**
 
-### 6.3 ACT-5 故意不做的
+### 6.3 ACT-5B 故意不做的
 
 - ❌ **不**在 CLI 配 Cloudflare API token（避免 token 泄露）
-- ❌ **不**绑自定义域（推到 ACT-5B 决策）
-- ❌ **不**接入真实 data/（推到 ACT-6 决策）
-- ❌ **不**启用 Web Analytics（推到 ACT-5B 或更后）
 - ❌ **不**改 `apps/dashboard/` 任何源码（部署问题一律在 CF Pages UI 解决）
+- ❌ **不**配 pages.dev → custom domain 301 redirect（fallback 安全）
+- ❌ **不**接入真实 data/（推到 ACT-6 决策）
+- ❌ **不**启用 Web Analytics / HSTS（推到 ACT-5C 或更后）
+- ❌ **不**改 public-data 策略（沿用 ACT-4A/5 的"demo only"边界）
 
-### 6.4 ACT-5 完整 deploy 流程（已跑通）
+### 6.4 ACT-5B 完整 deploy 流程（已跑通）
 
 **Step 1**: Cloudflare Dashboard 绑定
 1. https://dash.cloudflare.com/ → Workers & Pages → Create application
@@ -334,17 +411,29 @@ git push origin main
 # 等 CI 重新跑（2–3 分钟）
 ```
 
-## 9.5 ACT-5 实际验收结果（7 URL × HTTP 200）
+## 9.5 ACT-5B custom domain 实际验收结果（7 URL × HTTP 200）
 
-| URL | HTTP | 关键 entity 可见 | 备注 |
+| URL | HTTP | SSR title | 关键内容 |
 | --- | --- | --- | --- |
-| `/` | 200 | 2 projects + 3 agents + 3 events | 首页 summary |
-| `/timeline/` | 200 | 3 events 全部 + agent / project links | timeline 含搜索 / 筛选 |
-| `/projects/local-book-tool/` | 200 | 2 events 关联 | 顶部 health pill + next actions |
-| `/projects/cloud-art-site/` | 200 | 1 event 关联 | 同上 |
-| `/agents/local-hermes/` | 200 | 1 project 关联 | machine pill + event-type breakdown |
-| `/agents/local-codex/` | 200 | 1 project 关联 | 同上 |
-| `/agents/cloud-openclaw/` | 200 | 1 project 关联 | 同上 |
+| `https://control-tower.conanxin.com/` | 200 | "Agent Project Control Tower" | 2 projects + 3 agents + 3 events |
+| `https://control-tower.conanxin.com/timeline/` | 200 | (timeline) | 3 events 完整 SSR（2 PASS + 1 FAIL） |
+| `https://control-tower.conanxin.com/projects/local-book-tool/` | 200 | "Local Book Tool — ..." | L2 FAIL + TypeError/DRM/EPUB crashes summary |
+| `https://control-tower.conanxin.com/projects/cloud-art-site/` | 200 | "Cloud Art Site — ..." | C1 PASS + Static gallery/120 images/sitemap ready |
+| `https://control-tower.conanxin.com/agents/local-hermes/` | 200 | "Local Hermes (notebook) — ..." | machine pill + 1 project 关联 |
+| `https://control-tower.conanxin.com/agents/local-codex/` | 200 | "Local Codex (notebook) — ..." | 同上 |
+| `https://control-tower.conanxin.com/agents/cloud-openclaw/` | 200 | "Cloud OpenClaw (VPS) — ..." | machine=cloud + 1 project 关联 |
+
+**与 ACT-5 pages.dev 验收对比**：
+
+| 维度 | ACT-5 (`*.pages.dev`) | ACT-5B (custom domain) |
+| --- | --- | --- |
+| URL 数 | 7 | 7 |
+| HTTP 200 | 7/7 | 7/7 |
+| SSR title | 正确 | 正确 |
+| 关键内容 | 2/3/3 | 2/3/3（**与 ACT-5 一致**） |
+| Content-Length | 完全相同 | 完全相同（**同 dist**） |
+| Date 响应头 | ~同一秒 | ~同一秒（**同 CDN edge**） |
+| 敏感模式扫描 | 0 命中 | 0 命中 |
 
 **敏感模式扫描结果（0 命中）**：
 

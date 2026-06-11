@@ -3,9 +3,10 @@
 > 一个统一的"项目管理控制塔"——把分散在不同机器、不同 agent 上的多个开源项目，集中到一个 Git 仓库 + 一个静态网页里。
 >
 > 🌍 **GitHub**: <https://github.com/conanxin/agent-project-control-tower>（public，ACT-4B 已 push）
-> 🚀 **Online Dashboard**: <https://agent-project-control-tower.pages.dev/>（ACT-5 ✅ 已上线，**demo data only**）
-> 🟢 **状态**: ACT-5 ✅ COMPLETE（Cloudflare Pages 首次在线部署完成，curl 7/7 URL 全 200）
-> ⏸ **下一步**: ACT-6（接入真实项目脱敏公开状态） **或** ACT-5B（自定义域名）
+> 🚀 **Online Dashboard (custom domain)**: <https://control-tower.conanxin.com/>（ACT-5B ✅ 已绑 custom domain）
+> 🔁 **Online Dashboard (pages.dev fallback)**: <https://agent-project-control-tower.pages.dev/>（ACT-5 ✅，与 custom domain 服务同一份 dist）
+> 🟢 **状态**: ACT-5B ✅ COMPLETE（custom domain 验收 7/7 URL HTTP 200，公开数据仍是 public-data demo only）
+> ⏸ **下一步**: ACT-6（接入真实项目脱敏公开状态）
 
 ---
 
@@ -600,6 +601,108 @@ git push origin main
 
 - `public-data` 与 `data/` 的 build 顺序：`make publish-preflight` 必须最后一步跑 `public-data → build_index.py → generated/index.json`（在 `make dashboard` 之前），否则 Astro build 会拿 stale 的 data 版 index.json。已在 `publish-preflight` final-pass 中显式做。
 - 第一次 `npm run build` 在某些 Linux 环境下需要 `node-gyp` 编译原生模块——Astro 当前没用，所以本仓库没踩坑。记一笔以防后续加依赖。
+
+### ACT-5B Custom Domain Verification（**已完成**）
+
+ACT-5B 把 ACT-5 上的 `*.pages.dev` 默认子域绑到 `control-tower.conanxin.com`，并对 7 个 URL 完整验收。
+
+**在线 URL**：
+
+| 用途 | URL |
+| --- | --- |
+| **Custom domain（主）** | <https://control-tower.conanxin.com/> |
+| **pages.dev fallback（备）** | <https://agent-project-control-tower.pages.dev/> |
+| Timeline | <https://control-tower.conanxin.com/timeline/> |
+| Project: local-book-tool | <https://control-tower.conanxin.com/projects/local-book-tool/> |
+| Project: cloud-art-site | <https://control-tower.conanxin.com/projects/cloud-art-site/> |
+| Agent: local-hermes | <https://control-tower.conanxin.com/agents/local-hermes/> |
+| Agent: local-codex | <https://control-tower.conanxin.com/agents/local-codex/> |
+| Agent: cloud-openclaw | <https://control-tower.conanxin.com/agents/cloud-openclaw/> |
+
+**Cloudflare Pages custom domain 配置**（实际）：
+
+| 字段 | 值 |
+| --- | --- |
+| Domain | `control-tower.conanxin.com` |
+| 父域 | `conanxin.com`（DNS 已在 Cloudflare 托管） |
+| DNS record 类型 | `CNAME`（Cloudflare Pages 自动创建） |
+| SSL/TLS | Cloudflare 自动签发 + 续期（Universal SSL） |
+| 状态 | Active |
+
+**为什么 custom domain 与 pages.dev 服务同一份 dist**：
+
+- Cloudflare Pages 1 个 project 1 个 dist
+- 多个 domain（包括 pages.dev 默认子域 + custom domain）共享同一份静态资源
+- 更新数据 / 重新 build → 2 个 URL 同时刷新
+- 不需要额外配置同步
+
+**7 URL 在线验收结果**（`curl -I -L` + 内容扫描）：
+
+| URL | HTTP | SSR title | 关键内容 |
+| --- | --- | --- | --- |
+| `/` | 200 | "Agent Project Control Tower" | 2 projects + 3 agents + 3 events |
+| `/timeline/` | 200 | (timeline) | 3 events 完整 SSR（2 PASS + 1 FAIL） |
+| `/projects/local-book-tool/` | 200 | "Local Book Tool — ..." | L2 FAIL + TypeError/DRM/EPUB crashes summary |
+| `/projects/cloud-art-site/` | 200 | "Cloud Art Site — ..." | C1 PASS + Static gallery/120 images/sitemap ready |
+| `/agents/local-hermes/` | 200 | "Local Hermes (notebook) — ..." | machine pill + 1 project 关联 |
+| `/agents/local-codex/` | 200 | "Local Codex (notebook) — ..." | 同上 |
+| `/agents/cloud-openclaw/` | 200 | "Cloud OpenClaw (VPS) — ..." | machine=cloud + 1 project 关联 |
+
+**敏感模式扫描结果**（所有 7 个页面，0 命中）：
+
+| 模式 | 命中 |
+| --- | --- |
+| `/home/conanxin/` 真实路径 | 0 |
+| 任何 `/home/<user>/` 路径 | 0 |
+| IPv4 地址 | 0 |
+| `api_key=...` / `token=` / `secret=` / `password=` | 0 |
+| `sk-` / `ghp_` 前缀 | 0 |
+| `~/.ssh/` / `~/.aws/` / `.env` 引用 | 0 |
+| smoke 测试数据 (`smoke-1/2/proj`) | 0 |
+| `data/` 路径泄漏 | 0 |
+
+**当前公开边界**（ACT-5B 落定，与 ACT-5 完全一致）：
+
+| 内容 | 状态 |
+| --- | --- |
+| 在线 dashboard（custom domain `control-tower.conanxin.com`） | ✅ 公开 |
+| 在线 dashboard（pages.dev fallback） | ✅ 公开 |
+| 仓库元数据 | ✅ 公开 |
+| `public-data/` (2/3/3 from examples) | ✅ 公开，**唯一** publish 数据源 |
+| `data/` (local real control tower) | ❌ gitignored，**仍不公开** |
+| `generated/` (build artifact) | ❌ gitignored |
+
+**当前 public-data 统计**（2/3/3）—— 与 ACT-5 相同，未变。
+
+**如何更新数据并触发双域名同步刷新**：
+
+```bash
+# 1) 编辑 public-data/registry/*.yml 或 public-data/events/*.json
+
+# 2) 本地验证
+make publish-preflight
+
+# 3) commit + push — CF Pages 自动 re-deploy
+git add public-data/
+git commit -m "data: ..."
+git push origin main
+# → Cloudflare Pages 30s 内 build
+# → control-tower.conanxin.com 和 *.pages.dev 同时刷新（同一份 dist）
+```
+
+**已知限制**：
+
+- ❌ **未配 pages.dev → custom domain 301 redirect** —— 当前两个 URL 都直接服务；访问 `*.pages.dev` 不会自动跳到 `control-tower.conanxin.com`。
+  - 决策：保留两个 URL（fallback 安全），**不**强 redirect
+  - 未来如果想统一入口：在 Cloudflare Pages → Custom domains → set up redirect rules
+- ❌ **HSTS 未显式启用** —— Cloudflare 默认 SSL 已生效，但未显式加 HSTS 头
+- ❌ **analytics 仍无** —— ACT-5 已知限制，ACT-5B 范围不解决
+- ❌ **data/ 仍不公开** —— ACT-5B 不改 public-data 策略
+
+**ACT-5B 期间发现**：
+
+- custom domain 7 URL 的 `Content-Length` / `Date` / `report-to: cf-nel` 响应头与 pages.dev 7 URL **完全一致**（同 dist、同 CDN edge），证明是**同一份** build 在两个 URL 上
+- `conanxin.com` 父域 DNS 已在 Cloudflare 托管（用户的 conanxin-homepage 项目相关），所以 custom domain 绑定是**零配置**——Cloudflare Pages UI 输入 `control-tower.conanxin.com` 后自动配 CNAME + 签 SSL，~30s 完成
 
 ### ACT-2 关键命令
 

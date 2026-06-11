@@ -2,7 +2,7 @@
 
 > 把"建一个能用的控制塔"拆成 6 个阶段。每个阶段都有明确产出 + 验收标准 + 退出条件。
 >
-> 当前在 **ACT-5 ✅ COMPLETE**。ACT-5 把 ACT-4B 文档化的 Cloudflare Pages 配置变成了真实可访问的在线 dashboard。下一阶段决策：**ACT-6**（接入真实项目脱敏公开状态）**或** **ACT-5B**（自定义域名）。
+> 当前在 **ACT-5B ✅ COMPLETE**。ACT-5B 把 `*.pages.dev` 默认子域绑到了 `control-tower.conanxin.com` 并完成 7/7 URL 验收。下一阶段：**ACT-6**（接入真实项目脱敏公开状态）。
 
 ## 全景时间线
 
@@ -21,9 +21,10 @@ ACT-4A ✅ CI/CD & publish readiness (2026-06-11)
   ↓
 ACT-4B ✅ GitHub push (2026-06-11)
   ↓
-ACT-5 ✅ Cloudflare Pages online verification (2026-06-11) ← 当前阶段
+ACT-5 ✅ Cloudflare Pages online verification (2026-06-11)
   ↓
-ACT-5B (optional)  bind custom domain
+ACT-5B ✅ Custom domain bind (2026-06-11) ← 当前阶段
+  ↓
 ACT-6          Real project integration (5 projects)
 ACT-7+         通知 / 统计 / 修正流 (可选)
 ```
@@ -427,41 +428,99 @@ $ pre-commit audit       # CLEAN
 
 ---
 
-## ACT-5B — Custom Domain Bind（可选，决策中）
+## ACT-5B — Custom Domain Bind（已完成）
 
-> **目标**：把 `*.pages.dev` 默认子域绑到 `control-tower.<your-domain>`。
+> **目标**：把 `*.pages.dev` 默认子域绑到 `control-tower.conanxin.com`，并完成 7 URL 验收。
 >
-> **状态**：⏸ DECISION PENDING（用户决定是否进入 ACT-5B 还是直接进 ACT-6）。
+> **状态**：✅ COMPLETE（2026-06-11）。
+> - **主入口**：<https://control-tower.conanxin.com/>
+> - **备入口**：<https://agent-project-control-tower.pages.dev/>
+> - 两个 URL 服务**同一份** dist。
 >
-> **理由**：默认 `*.pages.dev` 域名已经能完成"分享 URL 给朋友"的 MVP 目标；自定义域名是 brand 升级，但需要先确认：
-> - 你想用哪个主域（conanxin.com? 还是新买一个?）
-> - 子域叫什么（`control-tower`? `tower`? `apct`?）
-> - 域名 DNS 是否已在 Cloudflare 托管
+> **前置条件**（已就位）：
+> - ACT-5 ✅：Cloudflare Pages 已首次部署到 `*.pages.dev`
+> - 父域 `conanxin.com` DNS 已在 Cloudflare 托管
 
-### 范围（ACT-5B 待执行）
+### 实际配置
 
-- [ ] 决策：选主域 + 子域
-- [ ] Cloudflare Pages → Custom domains → Set up a custom domain
-- [ ] 输入 `control-tower.<your-domain>` → 自动配 CNAME + SSL
-- [ ] 验证 https://control-tower.<your-domain>/ 200
-- [ ] （可选）加 HSTS / min TLS 1.2
-- [ ] README / DEPLOYMENT_PLAN 更新新 URL
+| 字段 | 值 |
+| --- | --- |
+| Domain | `control-tower.conanxin.com` |
+| 父域 | `conanxin.com`（DNS 已在 Cloudflare 托管） |
+| DNS record | `CNAME`（Cloudflare Pages 自动创建） |
+| SSL/TLS | Cloudflare 自动签发（Universal SSL） |
+| 状态 | Active |
+
+### 范围（已执行）
+
+- [x] Cloudflare Pages → `agent-project-control-tower` project → Custom domains
+- [x] 输入 `control-tower.conanxin.com` → 父域 DNS 自动检测 → CNAME 自动创建
+- [x] SSL/TLS 30s 内签发，状态显示 **Active**
+- [x] **双 URL 同时服务同一份 dist**（custom domain + pages.dev fallback）
+- [x] 7 URL 在线验收（curl -I -L + 内容 + SSR title + 关键内容验证）
+- [x] 敏感模式扫描 0 命中
+- [x] 验证 local-book-tool 详情页 L2 FAIL / cloud-art-site 详情页 C1 PASS
+- [x] `tower.py report-phase ACT-5B` 上报（PASS / health=green）
+- [x] README / DEPLOYMENT_PLAN / MVP_PLAN 同步更新
+- [x] 写 ACT-5B 阶段报告
+
+### 不用
+
+- ❌ **不**在 CLI 配 Cloudflare API token（沿用 ACT-4B 决策）
+- ❌ **不**配 pages.dev → custom domain 301 redirect（决策：保留 fallback，详见 DEPLOYMENT_PLAN §4.9）
+- ❌ **不**改 `apps/dashboard/` 任何源码
+- ❌ **不**改 public-data 策略（沿用 ACT-4A/5 "demo only" 边界）
+- ❌ **不**启用 Web Analytics / HSTS（推到 ACT-5C 或更后）
+- ❌ **不**接入真实 data/（推到 ACT-6）
 
 ### 验收
 
-- [ ] https://control-tower.<your-domain>/ 200
-- [ ] https://control-tower.<your-domain>/<any page> 200
-- [ ] HSTS / SSL 评级 A+
+- [x] 7/7 URL HTTP 200（curl -I -L）
+- [x] SSR title 全部正确（"Agent Project Control Tower" / "Local Book Tool — ..." / 等）
+- [x] 首页显示 2 projects / 3 agents / 3 events
+- [x] timeline 显示 3 events（2 PASS + 1 FAIL）
+- [x] local-book-tool 详情页含 L2 FAIL summary（TypeError/DRM/EPUB crashes）
+- [x] cloud-art-site 详情页含 C1 PASS summary（Static gallery/120 images/sitemap ready）
+- [x] 3 个 agent 详情页可访问
+- [x] 敏感模式扫描 0 命中
+- [x] `make all` 53/53 PASS
+- [x] `make publish-preflight` PASS
+- [x] `npm run build` 7 pages PASS
+- [x] pre-commit audit CLEAN
 
 ### 退出条件
 
-> 我可以把这个 URL 印在名片 / 简历上。
+> ✅ "我可以把这个 URL 印在名片 / 简历上。"
+
+实际验证：<https://control-tower.conanxin.com/> 公开可访问，SSR title 正确，summary 显示 2 projects / 3 agents / 3 events。CF 自动 SSL 已生效，HSTS 可在 ACT-5C 决定是否启用。
+
+### ACT-5B 期间发现
+
+- custom domain 7 URL 的 `Content-Length` / `Date` 响应头与 pages.dev 7 URL **完全相同**（同 dist、同 CDN edge、同缓存），证明是**同一份** build 在两个 URL 上
+- 父域 `conanxin.com` DNS 已在 Cloudflare 托管（来自用户的 conanxin-homepage 项目）→ custom domain 绑定**零配置**——CF Pages UI 输入子域后自动配 CNAME + 签 SSL，~30s 完成
+- 不需要额外配 redirect 规则——访客用哪个 URL 都能进
 
 ---
 
-## ACT-6 — Real Project Integration
+## ACT-6 — Real Project Integration（**下一步**）
 
 > **目标**：把 5 个真实开源项目接入控制塔。
+>
+> **状态**：⏸ PENDING（等用户确认进入 ACT-6）。
+>
+> **前置条件**（已就位）：
+> - ACT-5B ✅：custom domain `control-tower.conanxin.com` 已绑定，公开 dashboard 已可用
+> - public-data/ 是唯一 publish 数据源；data/ 仍 gitignored
+> - `export_public_data.py` 已就绪（ACT-4A）
+
+### ACT-5B 总结（移交到 ACT-6）
+
+ACT-5B 完成了"对外可分享"的所有基础设施：
+- 公开 dashboard 跑在 custom domain
+- public-data/ 是唯一数据源（demo 2/3/3）
+- 真实 data/ 仍未公开，**由 ACT-6 决定是否升级**
+
+ACT-6 的工作流：选 1 个真实开源项目 → 在 data/ 里跑 1 个真实 phase event → 用 `export_public_data.py` 脱敏导出到 public-data/ → re-deploy → 在 custom domain 看到真实进展。
 
 ### 候选项目
 
@@ -492,6 +551,38 @@ $ pre-commit audit       # CLEAN
 ### 退出条件
 
 > 我不再需要"每周手写 status report"——直接分享 URL。
+
+---
+
+## ACT-5C — Production Hardening（可选，决策中）
+
+> **目标**：在 ACT-5B 已绑 custom domain 之上做 production-grade 增强。
+>
+> **状态**：⏸ DECISION PENDING（用户决定是否进入 ACT-5C 还是直接进 ACT-6）。
+>
+> **理由**：ACT-5B 满足了"对外可分享"的核心需求；ACT-5C 是 brand / 安全 / 可观测性的 polish 阶段。
+
+### 候选范围（ACT-5C 待决策）
+
+| 候选 | 工作量 | 价值 |
+| --- | --- | --- |
+| HSTS 显式启用 | 5 min | SSL 评级 A+ |
+| Web Analytics 启用 | 10 min | 知道谁在看 |
+| UptimeRobot 监控 | 15 min | 挂掉主动通知 |
+| build error → Telegram 通知 | 30 min | 不用查 CF 邮箱 |
+| custom error 404 page | 1 hour | 品牌一致 |
+| pages.dev → custom domain 301 redirect | 30 min | 统一入口 |
+
+### 验收（如果进入 ACT-5C）
+
+- [ ] （按选定的子集）逐项完成
+- [ ] SSL 评级 A+（Qualys / SSL Labs）
+- [ ] 监控：5 分钟一次检测，挂掉 → Telegram
+- [ ] 404 page 显示自定义内容
+
+### 退出条件
+
+> 站点可以"半年不维护也不会无声挂掉"。
 
 ---
 
