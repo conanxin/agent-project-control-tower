@@ -326,6 +326,73 @@ $ python -c "import json; d=json.load(open('generated/index.json')); print(d['su
 
 ---
 
+## 追加 — 第二次 push 修复（commit `85bc02c`）
+
+ACT-4B 第一次 commit `123f861` push 后，CI run `27323575547` 的 `astro-dashboard` 和 `publish-preflight` jobs **FAIL**（之前两个 `zero-dep-acceptance` / PyYAML 修复后 PASS）。
+
+**两个相关 bug**（`make` dependency 与 data/public-data 隔离）：
+
+### Bug 1: `astro-dashboard` job 找不到 `generated/index.json`
+
+```
+Could not resolve "../../../../generated/index.json" from "src/lib/tower-data.ts"
+```
+
+**根因**：`make dashboard` 不依赖 `make build`。CI 跑 `make dashboard` 时 working dir 没有 `generated/index.json`，Astro build 失败。
+
+**修**：
+
+```makefile
+dashboard: build
+	cd apps/dashboard && npm run build
+```
+
+### Bug 2: `publish-preflight` 终态 `generated/index.json` 反映 data/ 而非 public-data/
+
+`publish-preflight: public-data public-build site-only dashboard` 中 `dashboard: build` 在最后一步跑，把刚被 `public-build` 写入的 public-data generated 覆盖成 data default。
+
+`make` 的 DAG 不会重复跑同一 target——所以最初的修法 `publish-preflight: ... dashboard public-build`（重复 `public-build`）无效，因为 make dedupe。
+
+**修**：命名第二个为不同 target `public-build-final`，强制重跑：
+
+```makefile
+public-build-final:
+	$(PYTHON) scripts/tower.py build --source public-data
+
+publish-preflight: public-data public-build site-only dashboard public-build-final
+```
+
+### 第二次 push (`85bc02c`) CI 结果
+
+CI run `27323707379` — **completed success** in 34s
+
+| Job | 状态 | 时间 |
+| --- | --- | --- |
+| `zero-dep-acceptance` | ✅ PASS | 9s |
+| `astro-dashboard` | ✅ PASS | 17s |
+| `publish-preflight` | ✅ PASS | 18s |
+
+**Annotation**：Node.js 20 deprecation warning（不影响功能，2026-09-16 后需升级 actions `@v5` → `@v6`）。
+
+### 完整 8-commit 链
+
+```
+85bc02c fix(Makefile): make dashboard depend on build; publish-preflight final-pass for generated  ← 最新
+123f861 ACT-4B: push GitHub repo and document publish path
+fd9879d ACT-4A: prepare CI and public data publish path
+68c8cd3 ACT-3B: polish dashboard UX
+a0ebbb3 ACT-3B: dashboard UX polish
+a0d37d4 ACT-3A: add Astro dashboard shell
+96fb9ec ACT-2D: dogfood self tracking
+0bfbb70 ACT-2: add tower CLI
+eb08bee ACT-1: build local data flow
+adcd937 ACT-0: design
+```
+
+`git push` 8 commits 全部就位，CI 公开运行全绿，**待 ACT-5 手动连接 Cloudflare Pages**。
+
+---
+
 ## ACT-5 推荐动作
 
 用户在 Cloudflare Dashboard 走以下 5 步：
