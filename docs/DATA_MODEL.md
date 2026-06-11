@@ -10,6 +10,7 @@
 - **可选 vs 必填**：必填用 `required: true` 标记
 - **未知字段**：CI 保留原样渲染（不抛错），但 schema 校验脚本会 warn
 - **schema 版本**：所有 event 顶层带 `schema_version: "1.0.0"`
+- **ACT-2 现场命名**：event_type 大写 snake_case（`PHASE_REPORT` / `REVIEW_REPORT` / `HANDOFF` / `RELEASE` / `AGENT_REGISTERED` / `PROJECT_REGISTERED` / `FAILURE` / `BLOCK` / `UNBLOCK` / `ARCHIVE`）
 
 ---
 
@@ -137,6 +138,47 @@
 ```
 
 > `event_id` 在写入时由脚本生成 UUID v4，保证全局唯一。
+>
+> ACT-2 实际使用 `created_at` 字段（与 ACT-0 的 `event_time` 等价）。validate.py 接受任一名称。
+
+### 3.0 ACT-2 通用字段（所有 event 共有）
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `event_type` | enum | ✓ | 见 §3.0.1 |
+| `event_id` | string (UUID) | ✓ | `tower.py` 自动生成 |
+| `created_at` | ISO 8601 | ✓ | `tower.py` 自动生成 |
+| `project_id` | string | ✓ | 例外：`AGENT_REGISTERED` 可省略 |
+| `agent_id` | string | ✓ | 例外：`PROJECT_REGISTERED` 可省略 |
+| `status` | enum | ✓ | `ACTIVE / PASS / FAIL / PARTIAL / BLOCKED / PAUSED / RELEASED / ARCHIVED` |
+| `health` | enum | ✓ | `green / yellow / red / gray` |
+| `summary` | string | ✓ | 一句话描述（redaction 扫描） |
+| `next` | string \| null | ✗ | 下一步（redaction 扫描） |
+| `next_extra` | string[] | ✗ | 多条 next（仅 `report-phase --next` 多次传入时） |
+| `phase_id` | string | ✗ | 见各 type 要求 |
+| `phase_name` | string | ✗ | human-readable |
+| `source_repo` | string | ✗ | 原项目仓库（redaction 扫描） |
+| `source_commit` | string (SHA) | ✗ | 原项目 commit |
+| `source_commit_url` | string | ✗ | 原项目 commit URL（redaction 扫描） |
+| `design_reason` | string | ✗ | 为什么这么设计（redaction 扫描） |
+| `impact_analysis` | string | ✗ | 影响分析（redaction 扫描） |
+| `checks` | object | ✗ | `{tests: "12/12", duration_minutes: 8}` 等 |
+| `artifacts` | object | ✗ | 类似 checks，更自由 |
+
+#### 3.0.1 event_type 枚举（ACT-2 收敛版）
+
+| event_type | 触发场景 | CLI 子命令 |
+| --- | --- | --- |
+| `AGENT_REGISTERED` | 首次注册一个 agent | `register-agent` |
+| `PROJECT_REGISTERED` | 首次注册一个项目 | `register-project` |
+| `PHASE_REPORT` | 一个阶段完成（无论 PASS/FAIL） | `report-phase` |
+| `FAILURE` | 阶段外的报错（`report-phase` 也会归到这里，**简化版下不再独立用**） | (legacy) |
+| `REVIEW_REPORT` | 复查别人的 phase | `report-review` |
+| `HANDOFF` | 把项目交给另一个 agent | `report-handoff` |
+| `RELEASE` | 发版 | `report-release` |
+| `BLOCK` | 阻塞 | (ACT-3 补 CLI) |
+| `UNBLOCK` | 解除阻塞 | (ACT-3 补 CLI) |
+| `ARCHIVE` | 项目归档 | (ACT-3 补 CLI) |
 
 ### 3.1 Phase Event
 

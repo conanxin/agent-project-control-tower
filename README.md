@@ -152,49 +152,68 @@ agent-project-control-tower/
 │   ├── events/                ← 3 个事件 JSON
 │   └── README.md
 ├── scripts/                   ← ACT-1 起填：build_index, validate, build_embedded_site
-│   ├── lib/
-│   │   └── yaml_mini.py       ← 零依赖 YAML 解析（仅服务当前格式）
-│   ├── validate_examples.py
-│   ├── build_index.py
-│   └── build_embedded_site.py
+├── data/                       ← .gitignore, runtime (CLI writes here)
+│   ├── registry/
+│   │   ├── projects.yml        ← project registration
+│   │   └── agents.yml          ← agent registration
+│   └── events/                 ← append-only event JSON files
+├── examples/                   ← curated seed data (git-tracked)
+│   ├── registry/
+│   ├── events/
+│   └── README.md
+├── scripts/
+│   ├── tower.py                ← ACT-2: unified CLI (10 subcommands)
+│   ├── validate.py             ← --source {data,examples,both}
+│   ├── build_index.py          ← --source {data,examples}
+│   ├── build_embedded_site.py
+│   ├── validate_examples.py    ← thin wrapper for ACT-1 compat
+│   └── lib/
+│       ├── yaml_mini.py        ← zero-dep YAML parser
+│       └── redaction.py        ← ACT-2: lightweight privacy check
 ├── tests/
-│   └── smoke.py               ← ACT-1 验收检查
-├── generated/                 ← .gitignore，由 build 生成
+│   ├── smoke.py                ← ACT-1 acceptance (14 checks)
+│   └── cli_smoke.py            ← ACT-2 CLI smoke (39 checks, isolated temp dir)
+├── generated/                  ← .gitignore, build product
 │   └── index.json
-├── site/                      ← ACT-1 dashboard 静态源
-│   ├── index.html             ← fetch 版本（需 HTTP server）
-│   └── index.embedded.html    ← 内嵌数据版本（双击即可打开）
+├── site/                       ← static dashboard sources
+│   ├── index.html              ← fetch version (needs HTTP server)
+│   └── index.embedded.html     ← inlined data (double-clickable)
 └── reports/
     ├── PHASE_ACT0_PROJECT_DESIGN_REPORT.md
-    └── PHASE_ACT1_LOCAL_DATA_FLOW_REPORT.md
+    ├── PHASE_ACT1_LOCAL_DATA_FLOW_REPORT.md
+    └── PHASE_ACT2_TOWER_CLI_REPORT.md
 ```
 
 ## 当前阶段
 
-**ACT-1：Local Data Flow Prototype** — ✅ COMPLETE
+**ACT-2：Tower CLI and Event Reporting** — ✅ COMPLETE
 
-最小数据流已经跑通：examples 里的 YAML/JSON → `generated/index.json` → `site/index.embedded.html`（双击可看）。
+agent 现在可以用命令直接写进展，**不再**需要手写 event JSON。
+
+### examples/ vs data/
+
+- **`examples/`** — 跟踪在 git 里的"种子数据"：示范性项目/agent/event，文档里也引用
+- **`data/`** — ACT-2 起的"真实运行数据"：被 `.gitignore` 排除，由 `tower.py` 写
+- 第一次 clone 后：跑 `python scripts/tower.py seed --force` 把 examples/ 复制到 data/ 作为起点
+- 测试时：clone 仓库的副本（通过 `TOWER_ROOT` 环境变量）操作 data/，**不污染**你的真实 data/
 
 ### 怎么本地跑一遍
 
-需要 Python 3.10+（仅用标准库，**不**需要 `pip install` 任何东西）。
+需要 Python 3.10+（**仍**只用标准库）。
 
 ```bash
-# 一次性：跑完整流水线
-make all
+# 一次性：初始化 + 跑完整流水线
+make reset && make all
 
-# 或者分步
-make validate   # 校验 examples/projects.yml + agents.yml + events/*.json
-make build      # 生成 generated/index.json
-make site       # 生成 site/index.embedded.html
-make test       # 跑 smoke test（验收检查）
+# 增量
+make seed          # 把 examples/ 复制到 data/（首次或重置）
+make validate      # 跑 validate.py
+make build         # 跑 build_index + embedded site
+make test          # ACT-1 14 项验收
+make test-cli      # ACT-2 CLI smoke (39 项)
 ```
 
 ### 怎么看 dashboard
-
-两种方式，二选一：
-
-**方式 A（最简单）：双击 embedded HTML**
 
 ```bash
 # Linux
@@ -205,59 +224,148 @@ open site/index.embedded.html
 start site/index.embedded.html
 ```
 
-数据已经内嵌在 HTML 里。`file://` 协议下浏览器**不**会发 fetch 请求，所以这版永远能开。
+embedded.html 是双击可看的；如果你用 `python -m http.server`，可以打开 `site/index.html`（fetch 版本）体验另一种风格。
 
-**方式 B（开发调试用）：起本地 HTTP server**
+### ACT-2 关键命令
 
 ```bash
-make build
-python3 -m http.server 8000 --directory .
-# 浏览器打开 http://localhost:8000/site/index.html
+# 1) 注册自己（每台机器 / 每个 agent 一次）
+python scripts/tower.py register-agent \
+  --agent-id local-hermes \
+  --name "Local Hermes" \
+  --machine "local-wsl" \
+  --role "primary-coding-agent"
+
+# 2) 注册项目（每个项目一次）
+python scripts/tower.py register-project \
+  --project-id local-book-tool \
+  --name "Local Book Tool" \
+  --repo "conanxin/local-book-tool" \
+  --location "local" \
+  --category "reading-tool" \
+  --status "ACTIVE" \
+  --description "A local open-source reading tool" \
+  --agent-id local-hermes
+
+# 3) 完成阶段后上报（每次阶段都跑）
+python scripts/tower.py report-phase \
+  --project-id local-book-tool \
+  --agent-id local-hermes \
+  --phase-id L2 \
+  --phase-name "First runnable command" \
+  --status PASS \
+  --summary "Added the first runnable CLI command." \
+  --source-repo conanxin/local-book-tool \
+  --source-commit abc2222 \
+  --next "Enter L3: config file support"
+
+# 4) 失败时用快捷命令
+python scripts/tower.py report-failure \
+  --project-id local-book-tool \
+  --agent-id local-codex \
+  --phase-id L3 \
+  --summary "Config fallback failed when config file is missing." \
+  --failure-reason "Missing config file did not fall back to defaults." \
+  --next "Fix default config fallback."
+
+# 5) 复查别人
+python scripts/tower.py report-review \
+  --project-id cloud-art-site \
+  --agent-id local-hermes \
+  --phase-id C1-review \
+  --status PASS \
+  --summary "Reviewed cloud-openclaw C1 result. Build and homepage passed." \
+  --target-agent-id cloud-openclaw \
+  --target-phase-id C1 \
+  --target-commit def1111
+
+# 6) 交接给另一个 agent
+python scripts/tower.py report-handoff \
+  --project-id local-book-tool \
+  --from-agent-id local-hermes \
+  --to-agent-id local-codex \
+  --current-phase L2 \
+  --reason "L2 requires coding implementation."
+
+# 7) 发版
+python scripts/tower.py report-release \
+  --project-id cloud-art-site \
+  --agent-id cloud-openclaw \
+  --version v0.1.0 \
+  --summary "Released first public static site." \
+  --source-commit def3333 \
+  --release-url "https://github.com/conanxin/cloud-art-site/releases/tag/v0.1.0"
 ```
 
-`site/index.html` 走 `fetch('../generated/index.json')`，需要 HTTP server（`file://` 下 fetch 因 CORS 失败）。
+### 隐私保护（redaction）
 
-### ACT-1 证明了什么
+任何 `report-*` 写入前都会扫文本字段：
 
-- ✅ YAML 配置文件能被零依赖解析成 dict
-- ✅ events/*.json 能被聚合为 project / agent / timeline 三个视图
-- ✅ health 派生（PASS→green / FAIL→red / PARTIAL→yellow）正确
-- ✅ dashboard 能在零框架、零 build tool、零 npm 下双击打开
-- ✅ pipeline 是可重跑的：`make all` 重新生成全套产物
+- **FAIL（拒写）**：明显 token / API key / Authorization Bearer / 私钥 / 私路径
+- **WARN（写但告警）**：`/home/xxx/`、`/Users/xxx/`、`C:\Users\xxx\`、IPv4、`.env` 引用
+- **PASS（静默）**：其他
 
-### ACT-1 还没有做什么
+例子：
 
-- ❌ 没有 `tower` CLI——events 是手写的 JSON 文件
-- ❌ 没有 GitHub Actions——dashboard 不会"自动更新"
-- ❌ 没有 cloud 部署——只能本地看
-- ❌ dashboard 视觉极简——无暗色切换、无动画、无 view transitions
-- ❌ 没有项目详情页、agent 详情页（ACT-1 只有首页）
+```bash
+# 这会 FAIL，不写 event
+python scripts/tower.py report-phase ... \
+  --summary "Tested with api_key=sk-123...abcdef, all ok"
+#  → [FAIL] privacy check failed: [summary] FAIL: credential-like assignment
 
-这些都在 ACT-2 ~ ACT-5 的范围里。
+# 这会 WARN，写 event 但 user 看到警告
+python scripts/tower.py report-phase ... \
+  --summary "Built in /home/ubuntu/notes, all green"
+#  → [WARN] privacy warnings: [summary] WARN: local home path detected
+```
+
+### 上报后为什么需要 git add / git commit
+
+**`tower.py` 永远不会自动 commit 或 push**。设计原因：
+
+- agent 写完 event **不等于** event 正确——可能忘了填 `next`、可能 summary 写错、可能 health 算错
+- 让 agent（或者人）**先** `git status` / `git diff` 看看写了什么，**再**决定 commit
+- 一旦 commit 进 git，就成了"事实"——dashboard 也会显示
+
+典型 git 工作流（agent 完成代码后）：
+
+```bash
+# 1) 在原项目目录：写代码、commit、push
+cd ~/projects/local-book-tool
+git add . && git commit -m "L2: first runnable command"
+git push
+
+# 2) 在控制塔目录：写 event、build、commit、push
+cd ~/workspace/projects/agent-project-control-tower
+python scripts/tower.py report-phase ...     # 写 data/events/*.json
+git status                                   # ← user 必看
+git add data/events/ generated/ site/        # ← 显式 add
+git commit -m "status(local-book-tool): L2 PASS"
+git push
+```
+
+### ACT-2 证明了什么
+
+- ✅ agent 不再需要手写 event JSON——10 个 `tower.py` 子命令覆盖全流程
+- ✅ 隐私检查自动跑：token 拒写、IP/路径 warn-but-write
+- ✅ 项目只注册一次，多个 agent 可以接力同一项目（`report-handoff`）
+- ✅ validate + build 在每次写入后自动跑（user 立即看到新数据）
+- ✅ 临时目录测试不污染真实 data/（`TOWER_ROOT=tmpdir` 模式）
+- ✅ `make all` 一键跑通：validate + build + 14 (smoke) + 39 (cli_smoke) = 53 个验收全过
+
+### ACT-2 还没有做什么
+
+- ❌ GitHub Actions——dashboard 不会"自动更新"（ACT-4）
+- ❌ Cloudflare Pages 部署——只能本地看（ACT-5）
+- ❌ 真正的 `git add` / `git commit` 集成——脚本刻意**不**做（见上）
+- ❌ 项目详情页、agent 详情页——ACT-1/2 仍只有首页
+- ❌ 自动 schema migration——如果未来 event_type 改名，老 event 需手动 migration
 
 ### 关键心法（再读一次）
 
-> **原项目提交代码，控制塔提交进展 event，dashboard 读取控制塔 generated 数据。**
-
-三者关系：
-
-```
-原项目仓库 (local-book-tool)
-   ↓  git push (人类/agent 写代码)
-   ↓
-GitHub 提交历史
-   ↓
-tower report phase --commit <sha>  ← 控制塔只记指针
-   ↓
-控制塔仓库 (agent-project-control-tower)
-   ↓  examples/projects.yml + events/*.json
-   ↓
-generated/index.json  ← 脚本 build 出来的扁平数据
-   ↓
-site/index.embedded.html  ← 浏览器可读
-   ↓
-访客看到的状态
-```
+> **原项目目录负责保存真实代码 commit。控制塔目录负责保存项目进展 event。**
+>
+> **agent 可以在原项目目录完成代码任务，但进展最终要写入控制塔 data/events/。**
 
 控制塔本身**永远不**复制原项目代码。它只存"哪个项目在跑、跑到第几阶段、谁跑的、commit 是多少"。
 

@@ -179,6 +179,26 @@
       font-size: 14px;
       margin-top: 2px;
     }
+    .tl-type {
+      display: inline-block;
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      background: var(--panel-2);
+      color: var(--text-dim);
+    }
+    .tl-type-AGENT_REGISTERED   { background: rgba(96,165,250,0.20); color: #93c5fd; }
+    .tl-type-PROJECT_REGISTERED { background: rgba(96,165,250,0.20); color: #93c5fd; }
+    .tl-type-PHASE_REPORT       { background: rgba(22,163,74,0.20);  color: #4ade80; }
+    .tl-type-REVIEW_REPORT      { background: rgba(234,179,8,0.20);  color: #facc15; }
+    .tl-type-HANDOFF            { background: rgba(148,163,184,0.20); color: #cbd5e1; }
+    .tl-type-RELEASE            { background: rgba(34,197,94,0.25);  color: #86efac; }
+    .tl-type-FAILURE            { background: rgba(220,38,38,0.25);  color: #fca5a5; }
+    .tl-type-BLOCK              { background: rgba(220,38,38,0.25);  color: #fca5a5; }
+    .tl-type-UNBLOCK            { background: rgba(22,163,74,0.20);  color: #4ade80; }
+    .tl-type-ARCHIVE            { background: rgba(148,163,184,0.20); color: #cbd5e1; }
     /* ---- footer / source banner ---- */
     .source-banner {
       font-size: 12px;
@@ -232,7 +252,7 @@
 
 <script>
 // Inlined by build_embedded_site.py for offline / file:// use
-window.__TOWER_DATA__ = {"schema_version": "0.1", "generated_at": "2026-06-11T02:32:17Z", "summary": {"project_count": 2, "agent_count": 3, "event_count": 3, "green_count": 1, "yellow_count": 0, "red_count": 1, "blocked_count": 0}, "projects": [{"project_id": "local-book-tool", "name": "Local Book Tool", "repo": "https://github.com/xin/local-book-tool", "location": "local", "category": "ebook", "current_status": "FAIL", "current_health": "red", "current_phase_id": "L2", "current_phase_name": "L2", "last_agent_id": "local-codex", "last_event_at": "2026-06-11T12:00:00Z", "last_summary": "EPUB to Markdown parser crashes on DRM-protected files (TypeError in opf parser)", "next": "L2-fix: graceful skip DRM files + emit warnings.json", "event_count": 2}, {"project_id": "cloud-art-site", "name": "Cloud Art Site", "repo": "https://github.com/xin/cloud-art-site", "location": "cloud", "category": "art", "current_status": "PASS", "current_health": "green", "current_phase_id": "C1", "current_phase_name": "C1", "last_agent_id": "cloud-openclaw", "last_event_at": "2026-06-11T15:00:00Z", "last_summary": "Static gallery generated, 120 images indexed, sitemap ready", "next": "C2: tag filter UI + lazy load", "event_count": 1}], "agents": [{"agent_id": "local-hermes", "name": "Local Hermes (notebook)", "machine": "local", "role": "scaffolding", "last_event_at": "2026-06-11T10:00:00Z", "last_project_id": "local-book-tool", "event_count": 1}, {"agent_id": "local-codex", "name": "Local Codex (notebook)", "machine": "local", "role": "refactor", "last_event_at": "2026-06-11T12:00:00Z", "last_project_id": "local-book-tool", "event_count": 1}, {"agent_id": "cloud-openclaw", "name": "Cloud OpenClaw (VPS)", "machine": "cloud", "role": "long-running", "last_event_at": "2026-06-11T15:00:00Z", "last_project_id": "cloud-art-site", "event_count": 1}], "timeline": [{"event_id": "9f1a0c12-0000-4000-8000-000000000002", "project_id": "cloud-art-site", "agent_id": "cloud-openclaw", "phase_id": "C1", "phase_name": "C1", "status": "PASS", "summary": "Static gallery generated, 120 images indexed, sitemap ready", "created_at": "2026-06-11T15:00:00Z"}, {"event_id": "9f1a0c12-0000-4000-8000-000000000003", "project_id": "local-book-tool", "agent_id": "local-codex", "phase_id": "L2", "phase_name": "L2", "status": "FAIL", "summary": "EPUB to Markdown parser crashes on DRM-protected files (TypeError in opf parser)", "created_at": "2026-06-11T12:00:00Z"}, {"event_id": "9f1a0c12-0000-4000-8000-000000000001", "project_id": "local-book-tool", "agent_id": "local-hermes", "phase_id": "L1", "phase_name": "L1", "status": "PASS", "summary": "EPUB CLI parser with 18 unit tests passing", "created_at": "2026-06-11T10:00:00Z"}]};
+window.__TOWER_DATA__ = {"schema_version": "0.2", "source": "data", "generated_at": "2026-06-11T03:15:10Z", "summary": {"project_count": 2, "agent_count": 3, "event_count": 3, "green_count": 1, "yellow_count": 0, "red_count": 1, "blocked_count": 0}, "projects": [{"project_id": "local-book-tool", "name": "Local Book Tool", "repo": "https://github.com/xin/local-book-tool", "location": "local", "category": "ebook", "current_status": "FAIL", "current_health": "red", "current_phase_id": "L2", "current_phase_name": "EPUB to Markdown conversion", "last_agent_id": "local-codex", "last_event_at": "2026-06-11T12:00:00Z", "last_event_type": "PHASE_REPORT", "last_summary": "EPUB to Markdown parser crashes on DRM-protected files (TypeError in opf parser)", "next": "L2-fix: graceful skip DRM files + emit warnings.json", "event_count": 2}, {"project_id": "cloud-art-site", "name": "Cloud Art Site", "repo": "https://github.com/xin/cloud-art-site", "location": "cloud", "category": "art", "current_status": "PASS", "current_health": "green", "current_phase_id": "C1", "current_phase_name": "Initial static build", "last_agent_id": "cloud-openclaw", "last_event_at": "2026-06-11T15:00:00Z", "last_event_type": "PHASE_REPORT", "last_summary": "Static gallery generated, 120 images indexed, sitemap ready", "next": "C2: tag filter UI + lazy load", "event_count": 1}], "agents": [{"agent_id": "local-hermes", "name": "Local Hermes (notebook)", "machine": "local", "role": "scaffolding", "last_event_at": "2026-06-11T10:00:00Z", "last_project_id": "local-book-tool", "last_event_type": "PHASE_REPORT", "event_count": 1}, {"agent_id": "local-codex", "name": "Local Codex (notebook)", "machine": "local", "role": "refactor", "last_event_at": "2026-06-11T12:00:00Z", "last_project_id": "local-book-tool", "last_event_type": "PHASE_REPORT", "event_count": 1}, {"agent_id": "cloud-openclaw", "name": "Cloud OpenClaw (VPS)", "machine": "cloud", "role": "long-running", "last_event_at": "2026-06-11T15:00:00Z", "last_project_id": "cloud-art-site", "last_event_type": "PHASE_REPORT", "event_count": 1}], "timeline": [{"event_id": null, "event_type": "PHASE_REPORT", "project_id": "cloud-art-site", "agent_id": "cloud-openclaw", "phase_id": "C1", "phase_name": "Initial static build", "status": "PASS", "health": "green", "summary": "Static gallery generated, 120 images indexed, sitemap ready", "next": "C2: tag filter UI + lazy load", "created_at": "2026-06-11T15:00:00Z"}, {"event_id": null, "event_type": "PHASE_REPORT", "project_id": "local-book-tool", "agent_id": "local-codex", "phase_id": "L2", "phase_name": "EPUB to Markdown conversion", "status": "FAIL", "health": "red", "summary": "EPUB to Markdown parser crashes on DRM-protected files (TypeError in opf parser)", "next": "L2-fix: graceful skip DRM files + emit warnings.json", "created_at": "2026-06-11T12:00:00Z"}, {"event_id": null, "event_type": "PHASE_REPORT", "project_id": "local-book-tool", "agent_id": "local-hermes", "phase_id": "L1", "phase_name": "First runnable CLI", "status": "PASS", "health": "green", "summary": "EPUB CLI parser with 18 unit tests passing", "next": "L2: convert EPUB to Markdown with image extraction", "created_at": "2026-06-11T10:00:00Z"}]};
 </script>
   <script>
     // -------- data loader: try fetch first, fall back to embedded sample ---
@@ -351,15 +371,33 @@ window.__TOWER_DATA__ = {"schema_version": "0.1", "generated_at": "2026-06-11T02
       }
     }
 
+    // Map event_type → a human-friendly label and a color hint
+    const TYPE_LABEL = {
+      "AGENT_REGISTERED":  "AGENT REG",
+      "PROJECT_REGISTERED":"PROJECT REG",
+      "PHASE_REPORT":      "PHASE",
+      "REVIEW_REPORT":     "REVIEW",
+      "HANDOFF":           "HANDOFF",
+      "RELEASE":           "RELEASE",
+      "FAILURE":           "FAILURE",
+      "BLOCK":             "BLOCK",
+      "UNBLOCK":           "UNBLOCK",
+      "ARCHIVE":           "ARCHIVE",
+    };
+
     function renderTimeline(timeline) {
       const wrap = document.getElementById("timeline");
       wrap.innerHTML = "";
       for (const t of timeline) {
-        const item = el("div", { className: "tl-item " + statusHealth(t.status) });
+        const et = t.event_type || "PHASE_REPORT";
+        const lbl = TYPE_LABEL[et] || et;
+        const item = el("div", { className: "tl-item " + (statusHealth(t.status) || typeHealth(et)) });
         item.appendChild(
           el("div", { className: "tl-meta" }, [
+            el("span", { className: "tl-type tl-type-" + et }, lbl),
+            " ",
             (t.created_at || "") + "  ·  " +
-            t.project_id + "  ·  " + t.agent_id +
+            (t.project_id || "(no project)") + "  ·  " + (t.agent_id || "(no agent)") +
             (t.phase_id ? "  ·  " + t.phase_id : "") +
             "  ·  " + t.status,
           ])
@@ -374,6 +412,21 @@ window.__TOWER_DATA__ = {"schema_version": "0.1", "generated_at": "2026-06-11T02
         PASS: "green", FAIL: "red", BLOCKED: "red", PARTIAL: "yellow",
         PAUSED: "gray", SKIPPED: "gray", RELEASED: "green", ACTIVE: "green",
       })[s] || "gray";
+    }
+
+    // Color for events whose status doesn't map (e.g. HANDOFF, REVIEW, RELEASE)
+    function typeHealth(et) {
+      return ({
+        AGENT_REGISTERED:  "green",
+        PROJECT_REGISTERED:"green",
+        REVIEW_REPORT:     "gray",
+        HANDOFF:           "gray",
+        RELEASE:           "green",
+        FAILURE:           "red",
+        BLOCK:             "red",
+        UNBLOCK:           "green",
+        ARCHIVE:           "gray",
+      })[et] || "gray";
     }
 
     // -------------------------------- main -------------------------------

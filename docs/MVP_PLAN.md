@@ -2,18 +2,18 @@
 
 > 把"建一个能用的控制塔"拆成 6 个阶段。每个阶段都有明确产出 + 验收标准 + 退出条件。
 >
-> 当前在 **ACT-0**（设计）。这份文档定义 ACT-1 之后做什么。
+> 当前在 **ACT-2 ✅ COMPLETE**。这份文档定义 ACT-3 之后做什么。
 
 ## 全景时间线
 
 ```
 ACT-0  ✅ 设计与架构        (2026-06-11, commit adcd937)
   ↓
-ACT-1  ✅ 本地数据流原型     (2026-06-11) ← ACT-2 准备接手
+ACT-1  ✅ 本地数据流原型     (2026-06-11, commit eb08bee)
   ↓
-ACT-2          tower CLI (Python)
+ACT-2  ✅ Tower CLI         (2026-06-11) ← ACT-3 准备接手
   ↓
-ACT-3          静态 dashboard (Astro)
+ACT-3          Astro 静态 dashboard
   ↓
 ACT-4          GitHub Actions CI
   ↓
@@ -95,43 +95,92 @@ SMOKE TEST PASSED
 
 > **目标**：把 ACT-1 里的"手写"自动化，让 agent 能用 CLI 写 event。
 
-### 范围
+### 状态：✅ COMPLETE (2026-06-11)
 
-- [ ] `scripts/lib/schema.py` — Pydantic v2 数据模型
-- [ ] `scripts/lib/git_ops.py` — `git pull --rebase` + commit + push 包装
-- [ ] `scripts/lib/redaction.py` — 隐私校验
-- [ ] `scripts/register_agent.py`
-- [ ] `scripts/register_project.py`
-- [ ] `scripts/report_phase.py`
-- [ ] `scripts/report_review.py`
-- [ ] `scripts/report_handoff.py`
-- [ ] `scripts/report_release.py`
-- [ ] `scripts/report_failure.py`
-- [ ] `scripts/report_block.py` / `scripts/report_unblock.py`
-- [ ] `scripts/build_index.py` — 读 `registry/*.yml` + `events/**/*.json` → 写 `generated/index.json`
-- [ ] `scripts/tower` — 入口 shell wrapper（PATH 友好）
-- [ ] `scripts/requirements.txt` — `pydantic>=2`, `pyyaml`, `click`（或 `typer`）
-- [ ] `scripts/tests/` — 至少 6 个单测（schema / redaction / build_index）
+### 范围（最终）
 
-### 不在范围
+- [x] **`scripts/tower.py`** — 统一 CLI，10 个子命令（`validate / build / seed / register-agent / register-project / report-phase / report-failure / report-review / report-handoff / report-release`）
+- [x] **`scripts/lib/redaction.py`** — 隐私校验（轻量规则：FAIL 拒写 / WARN 写但告警 / PASS 静默）
+- [x] **`scripts/lib/yaml_mini.py`** — 零依赖 YAML（ACT-1 已有）
+- [x] **`scripts/validate.py`** — `--source {data,examples,both}`（替换 ACT-1 的 `validate_examples.py`，后者变成 thin wrapper）
+- [x] **`scripts/build_index.py`** — `--source` flag，默认 `data`，可被 `TOWER_ROOT` env 覆盖
+- [x] **`scripts/build_embedded_site.py`** — `--index` / `--template` / `--output` 三 flag
+- [x] **`data/registry/{projects,agents}.yml`** + **`data/events/*.json`** — 新运行时数据目录（`.gitignore`）
+- [x] **`examples/registry/`** — 同期迁移 ACT-0 的 examples 至此对称结构
+- [x] **`tests/cli_smoke.py`** — 39 项 CLI smoke（在临时目录跑，不污染真实 data/）
+- [x] **`Makefile`** — `seed / validate / build / site / test / test-cli / reset / all / clean` 9 个 target
 
-- ❌ 不做 GitHub Actions
-- ❌ 不接真实部署
-- ❌ 不做 dashboard 静态站
-- ❌ 不支持多控制塔仓库切换（一个 env var 就够）
+### 不在范围（保持 ACT-2 极简）
 
-### 验收
+- ❌ **不**用 Click / Typer / argparse-subcommands 之外的 CLI 库——用 stdlib `argparse`
+- ❌ **不**用 Pydantic / dataclasses 之外的数据模型——用 stdlib dict + 手动校验
+- ❌ **不**实现 `block` / `unblock` / `archive` 子命令（ACT-3 补）
+- ❌ **不**写 `git add` / `git commit` / `git push` 集成（刻意不做，详见 [AGENT_WORKFLOW.md §2.5](AGENT_WORKFLOW.md)）
+- ❌ **不**做 GitHub Actions
+- ❌ **不**接真实部署
+- ❌ **不**做 dashboard 静态站优化
+- ❌ **不**支持多控制塔仓库自动发现（`TOWER_ROOT` env var 就够）
 
-- [ ] `tower register-project --id X ...` → 真的写文件 + commit + push
-- [ ] `tower report phase --status FAIL` → 真的写 `events/<date>/...FAIL....json`
-- [ ] `tower build` → 生成 `generated/index.json`，与 ACT-1 手写版结构一致
-- [ ] 故意写一个含 `192.168.1.1` 的 summary → 被 redaction 拒绝
-- [ ] 故意重复 `register-agent --id same` → 被拒绝
-- [ ] `pytest scripts/tests/` → 6+ 测试全绿
+### 实际验收（由 `tests/cli_smoke.py` 强制执行 + `make all` 一键跑通）
 
-### 退出条件
+```
+[ok]  validate clean state
+[ok]  build clean state
+[ok]  generated/index.json exists after build
+[ok]  summary.project_count == 2
+[ok]  register-agent smoke-1
+[ok]  register-agent smoke-1 idempotent (no error)
+[ok]  register-agent smoke-1 reports 'already exists'
+[ok]  register-project smoke-proj
+[ok]  register-project smoke-proj idempotent
+[ok]  report-phase PASS
+[ok]  report-failure (status=FAIL, health=red)
+[ok]  FAILURE event file exists (1 found)
+[ok]  FAILURE event status == FAIL
+[ok]  FAILURE event health == red
+[ok]  FAILURE event has failure_reason
+[ok]  report-review
+[ok]  REVIEW event_type == REVIEW_REPORT
+[ok]  REVIEW event has review_target {agent_id, phase_id}
+[ok]  report-handoff
+[ok]  HANDOFF event_type == HANDOFF
+[ok]  HANDOFF event has to_agent_id == smoke-2
+[ok]  report-release
+[ok]  RELEASE event status == RELEASED
+[ok]  RELEASE event health == green
+[ok]  RELEASE event has release.version == v0.0.1
+[ok]  redaction FAIL returns exit 3 (got 3)
+[ok]  redaction FAIL did NOT write event file
+[ok]  redaction WARN still writes (exit 0)
+[ok]  redaction WARN event file exists
+[ok]  final build
+[ok]  site/index.embedded.html exists
+[ok]  embedded HTML contains __TOWER_DATA__
+[ok]  inline data has 3+ projects (got 3)
+[ok]  timeline has AGENT_REGISTERED
+[ok]  timeline has PROJECT_REGISTERED
+[ok]  timeline has PHASE_REPORT
+[ok]  timeline has REVIEW_REPORT
+[ok]  timeline has HANDOFF
+[ok]  timeline has RELEASE
 
-> 我能对自己说："从现在起，每个新阶段都用 tower CLI 上报，再也不手写 JSON。"
+CLI SMOKE TEST PASSED
+```
+
+加上 ACT-1 14 项 = **总 53 项验收全过**。
+
+### 退出条件（已达成）
+
+> "从现在起，每个新阶段都用 tower CLI 上报，再也不手写 JSON。"
+
+### 留给 ACT-3 的桥
+
+- ACT-1/2 的 `site/index.html` + `site/index.embedded.html` 是**纯静态**（vanilla JS）——ACT-3 引入 Astro 时，先用现有 2 文件作为"reference"再设计组件
+- `generated/index.json` schema 是 ACT-2 收敛的 `0.2` 版本——ACT-3 起所有 page 都消费这个 JSON
+- 缺 `block` / `unblock` / `archive` 3 个 CLI 子命令——ACT-3 补
+- `redaction` 是轻量规则——ACT-3 之前如果发现误报/漏报，**先**加测试再修规则
+
+
 
 ---
 

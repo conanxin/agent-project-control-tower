@@ -2,78 +2,21 @@
 build_index.py — generate the dashboard's data layer.
 
 Reads:
-  examples/projects.yml
-  examples/agents.yml
-  examples/events/*.json
+  <source>/registry/projects.yml
+  <source>/registry/agents.yml
+  <source>/events/*.json
 
 Writes:
   generated/index.json
 
-Output schema (ACT-1 contract):
+The output schema is described in detail in docs/MVP_PLAN.md and
+docs/ARCHITECTURE.md.
 
-{
-  "schema_version": "0.1",
-  "generated_at": "<ISO timestamp>",
-  "summary": {
-    "project_count": int,
-    "agent_count":   int,
-    "event_count":   int,
-    "green_count":   int,
-    "yellow_count":  int,
-    "red_count":     int,
-    "blocked_count": int
-  },
-  "projects": [ { ... see ProjectRecord below ... } ],
-  "agents":   [ { ... see AgentRecord   below ... } ],
-  "timeline": [ { ... see TimelineEntry below ... } ]
-}
-
-ProjectRecord
--------------
-{
-  "project_id":        str,
-  "name":              str,
-  "repo":              str,
-  "location":          "local" | "cloud" | "mixed",
-  "category":          str (from topics[0] or "uncategorized"),
-  "current_status":    str (last phase status or registry status),
-  "current_health":    "green" | "yellow" | "red" | "gray",
-  "current_phase_id":  str | null,
-  "current_phase_name": str | null,
-  "last_agent_id":     str | null,
-  "last_event_at":     str | null,
-  "last_summary":      str | null,
-  "next":              str | null,
-  "event_count":       int
-}
-
-AgentRecord
------------
-{
-  "agent_id":       str,
-  "name":           str,
-  "machine":        "local" | "cloud" | "ci",
-  "role":           str (from capabilities[0] or type),
-  "last_event_at":  str | null,
-  "last_project_id": str | null,
-  "event_count":    int
-}
-
-TimelineEntry
--------------
-{
-  "event_id":     str,
-  "project_id":   str,
-  "agent_id":     str,
-  "phase_id":     str | null,
-  "phase_name":   str | null,
-  "status":       str,
-  "summary":      str,
-  "created_at":   str (alias of event_time)
-}
+--source {data,examples}  default: data
 """
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from collections import Counter
@@ -87,21 +30,20 @@ sys.path.insert(0, str(HERE / "lib"))
 from yaml_mini import load as load_yaml  # noqa: E402
 
 ROOT = HERE.parent
-EXAMPLES = ROOT / "examples"
-EVENTS_DIR = EXAMPLES / "events"
 OUT = ROOT / "generated" / "index.json"
 
-SCHEMA_VERSION = "0.1"
+SCHEMA_VERSION = "0.2"
 
-# Health derivation table — matches docs/DATA_MODEL.md §4
-HEALTH_FROM_STATUS = {
+# Health can come from the event's own `health` field (preferred) or be
+# derived from `status` if missing.
+HEALTH_FROM_STATUS: dict[str, str] = {
     "PASS": "green",
     "FAIL": "red",
     "BLOCKED": "red",
     "PARTIAL": "yellow",
     "PAUSED": "gray",
     "SKIPPED": "gray",
-    "ACTIVE": "green",  # registry status
+    "ACTIVE": "green",
     "RELEASED": "green",
     "ARCHIVED": "gray",
 }
@@ -118,64 +60,52 @@ def _load_yaml(path: Path) -> list[dict[str, Any]]:
     return data if isinstance(data, list) else []
 
 
-def _load_events() -> list[dict[str, Any]]:
+def _load_events(events_dir: Path) -> list[dict[str, Any]]:
     events: list[dict[str, Any]] = []
-    for p in sorted(EVENTS_DIR.glob("*.json")):
+    if not events_dir.exists():
+        return events
+    for p in sorted(events_dir.glob("*.json")):
         with open(p, "r", encoding="utf-8") as f:
             events.append(json.load(f))
     return events
 
 
-def _split_phase(phase: str | None) -> tuple[str | None, str | None]:
-    """Split a phase string like 'L1' / 'L2-fix' / 'C1' into
-    (phase_id, phase_name).
-
-    Convention used in ACT-0 examples:
-      phase_id   = the raw phase token (e.g. "L1", "L2-fix")
-      phase_name = same value, with underscores converted to spaces and
-                   each token capitalised for human display
-    """
-    if not phase:
-        return None, None
-    pid = phase
-    pretty = phase.replace("-", " ").replace("_", " ").strip()
-    if pretty:
-        pretty = " ".join(w.capitalize() for w in pretty.split())
-    else:
-        pretty = phase
-    return pid, pretty
+def _ts(event: dict[str, Any]) -> str:
+    """Get the timestamp string for an event, preferring created_at then event_time."""
+    return event.get("created_at") or event.get("event_time") or ""
 
 
 def _project_record(
     project: dict[str, Any], events: list[dict[str, Any]]
 ) -> dict[str, Any]:
-    # Sort events for this project by event_time ascending
+    pid = project.get("id") or project.get("project_id")
     pevents = sorted(
-        [e for e in events if e.get("project_id") == project.get("id")],
-        key=lambda e: e.get("event_time") or e.get("created_at") or "",
+        [e for e in events if e.get("project_id") == pid],
+        key=_ts,
     )
     last = pevents[-1] if pevents else None
     last_status = (last or {}).get("status") or project.get("status", "ACTIVE")
-    health = HEALTH_FROM_STATUS.get(last_status, "gray")
-
-    phase_id, phase_name = _split_phase((last or {}).get("phase"))
+    last_health = (last or {}).get("health") or HEALTH_FROM_STATUS.get(last_status, "gray")
 
     topics = project.get("topics") or []
     category = topics[0] if topics else "uncategorized"
 
     return {
-        "project_id": project.get("id"),
-        "name": project.get("name"),
-        "repo": project.get("repo"),
-        "location": project.get("scope") or project.get("home_machine") or "unknown",
+        "project_id": pid,
+        "name": project.get("name") or project.get("display_name") or pid,
+        "repo": project.get("repo") or project.get("source_repo"),
+        "location": project.get("location")
+        or project.get("scope")
+        or project.get("home_machine")
+        or "unknown",
         "category": category,
         "current_status": last_status,
-        "current_health": health,
-        "current_phase_id": phase_id,
-        "current_phase_name": phase_name,
+        "current_health": last_health,
+        "current_phase_id": (last or {}).get("phase_id"),
+        "current_phase_name": (last or {}).get("phase_name") or (last or {}).get("phase_id"),
         "last_agent_id": (last or {}).get("agent_id"),
-        "last_event_at": (last or {}).get("event_time")
-        or (last or {}).get("created_at"),
+        "last_event_at": _ts(last) if last else None,
+        "last_event_type": (last or {}).get("event_type"),
         "last_summary": (last or {}).get("summary"),
         "next": (last or {}).get("next"),
         "event_count": len(pevents),
@@ -185,52 +115,54 @@ def _project_record(
 def _agent_record(
     agent: dict[str, Any], events: list[dict[str, Any]]
 ) -> dict[str, Any]:
-    aevents = [e for e in events if e.get("agent_id") == agent.get("id")]
-    aevents.sort(key=lambda e: e.get("event_time") or e.get("created_at") or "")
+    aid = agent.get("id") or agent.get("agent_id")
+    aevents = [e for e in events if e.get("agent_id") == aid]
+    aevents.sort(key=_ts)
     last = aevents[-1] if aevents else None
     caps = agent.get("capabilities") or []
-    role = caps[0] if caps else agent.get("type", "unknown")
+    role = agent.get("role") or (caps[0] if caps else agent.get("type", "unknown"))
     return {
-        "agent_id": agent.get("id"),
-        "name": agent.get("display_name") or agent.get("id"),
+        "agent_id": aid,
+        "name": agent.get("name") or agent.get("display_name") or aid,
         "machine": agent.get("machine", "unknown"),
         "role": role,
-        "last_event_at": (last or {}).get("event_time")
-        or (last or {}).get("created_at"),
+        "last_event_at": _ts(last) if last else None,
         "last_project_id": (last or {}).get("project_id"),
+        "last_event_type": (last or {}).get("event_type"),
         "event_count": len(aevents),
     }
 
 
 def _timeline(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """All events sorted by event_time descending (newest first)."""
-    sorted_events = sorted(
-        events,
-        key=lambda e: e.get("event_time") or e.get("created_at") or "",
-        reverse=True,
-    )
+    """All events sorted newest first."""
     out: list[dict[str, Any]] = []
-    for e in sorted_events:
-        phase_id, phase_name = _split_phase(e.get("phase"))
+    for e in sorted(events, key=_ts, reverse=True):
         out.append(
             {
                 "event_id": e.get("event_id"),
+                "event_type": e.get("event_type"),
                 "project_id": e.get("project_id"),
                 "agent_id": e.get("agent_id"),
-                "phase_id": phase_id,
-                "phase_name": phase_name,
+                "phase_id": e.get("phase_id"),
+                "phase_name": e.get("phase_name"),
                 "status": e.get("status"),
+                "health": e.get("health"),
                 "summary": e.get("summary"),
-                "created_at": e.get("event_time") or e.get("created_at"),
+                "next": e.get("next"),
+                "created_at": _ts(e),
             }
         )
     return out
 
 
-def build() -> dict[str, Any]:
-    projects_raw = _load_yaml(EXAMPLES / "projects.yml")
-    agents_raw = _load_yaml(EXAMPLES / "agents.yml")
-    events = _load_events()
+def build(source: str = "data", root: Path | None = None) -> dict[str, Any]:
+    if source not in ("data", "examples"):
+        raise ValueError(f"source must be 'data' or 'examples', got {source!r}")
+    base = root or ROOT
+    src_root = base / source
+    projects_raw = _load_yaml(src_root / "registry" / "projects.yml")
+    agents_raw = _load_yaml(src_root / "registry" / "agents.yml")
+    events = _load_events(src_root / "events")
 
     project_records = [_project_record(p, events) for p in projects_raw]
     agent_records = [_agent_record(a, events) for a in agents_raw]
@@ -239,15 +171,13 @@ def build() -> dict[str, Any]:
     health_counter: Counter[str] = Counter(
         p["current_health"] for p in project_records
     )
-    # A project is "blocked" only when an explicit `block` event exists.
-    # Phase FAIL with a `blocker` hint does NOT count — that's a normal
-    # failure, the agent is free to retry.
     blocked_count = sum(
-        1 for e in events if e.get("event_type") == "block"
+        1 for e in events if e.get("event_type") == "BLOCK"
     )
 
     return {
         "schema_version": SCHEMA_VERSION,
+        "source": source,
         "generated_at": _now_iso(),
         "summary": {
             "project_count": len(project_records),
@@ -265,17 +195,39 @@ def build() -> dict[str, Any]:
 
 
 def main() -> int:
-    print("build_index.py — generating dashboard data layer …")
-    if not EXAMPLES.exists():
-        print(f"  [FAIL] examples dir missing: {EXAMPLES}")
-        return 1
-    data = build()
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    with open(OUT, "w", encoding="utf-8") as f:
+    p = argparse.ArgumentParser(description="build dashboard data layer")
+    p.add_argument(
+        "--source",
+        choices=("data", "examples"),
+        default="data",
+        help="which dataset to read (default: data)",
+    )
+    p.add_argument(
+        "--output",
+        default=None,
+        help="output path (default: generated/index.json)",
+    )
+    p.add_argument(
+        "--root",
+        default=None,
+        help="override repo root (default: parent of scripts/)",
+    )
+    args = p.parse_args()
+
+    root = Path(args.root).resolve() if args.root else None
+    data = build(args.source, root=root)
+    out = Path(args.output).resolve() if args.output else (root or ROOT) / "generated" / "index.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with open(out, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
         f.write("\n")
     s = data["summary"]
-    print(f"  wrote {OUT.relative_to(ROOT)}")
+    print(f"build_index.py — source={args.source}")
+    try:
+        rel = out.relative_to(root or ROOT)
+    except ValueError:
+        rel = out
+    print(f"  wrote {rel}")
     print(
         f"  {s['project_count']} projects, "
         f"{s['agent_count']} agents, "

@@ -179,6 +179,26 @@
       font-size: 14px;
       margin-top: 2px;
     }
+    .tl-type {
+      display: inline-block;
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      background: var(--panel-2);
+      color: var(--text-dim);
+    }
+    .tl-type-AGENT_REGISTERED   { background: rgba(96,165,250,0.20); color: #93c5fd; }
+    .tl-type-PROJECT_REGISTERED { background: rgba(96,165,250,0.20); color: #93c5fd; }
+    .tl-type-PHASE_REPORT       { background: rgba(22,163,74,0.20);  color: #4ade80; }
+    .tl-type-REVIEW_REPORT      { background: rgba(234,179,8,0.20);  color: #facc15; }
+    .tl-type-HANDOFF            { background: rgba(148,163,184,0.20); color: #cbd5e1; }
+    .tl-type-RELEASE            { background: rgba(34,197,94,0.25);  color: #86efac; }
+    .tl-type-FAILURE            { background: rgba(220,38,38,0.25);  color: #fca5a5; }
+    .tl-type-BLOCK              { background: rgba(220,38,38,0.25);  color: #fca5a5; }
+    .tl-type-UNBLOCK            { background: rgba(22,163,74,0.20);  color: #4ade80; }
+    .tl-type-ARCHIVE            { background: rgba(148,163,184,0.20); color: #cbd5e1; }
     /* ---- footer / source banner ---- */
     .source-banner {
       font-size: 12px;
@@ -347,15 +367,33 @@
       }
     }
 
+    // Map event_type → a human-friendly label and a color hint
+    const TYPE_LABEL = {
+      "AGENT_REGISTERED":  "AGENT REG",
+      "PROJECT_REGISTERED":"PROJECT REG",
+      "PHASE_REPORT":      "PHASE",
+      "REVIEW_REPORT":     "REVIEW",
+      "HANDOFF":           "HANDOFF",
+      "RELEASE":           "RELEASE",
+      "FAILURE":           "FAILURE",
+      "BLOCK":             "BLOCK",
+      "UNBLOCK":           "UNBLOCK",
+      "ARCHIVE":           "ARCHIVE",
+    };
+
     function renderTimeline(timeline) {
       const wrap = document.getElementById("timeline");
       wrap.innerHTML = "";
       for (const t of timeline) {
-        const item = el("div", { className: "tl-item " + statusHealth(t.status) });
+        const et = t.event_type || "PHASE_REPORT";
+        const lbl = TYPE_LABEL[et] || et;
+        const item = el("div", { className: "tl-item " + (statusHealth(t.status) || typeHealth(et)) });
         item.appendChild(
           el("div", { className: "tl-meta" }, [
+            el("span", { className: "tl-type tl-type-" + et }, lbl),
+            " ",
             (t.created_at || "") + "  ·  " +
-            t.project_id + "  ·  " + t.agent_id +
+            (t.project_id || "(no project)") + "  ·  " + (t.agent_id || "(no agent)") +
             (t.phase_id ? "  ·  " + t.phase_id : "") +
             "  ·  " + t.status,
           ])
@@ -370,6 +408,21 @@
         PASS: "green", FAIL: "red", BLOCKED: "red", PARTIAL: "yellow",
         PAUSED: "gray", SKIPPED: "gray", RELEASED: "green", ACTIVE: "green",
       })[s] || "gray";
+    }
+
+    // Color for events whose status doesn't map (e.g. HANDOFF, REVIEW, RELEASE)
+    function typeHealth(et) {
+      return ({
+        AGENT_REGISTERED:  "green",
+        PROJECT_REGISTERED:"green",
+        REVIEW_REPORT:     "gray",
+        HANDOFF:           "gray",
+        RELEASE:           "green",
+        FAILURE:           "red",
+        BLOCK:             "red",
+        UNBLOCK:           "green",
+        ARCHIVE:           "gray",
+      })[et] || "gray";
     }
 
     // -------------------------------- main -------------------------------

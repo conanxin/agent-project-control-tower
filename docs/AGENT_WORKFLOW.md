@@ -3,39 +3,30 @@
 > 写给 agent 看的操作手册——什么命令、在什么时机、为什么这么写。
 >
 > 配套：[DATA_MODEL.md](DATA_MODEL.md) 讲数据长什么样；[USAGE_SIMULATION.md](USAGE_SIMULATION.md) 讲完整的一天。
+>
+> **本阶段（ACT-2）已经把"手写 event JSON"替换为 `tower.py` CLI——所有命令都通过 `python scripts/tower.py ...` 调用。**
 
 ## 0. 安装与配置
 
-### 0.1 安装 tower CLI（ACT-2 实现）
+### 0.1 安装 tower CLI（ACT-2 已实现）
+
+无需安装。`scripts/tower.py` 已经是统一入口，**仅依赖 Python 3.10+ 标准库**（不引 Click、不引 Pydantic、不引任何第三方库）。
 
 ```bash
-# MVP：从控制塔仓库的 scripts/ 直接执行
-git clone https://github.com/xin/agent-project-control-tower.git ~/.tower-src
-export PATH="$HOME/.tower-src/scripts:$PATH"
-
 # 验证
-tower --version
-# tower 0.1.0
+python scripts/tower.py --help
+# 应输出 10 个子命令：validate, build, seed, register-agent, register-project,
+# report-phase, report-failure, report-review, report-handoff, report-release
 ```
 
 ### 0.2 配置
 
 ```bash
-# 必填：控制塔仓库本地路径
-export TOWER_REPO="$HOME/workspace/projects/agent-project-control-tower"
-
-# 可选：默认 agent id（多数 agent 用同一份配置）
-export TOWER_DEFAULT_AGENT="local-hermes"
-
-# 可选：是否自动 commit + push
-export TOWER_AUTO_PUSH="true"
+# 可选：自定义控制塔仓库根（默认是脚本所在目录的上一级）
+export TOWER_ROOT="$HOME/workspace/projects/agent-project-control-tower"
 ```
 
-`tower` 启动时检查：
-
-- `$TOWER_REPO` 存在且是 Git 仓库
-- 当前用户有 `git push` 权限
-- 可写 `events/` 和 `registry/`
+`scripts/lib/yaml_mini.py` 和 `scripts/lib/redaction.py` 是 `tower.py` 唯一依赖的内部模块。
 
 ## 1. 工作流总览
 
@@ -247,6 +238,59 @@ tower report unblock \
   --ref-block "<event_id of block event>" \
   --summary "Streaming chunker done in commit def5678"
 ```
+
+> **ACT-2 注**：`block` / `unblock` 是 ACT-0 设计的扩展 event type，ACT-2 的 `tower.py` CLI **暂未实现**。如需使用，请手写 `data/events/<ts>__BLOCK__<agent>__<project>.json`（schema 见 [DATA_MODEL.md](DATA_MODEL.md) §3.6），或等 ACT-3 补 CLI 子命令。
+
+## 2.5 典型 Git 工作流（ACT-2 新增）
+
+> `tower.py` 不会自动 `git add` / `git commit` / `git push`。
+> 设计原因：写完 event 不代表 event 正确——人/agent 必须先 review diff，再决定 commit。
+
+完成一个阶段的完整 git 工作流：
+
+```bash
+# ── 步骤 1：在原项目目录写代码、commit、push ──
+cd ~/projects/local-book-tool
+# ... edit code, run tests ...
+git add .
+git commit -m "L2: first runnable command"
+git push                       # ← 原项目仓库更新
+
+# ── 步骤 2：切到控制塔目录，写 event ──
+cd ~/workspace/projects/agent-project-control-tower
+python scripts/tower.py report-phase \
+  --project-id local-book-tool \
+  --agent-id local-hermes \
+  --phase-id L2 \
+  --phase-name "First runnable command" \
+  --status PASS \
+  --summary "Added the first runnable CLI command." \
+  --source-repo conanxin/local-book-tool \
+  --source-commit "$(git -C ~/projects/local-book-tool rev-parse HEAD)" \
+  --next "Enter L3: config file support"
+# (tower 自动跑 validate + build)
+
+# ── 步骤 3：人/agent review diff ──
+git status
+git diff data/events/          # 仔细看：summary 对吗？phase_id 对吗？commit SHA 对吗？
+cat generated/index.json | head -40   # 看 health 派生是否合理
+
+# ── 步骤 4：手动 commit + push ──
+git add data/events/ generated/ site/   # 显式 add（不用 git add .）
+git commit -m "status(local-book-tool): phase L2 PASS"
+git push
+```
+
+**为什么必须人 review？**
+
+- 写错的 `summary` 会让访客看到错误叙述
+- 错误的 `health` 派生会让首页颜色全错
+- 错误的 `next` 会让下一个 agent 接错方向
+- **commit 进 git 就是事实**——比"agent 还来得及纠正"更严肃
+
+> **不要写 `git add .`**。至少显式 add `data/events/`。`generated/` 和 `site/index.embedded.html` 也建议一并 add，但 `data/registry/*.yml` 改动了也要 add。
+>
+> **不要 force push**。**不要 push 到 master/main**。控制塔的"事实源"是分支历史。
 
 ## 3. 多机 / 多 agent 协作模式
 

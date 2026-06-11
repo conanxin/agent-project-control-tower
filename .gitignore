@@ -3,6 +3,11 @@ generated/
 site/dist/
 site/.astro/
 
+# Runtime data — written by tower CLI (see docs/ARCHITECTURE.md §top-level dirs).
+# The "ground truth" seed lives in examples/. Run `python scripts/tower.py seed`
+# (or copy manually) to populate data/ on first checkout.
+data/
+
 # Python
 __pycache__/
 *.py[cod]

@@ -2,8 +2,8 @@
 build_embedded_site.py — produce a self-contained, double-clickable dashboard.
 
 Reads:
-  generated/index.json
-  site/index.html
+  generated/index.json   (produced by build_index.py)
+  site/index.html        (template)
 
 Writes:
   site/index.embedded.html
@@ -15,6 +15,7 @@ attempting fetch, so there are no CORS / file-protocol failures.
 """
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from pathlib import Path
@@ -27,16 +28,38 @@ EMBEDDED_HTML = ROOT / "site" / "index.embedded.html"
 
 
 def main() -> int:
-    if not INDEX_JSON.exists():
-        print(f"  [FAIL] {INDEX_JSON} not found. Run `make build` first.")
+    p = argparse.ArgumentParser(description="build embedded dashboard")
+    p.add_argument(
+        "--index",
+        default=str(INDEX_JSON),
+        help="path to index.json (default: generated/index.json)",
+    )
+    p.add_argument(
+        "--template",
+        default=str(TEMPLATE_HTML),
+        help="path to template HTML (default: site/index.html)",
+    )
+    p.add_argument(
+        "--output",
+        default=str(EMBEDDED_HTML),
+        help="output path (default: site/index.embedded.html)",
+    )
+    args = p.parse_args()
+
+    index_path = Path(args.index)
+    template_path = Path(args.template)
+    output_path = Path(args.output)
+
+    if not index_path.exists():
+        print(f"  [FAIL] {index_path} not found. Run `build` first.")
         return 1
-    if not TEMPLATE_HTML.exists():
-        print(f"  [FAIL] {TEMPLATE_HTML} not found.")
+    if not template_path.exists():
+        print(f"  [FAIL] {template_path} not found.")
         return 1
 
-    with open(INDEX_JSON, "r", encoding="utf-8") as f:
+    with open(index_path, "r", encoding="utf-8") as f:
         data = json.load(f)
-    with open(TEMPLATE_HTML, "r", encoding="utf-8") as f:
+    with open(template_path, "r", encoding="utf-8") as f:
         html = f.read()
 
     inline = (
@@ -48,12 +71,8 @@ def main() -> int:
         "</script>\n"
     )
 
-    # Insert right before the existing <script> block that contains
-    # `async function loadData()`. Inserting *before* keeps the existing
-    # loader untouched; loadData() prefers window.__TOWER_DATA__ when set.
     marker = "  <script>\n    // -------- data loader"
     if marker not in html:
-        # Fallback: insert before </body>
         marker_close = "</body>"
         if marker_close not in html:
             print("  [FAIL] template HTML missing expected marker")
@@ -62,9 +81,9 @@ def main() -> int:
     else:
         out = html.replace(marker, inline + marker, 1)
 
-    EMBEDDED_HTML.write_text(out, encoding="utf-8")
-    size_kb = EMBEDDED_HTML.stat().st_size / 1024
-    print(f"  wrote {EMBEDDED_HTML.relative_to(ROOT)} ({size_kb:.1f} KB)")
+    output_path.write_text(out, encoding="utf-8")
+    size_kb = output_path.stat().st_size / 1024
+    print(f"  wrote {output_path.relative_to(ROOT)} ({size_kb:.1f} KB)")
     print("  open with: xdg-open site/index.embedded.html")
     return 0
 
