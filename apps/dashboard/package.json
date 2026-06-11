@@ -6,6 +6,7 @@
   "description": "Astro dashboard shell for Agent Project Control Tower. Reads the static generated/index.json from the repo root.",
   "scripts": {
     "dev": "astro dev",
+    "prebuild": "if [ \"$SKIP_DASHBOARD_PREBUILD\" = \"1\" ]; then echo 'prebuild: SKIP_DASHBOARD_PREBUILD=1, using existing generated/index.json'; else cd ../.. && python scripts/tower.py validate --source public-data && python scripts/tower.py build --source public-data --no-embedded; fi",
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro"

@@ -434,6 +434,59 @@ agent 在执行 `tower report` 之前，**必须**确认：
 
 脚本侧会做正则校验（见 [DATA_MODEL.md §7](DATA_MODEL.md)），但**agent 应当先自查**。
 
+## 5.5 ACT-6：agent 写 `data/`，人类/授权 agent 才导 `public-data/`
+
+ACT-6 起，agent 与人类在 publish 链上的职责**完全分离**：
+
+### 5.5.1 agent 的职责（日常）
+
+- agent **只**写 `data/`（`tower.py register-project` / `report-phase` / `report-event`）
+- agent **绝不**直接写 `public-data/` —— 这条强制由 `export_public_data.py` 从 `data/` 生成
+- agent **绝不**在 `--summary` 字段里粘贴 home 路径 / token / IP（与 §5 一致）
+
+### 5.5.2 人类/授权 agent 的职责（公开审批）
+
+```bash
+# 1) review data/ 当前状态
+ls data/registry/ data/events/
+# 2) 选择要公开的 project + agent
+python scripts/export_public_data.py \
+  --source data \
+  --output public-data \
+  --project-id <id> --agent-id <id> \
+  --max-events 20 --repo-prefix conanxin --replace
+# 3) 人工 review public-data/ diff
+git diff public-data/
+# 4) redaction 校验
+make publish-preflight
+# 5) 显式 add + commit + push
+git add public-data/
+git commit -m "data: add <project> to public-data"
+git push origin main
+# → CF Pages 自动 re-deploy，custom domain 30s 内刷新
+```
+
+### 5.5.3 为什么 agent 不直接写 `public-data/`
+
+- `data/` 可能含**未脱敏**内容（local path / token 字符串 / 实验性摘要）
+- `public-data/` 是**对外发布**版本——需要人工 review + redaction summary
+- 写权限分层让 agent 的自动化 **不会**绕过人类审核就把敏感内容推上线
+- 自动化 export 用 `--project-id` / `--agent-id` / `--max-events` 三个白名单参数强行收窄输出
+
+### 5.5.4 ACT-6 真实接出的"第一次"
+
+```bash
+# 2026-06-11 实际跑过的命令（已固化进 make public-data-real）
+python scripts/export_public_data.py \
+  --source data --output public-data \
+  --project-id agent-project-control-tower --agent-id local-hermes \
+  --max-events 20 --repo-prefix conanxin --replace
+# → public-data: 1 project / 1 agent / 7 events
+# → custom domain https://control-tower.conanxin.com/ 30s 内显示真实 1/1/7
+```
+
+ACT-6B 候选（第二项目接入）：跑相同命令加 `--project-id <新 id>`，**注意** `--replace` 会清空 ACT-6 的旧数据。多项目并集需 `--project-id a --project-id b` 一次跑（脚本已支持可重复参数）。
+
 ## 6. 协作剧本（playbook）
 
 ### 6.1 "新项目上线"剧本

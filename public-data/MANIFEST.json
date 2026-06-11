@@ -1,8 +1,16 @@
 {
-  "event_count": 3,
+  "agent_filter": [
+    "local-hermes"
+  ],
+  "event_count": 7,
+  "max_events_per_project": 20,
+  "project_filter": [
+    "agent-project-control-tower"
+  ],
   "registry_files": [
     "agents.yml",
     "projects.yml"
   ],
-  "source": "examples"
+  "repo_prefix": "conanxin",
+  "source": "data"
 }

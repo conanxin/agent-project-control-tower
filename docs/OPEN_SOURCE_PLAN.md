@@ -217,7 +217,60 @@ ACT-5 阶段把仓库从 private 转 public 的 checklist：
 - [ ] `.github/workflows/` 不打印 secrets
 - [ ] 一次 `git log --all -p | grep -E '(192\.168|/home/xin|sk-)'` 必须为空
 
-## 11. 公开发布后的运营
+## 11. ACT-6 真实项目脱敏导出策略（2026-06-11）
+
+ACT-6 起，公开数据从 `examples/` 示范数据升级为 `data/` 脱敏切片。**`public-data/` ≠ `data/`**：
+`public-data/` 是人工确认后的"公开快照"，由 `scripts/export_public_data.py` 从 `data/` 脱敏生成。
+
+### 11.1 公开 vs 私有数据源（边界重申）
+
+| 公开（`public-data/`） | 私有（`data/`） |
+| --- | --- |
+| `--project-id` 过滤后的项目 registry | 所有项目的完整 registry |
+| `--agent-id` 过滤后的 agent registry | 所有 agent |
+| `--max-events N` 截断后的 event 列表 | 所有 event（含敏感内容） |
+| `repo-prefix` 改写后的真实 GitHub 路径 | `local/<project-id>` 占位符 |
+| 公开 commit hash 列表 | 完整 source_commit / 内部路径 |
+
+### 11.2 真实项目脱敏导出流程
+
+1. **人类判断**：该项目/agent/event 是否适合公开？默认**否**。
+2. **白名单导出**：
+   ```bash
+   python scripts/export_public_data.py \
+     --source data \
+     --output public-data \
+     --project-id <project1> --project-id <project2> \
+     --agent-id <agent1> --agent-id <agent2> \
+     --max-events 20 \
+     --repo-prefix conanxin \
+     --replace
+   ```
+3. **人工 review 输出**：检查 `public-data/events/*.json` 和 `public-data/registry/*.yml`，确认无 home 路径 / token / IP。
+4. **redaction 校验**：`make publish-preflight` 内置 `export_public_data.py` redaction summary（FAIL=0, WARN=0）。
+5. **commit + push**：CF Pages 自动 re-deploy，custom domain 30s 内刷新。
+
+### 11.3 `public-data/` 是"人工确认后的公开快照"
+
+- `public-data/` **不能**直接由 `tower.py` 写，只能由 `export_public_data.py` 从 `data/` 生成
+- 导出有 5 个**白名单参数**：`--project-id` / `--agent-id` / `--max-events` / `--repo-prefix` / `--replace`
+- `data/` 仍 gitignored；`public-data/` 在 git 里
+- 任何 commit `public-data/` 之前必须 review diff（**不能** `git add .`）
+
+### 11.4 ACT-6 当前 public-data 统计
+
+```json
+{
+  "source": "data",
+  "event_count": 7,
+  "project_filter": ["agent-project-control-tower"],
+  "agent_filter": ["local-hermes"]
+}
+```
+
+7 个 event = ACT-0 / ACT-1 / ACT-2 / ACT-3A / ACT-5 / ACT-5B + PROJECT_REGISTERED（ACT-3B / ACT-4A / ACT-4B 没有 PHASE_REPORT 上报到 data/，只更新 docs/——timeline 共 7 个 event 是真实的）。
+
+## 12. 公开发布后的运营
 
 - **不要在 issue 里贴真实 IP / 路径**——回 issue 时再脱敏
 - **issue 模板里加一条**："提交前请确认没有粘贴私人信息"

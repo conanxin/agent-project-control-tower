@@ -18,13 +18,41 @@ Why a separate tool?
     * validated by the same redaction rules as a regular event write
     * easy to refresh (one CLI call)
 
+ACT-6 additions
+---------------
+- `--project-id` / `--agent-id`: filter the export to a specific
+  subset. Without these, ALL projects/agents/events in the source
+  are exported (the original ACT-4A behaviour).
+- `--max-events N`: cap per-project event count (default 50, newest
+  first by created_at). Useful for "first real project" exports
+  where you want the public dashboard to show recent activity only.
+- `--replace`: wipe public-data/{registry,events} before writing.
+  Default (no `--replace`) merges: existing files that are not in
+  the new export are kept. Use `--replace` to ensure the public
+  dataset is exactly what you just exported.
+- `--repo-prefix PREFIX`: rewrite repo fields of the form
+  `local/<project-id>` to `PREFIX/<project-id>`. This is the
+  ACT-6 redaction pattern: data/ uses `local/<id>` as a placeholder
+  to avoid leaking the real on-disk path; the public version uses
+  the actual GitHub org. Default: `conanxin`.
+
 Usage
 -----
-    # default: copy from examples/ to public-data/
+    # ACT-4A: copy from examples/ to public-data/ (default; demo seed)
     python scripts/export_public_data.py
 
-    # or: copy from the local real control tower (data/)
+    # ACT-4A: copy from the local real control tower (data/)
     python scripts/export_public_data.py --source data
+
+    # ACT-6: copy only one project's public subset, rewrite repo prefix
+    python scripts/export_public_data.py \
+        --source data \
+        --output public-data \
+        --project-id agent-project-control-tower \
+        --agent-id local-hermes \
+        --max-events 20 \
+        --repo-prefix conanxin \
+        --replace
 
     # dry-run — show what would change, do not write
     python scripts/export_public_data.py --dry-run
@@ -110,6 +138,82 @@ def _scan_event(path: Path, payload: dict[str, Any]) -> list[str]:
     return msgs
 
 
+def _filter_projects(entries: list[dict[str, Any]], project_ids: set[str] | None) -> list[dict[str, Any]]:
+    if not project_ids:
+        return list(entries)
+    return [e for e in entries if e.get("id") in project_ids]
+
+
+def _filter_agents(entries: list[dict[str, Any]], agent_ids: set[str] | None) -> list[dict[str, Any]]:
+    if not agent_ids:
+        return list(entries)
+    return [e for e in entries if e.get("id") in agent_ids]
+
+
+def _filter_events(
+    events: list[tuple[Path, dict[str, Any]]],
+    project_ids: set[str] | None,
+    agent_ids: set[str] | None,
+) -> list[tuple[Path, dict[str, Any]]]:
+    out: list[tuple[Path, dict[str, Any]]] = []
+    for p, payload in events:
+        pid = payload.get("project_id")
+        aid = payload.get("agent_id")
+        if project_ids and pid not in project_ids:
+            continue
+        if agent_ids and aid not in agent_ids:
+            continue
+        out.append((p, payload))
+    return out
+
+
+def _cap_events_per_project(
+    events: list[tuple[Path, dict[str, Any]]],
+    max_events: int,
+) -> list[tuple[Path, dict[str, Any]]]:
+    """Keep at most max_events per project_id, newest first by created_at."""
+    if max_events <= 0:
+        return events
+    by_pid: dict[str | None, list[tuple[Path, dict[str, Any]]]] = {}
+    for p, payload in events:
+        by_pid.setdefault(payload.get("project_id"), []).append((p, payload))
+    out: list[tuple[Path, dict[str, Any]]] = []
+    for pid, items in by_pid.items():
+        items.sort(key=lambda kv: kv[1].get("created_at") or "", reverse=True)
+        kept = items[:max_events]
+        if len(items) > max_events:
+            print(f"  cap: project={pid} kept {len(kept)}/{len(items)} events (--max-events {max_events})")
+        out.extend(kept)
+    # Re-sort by created_at descending for stable output ordering
+    out.sort(key=lambda kv: kv[1].get("created_at") or "", reverse=True)
+    return out
+
+
+def _rewrite_repo(value: Any, repo_prefix: str) -> Any:
+    """Rewrite repo fields of the form 'local/<project-id>' to '<prefix>/<project-id>'.
+
+    This is the ACT-6 redaction: data/ uses 'local/' as a safe placeholder
+    for the on-disk path; the public version uses the actual GitHub org.
+    Recurses into dicts/lists. Idempotent on already-public values.
+    """
+    if isinstance(value, str):
+        if value.startswith("local/"):
+            return f"{repo_prefix}/{value[len('local/'):]}"
+        return value
+    if isinstance(value, dict):
+        return {k: _rewrite_repo(v, repo_prefix) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_rewrite_repo(v, repo_prefix) for v in value]
+    return value
+
+
+def _infer_agents_from_events(
+    events: list[tuple[Path, dict[str, Any]]],
+) -> set[str]:
+    """Return the set of agent_id values that appear in any event payload."""
+    return {payload.get("agent_id") for _, payload in events if payload.get("agent_id")}
+
+
 def main() -> int:
     p = argparse.ArgumentParser(
         description="Export a sanitized snapshot for the public dashboard",
@@ -126,6 +230,29 @@ def main() -> int:
         "--dry-run", action="store_true",
         help="show what would be scanned, do not write",
     )
+    p.add_argument(
+        "--project-id", action="append", default=None, metavar="ID",
+        help="filter: only export these project IDs (repeatable). "
+             "If omitted, all projects in source are exported.",
+    )
+    p.add_argument(
+        "--agent-id", action="append", default=None, metavar="ID",
+        help="filter: only export these agent IDs (repeatable). "
+             "If omitted, agents referenced by exported events are exported.",
+    )
+    p.add_argument(
+        "--max-events", type=int, default=50, metavar="N",
+        help="cap events per project_id (default: 50, newest first)",
+    )
+    p.add_argument(
+        "--replace", action="store_true",
+        help="wipe output/{registry,events} before writing (default: merge)",
+    )
+    p.add_argument(
+        "--repo-prefix", default="conanxin", metavar="PREFIX",
+        help="rewrite 'local/<project-id>' to 'PREFIX/<project-id>' in repo/source_repo "
+             "fields (default: conanxin). Set to '' to disable rewriting.",
+    )
     args = p.parse_args()
 
     src_root = ROOT / args.source
@@ -137,14 +264,20 @@ def main() -> int:
     out_reg = out_root / "registry"
     out_evt = out_root / "events"
 
+    project_ids: set[str] | None = set(args.project_id) if args.project_id else None
+    agent_ids: set[str] | None = set(args.agent_id) if args.agent_id else None
+
     print(f"export_public_data.py — source={args.source} → {out_root}")
+    if project_ids:
+        print(f"  filter: project_id in {sorted(project_ids)}")
+    if agent_ids:
+        print(f"  filter: agent_id in {sorted(agent_ids)}")
+    print(f"  cap: max_events={args.max_events} per project (newest first)")
+    print(f"  mode: {'replace' if args.replace else 'merge'}")
+    print(f"  repo-prefix: '{args.repo_prefix}' (set to '' to disable rewrite)")
     print()
 
-    # ---- registries ----
-    # Prefer the stdlib-only yaml_mini shipped in scripts/lib/.
-    # Fall back to PyYAML only if it's installed (rare; we don't add it
-    # to the project on purpose). Either way, this block never raises
-    # ModuleNotFoundError.
+    # ---- YAML loader (try stdlib yaml_mini first, fall back to PyYAML) ----
     try:
         from yaml_mini import load as _load  # type: ignore
     except Exception:
@@ -162,47 +295,80 @@ def main() -> int:
     all_warns: list[str] = []
     all_fails: list[str] = []
 
-    for name in ("projects.yml", "agents.yml"):
-        src = src_root / "registry" / name
-        if not src.exists():
-            print(f"  [WARN] {name} not in source — skipping")
-            continue
-        entries = _load(src) or []
-        msgs = _scan_registry(name, entries)
+    # ---- load + filter + rewrite projects ----
+    src_projects = src_root / "registry" / "projects.yml"
+    projects_out: list[dict[str, Any]] = []
+    if src_projects.exists():
+        entries = _load(src_projects) or []
+        entries = _filter_projects(entries, project_ids)
+        if args.repo_prefix:
+            entries = [_rewrite_repo(e, args.repo_prefix) for e in entries]
+        msgs = _scan_registry("projects.yml", entries)
         for m in msgs:
             if "[FAIL]" in m:
                 all_fails.append(m)
             else:
                 all_warns.append(m)
-        print(f"  registry/{name}: {len(entries)} entries, "
+        projects_out = entries
+        print(f"  registry/projects.yml: {len(entries)} entries (after filter), "
               f"{len(msgs)} finding(s)")
-        if not args.dry_run:
-            out_reg.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src, out_reg / name)
-
-    # ---- events ----
-    src_evt = src_root / "events"
-    if src_evt.exists():
-        ev_files = sorted(src_evt.glob("*.json"))
-        for src in ev_files:
-            try:
-                payload = json.loads(src.read_text(encoding="utf-8"))
-            except Exception as e:
-                print(f"  [WARN] cannot parse {src.name}: {e}", file=sys.stderr)
-                continue
-            msgs = _scan_event(src, payload)
-            for m in msgs:
-                if "[FAIL]" in m:
-                    all_fails.append(m)
-                else:
-                    all_warns.append(m)
-            print(f"  events/{src.name}: "
-                  f"{len(msgs)} finding(s)")
-            if not args.dry_run:
-                out_evt.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(src, out_evt / src.name)
     else:
-        print("  [WARN] no events/ in source — skipping")
+        print(f"  [WARN] projects.yml not in source — skipping")
+
+    # ---- load + filter events first, so we know which agents to keep ----
+    src_evt_dir = src_root / "events"
+    events_in: list[tuple[Path, dict[str, Any]]] = []
+    if src_evt_dir.exists():
+        for p in sorted(src_evt_dir.glob("*.json")):
+            try:
+                payload = json.loads(p.read_text(encoding="utf-8"))
+            except Exception as e:
+                print(f"  [WARN] cannot parse {p.name}: {e}", file=sys.stderr)
+                continue
+            events_in.append((p, payload))
+
+    events_filtered = _filter_events(events_in, project_ids, agent_ids)
+    events_filtered = _cap_events_per_project(events_filtered, args.max_events)
+    if args.repo_prefix:
+        events_filtered = [
+            (p, _rewrite_repo(payload, args.repo_prefix))
+            for p, payload in events_filtered
+        ]
+
+    for p, payload in events_filtered:
+        msgs = _scan_event(p, payload)
+        for m in msgs:
+            if "[FAIL]" in m:
+                all_fails.append(m)
+            else:
+                all_warns.append(m)
+    print(f"  events/: {len(events_filtered)} files (after filter+cap), "
+          f"out of {len(events_in)} in source")
+
+    # ---- agents: keep only those that appear in exported events,
+    #      or all if --agent-id is set (then we filter below) ----
+    src_agents = src_root / "registry" / "agents.yml"
+    agents_out: list[dict[str, Any]] = []
+    if src_agents.exists():
+        entries = _load(src_agents) or []
+        if args.agent_id:
+            # user explicitly named agents — honour their list
+            entries = _filter_agents(entries, agent_ids)
+        else:
+            # default: keep agents referenced by exported events
+            referenced = _infer_agents_from_events(events_filtered)
+            entries = _filter_agents(entries, referenced)
+        msgs = _scan_registry("agents.yml", entries)
+        for m in msgs:
+            if "[FAIL]" in m:
+                all_fails.append(m)
+            else:
+                all_warns.append(m)
+        agents_out = entries
+        print(f"  registry/agents.yml: {len(entries)} entries (after filter), "
+              f"{len(msgs)} finding(s)")
+    else:
+        print(f"  [WARN] agents.yml not in source — skipping")
 
     print()
     print(f"redaction summary: FAIL={len(all_fails)}, WARN={len(all_warns)}")
@@ -221,17 +387,74 @@ def main() -> int:
         print("DRY RUN — no files written.")
         return 0
 
-    # ---- write a manifest ----
+    # ---- write ----
+    if args.replace and out_root.exists():
+        # Only wipe registry/ and events/ — leave MANIFEST.json to be
+        # regenerated below. Other top-level files in public-data/ are
+        # not touched (defensive: the directory is shared with ACT-5B
+        # etc. and we never want to accidentally nuke them).
+        for sub in (out_reg, out_evt):
+            if sub.exists():
+                shutil.rmtree(sub)
+        print(f"  --replace: wiped {out_reg} and {out_evt}")
+
+    out_reg.mkdir(parents=True, exist_ok=True)
+    out_evt.mkdir(parents=True, exist_ok=True)
+
+    # write projects.yml (filtered + rewritten YAML)
+    if projects_out:
+        # Use yaml_mini for writing (it ships with the project) to stay
+        # zero-dep. Fall back to PyYAML if yaml_mini has no dump().
+        try:
+            from yaml_mini import dump as _dump  # type: ignore
+        except Exception:
+            try:
+                import yaml  # type: ignore
+                def _dump(obj: Any) -> str:
+                    return yaml.safe_dump(obj, sort_keys=False, allow_unicode=True)
+            except Exception:
+                print("  [FAIL] no YAML dumper available", file=sys.stderr)
+                return 2
+        (out_reg / "projects.yml").write_text(
+            _dump(projects_out) + "\n", encoding="utf-8"
+        )
+        print(f"  wrote {out_reg/'projects.yml'} ({len(projects_out)} entries)")
+
+    if agents_out:
+        try:
+            from yaml_mini import dump as _dump  # type: ignore
+        except Exception:
+            import yaml  # type: ignore
+            def _dump(obj: Any) -> str:
+                return yaml.safe_dump(obj, sort_keys=False, allow_unicode=True)
+        (out_reg / "agents.yml").write_text(
+            _dump(agents_out) + "\n", encoding="utf-8"
+        )
+        print(f"  wrote {out_reg/'agents.yml'} ({len(agents_out)} entries)")
+
+    for src_path, payload in events_filtered:
+        (out_evt / src_path.name).write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+    if events_filtered:
+        print(f"  wrote {out_evt}/ ({len(events_filtered)} event files)")
+
+    # ---- manifest ----
     manifest = {
         "source": args.source,
         "registry_files": sorted(p.name for p in out_reg.glob("*.yml")),
         "event_count": len(list(out_evt.glob("*.json"))),
+        "project_filter": sorted(project_ids) if project_ids else None,
+        "agent_filter": sorted(agent_ids) if agent_ids else None,
+        "max_events_per_project": args.max_events,
+        "repo_prefix": args.repo_prefix,
     }
     (out_root / "MANIFEST.json").write_text(
         json.dumps(manifest, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
-    print(f"  wrote {out_root}/MANIFEST.json: {manifest}")
+    print(f"  wrote {out_root}/MANIFEST.json")
     print()
     print("OK — public-data refreshed.")
     return 0

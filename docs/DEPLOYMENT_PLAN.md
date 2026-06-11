@@ -80,17 +80,18 @@ make publish-preflight
 - 用户对 deploy target（Cloudflare vs GitHub Pages）还没决策
 - 自动 deploy 会让 "push 一个 typo" → 公开站点行为异常
 
-## 4. Cloudflare Pages 方案（**ACT-5B 已上线** —— custom domain 已绑定）
+## 4. Cloudflare Pages 方案（**ACT-6 已上线** —— public data 升级为真实子集 1/1/7）
 
 > ACT-4B 决策：使用 Cloudflare Pages。仓库 `conanxin/agent-project-control-tower` 已 push。
 > **ACT-5 已完成**：首次部署到 `*.pages.dev`。
 > **ACT-5B 已完成**：custom domain `control-tower.conanxin.com` 绑定并验收。
+> **ACT-6 已完成**：公开数据从 demo `examples/` 2/3/3 升级为 `data/` 真实子集 1/1/7。
 >
 > - **主入口（custom domain）**：<https://control-tower.conanxin.com/>
 > - **备入口（pages.dev fallback）**：<https://agent-project-control-tower.pages.dev/>
-> - 两个 URL 服务**同一份** dist（更新数据 / re-deploy 时同步刷新）
+> - 两个 URL 服务**同一份** dist
 > - 首次 build command：`npm ci && npm run build`（在 `apps/dashboard/` root dir）
-> - 部署结果：custom domain 7/7 URL HTTP 200，summary 显示 2 projects / 3 agents / 3 events
+> - **ACT-6 关键改进**：`npm run build` 现在**自动**从 public-data 重新生成 `generated/index.json`（prebuild 钩子），CF Pages build 不再依赖外部先生成 generated/
 > - 部署时间：~30s（CF Pages 首次 build + deploy）
 
 ### 4.1 实际 Cloudflare Pages 配置（ACT-5 落定）
@@ -253,6 +254,78 @@ Cloudflare Pages → Custom domains → 选中 `agent-project-control-tower.page
 - 加 redirect = 加一个 future debug 路径（什么时候被触发？会不会和 SSR 冲突？）
 - 决策保留
 
+### 4.10 ACT-6 Prebuild 钩子（自动从 public-data 生成 generated/）
+
+> **ACT-6 解决了 ACT-5 报告的疑问**："CF Pages build 怎么拿到 generated/index.json（gitignored）？"
+
+**答案**：`npm run build` 现在**自带** prebuild 钩子，在 build 期间从 public-data 重新生成 generated/。**不再依赖**外部先生成。
+
+`apps/dashboard/package.json`：
+
+```json
+{
+  "scripts": {
+    "prebuild": "if [ \"$SKIP_DASHBOARD_PREBUILD\" = \"1\" ]; then echo 'prebuild: SKIPPED, using existing generated/index.json'; else cd ../.. && python scripts/tower.py validate --source public-data && python scripts/tower.py build --source public-data --no-embedded; fi",
+    "build": "astro build"
+  }
+}
+```
+
+**两种 build 模式**：
+
+| 模式 | 触发方式 | 数据源 | 用途 |
+| --- | --- | --- | --- |
+| **PUBLIC**（默认） | `make dashboard` / `cd apps/dashboard && npm run build` | public-data/ | CF Pages build、make publish-preflight |
+| **LOCAL** | `make dashboard-local` / `cd apps/dashboard && SKIP_DASHBOARD_PREBUILD=1 npm run build` | data/ | opt-in 调试（先生成 data 版 generated，再跳过 prebuild） |
+
+**Makefile 拆分**（ACT-6 落地）：
+
+| Target | 行为 |
+| --- | --- |
+| `make dashboard` | PUBLIC dist（prebuild 钩子从 public-data 重写 generated/） |
+| `make dashboard-local` | LOCAL dist（opt-in 调试；先 `tower.py build` 写 data 版 generated，再 `SKIP_DASHBOARD_PREBUILD=1 npm run build`） |
+| `make public-data` | ACT-4A 默认：examples → public-data/（CI seed） |
+| `make public-data-real` | ACT-6 新增：data → public-data/ 脱敏切片（`make publish-preflight` 默认走这条） |
+| `make publish-preflight` | ACT-6 升级：第一步走 `public-data-real`（不是 `public-data`） |
+
+**`scripts/export_public_data.py` ACT-6 新增参数**：
+
+```bash
+python scripts/export_public_data.py \
+  --source data \
+  --output public-data \
+  --project-id agent-project-control-tower \
+  --agent-id local-hermes \
+  --max-events 20 \
+  --repo-prefix conanxin \
+  --replace
+```
+
+| 参数 | 作用 |
+| --- | --- |
+| `--project-id` | 只导出该 project registry + 关联 events（可重复） |
+| `--agent-id` | 只导出该 agent（可重复） |
+| `--max-events N` | 每个 project 最多 N 个 event（默认 50，newest first） |
+| `--replace` | 清空 `public-data/{registry,events}` 再写（默认 merge） |
+| `--repo-prefix` | 把 `local/<project-id>` 改写为 `<prefix>/<project-id>`（默认 `conanxin`） |
+
+**为什么 ACT-6 把控制塔自身作为第一个真实项目**：
+
+- `agent-project-control-tower` 自身就是 ACT-0 ~ ACT-5B 全部阶段 event 的产生者（dogfooding）
+- 真实 events 里没有 home 路径 / token / IP —— data/ 的 `local/<id>` placeholder 是**预先设计**的安全占位符
+- 公开这个项目能直接告诉访客"这个 dashboard 是怎么诞生的"
+
+**当前 public-data 统计**（ACT-6 落定，1/1/7）：
+
+```
+projects: 1  (agent-project-control-tower)
+agents:   1  (local-hermes)
+events:   7  (PROJECT_REGISTERED + ACT-0/1/2/3A/5/5B PHASE_REPORT)
+repo:     conanxin/agent-project-control-tower  (rewritten from local/...)
+```
+
+> **注**：ACT-3B / ACT-4A / ACT-4B 这 3 个阶段没有 PHASE_REPORT 上报到 data/（只更新 docs/），所以 timeline 共 7 个 event 而不是 10 个。**这是真实的控制塔状态**。
+
 ## 5. GitHub Pages 方案（备选）
 
 如果不想用 Cloudflare：
@@ -301,66 +374,65 @@ jobs:
 
 `https://<user>.github.io/<repo>/`
 
-## 6. ACT-5B 部署清单（**已完成** —— custom domain 已绑定、7/7 URL HTTP 200）
+## 6. ACT-6 部署清单（**已完成** —— public data 升级为真实子集 1/1/7、prebuild 钩子生效）
 
-### 6.1 ACT-5B 已完成 ✅
+### 6.1 ACT-6 已完成 ✅
 
-- [x] **Cloudflare Pages → Custom domains → Set up a custom domain**
-- [x] 输入 `control-tower.conanxin.com` → 父域 DNS 自动检测 → CNAME 自动创建
-- [x] SSL/TLS 30s 内签发，状态显示 **Active**
-- [x] **双 URL 同时服务同一份 dist**（custom domain + pages.dev fallback）
-- [x] **本地验证**（`make all` + `make publish-preflight` + `npm run build` + precommit audit）全 PASS
-- [x] **在线验收**（custom domain 7/7 URL HTTP 200，2/3/3 entity 全可见）
-- [x] **隐私扫描**：0 命中
-- [x] `tower.py report-phase ACT-5B` 已写入（PASS / health=green）
+- [x] **`apps/dashboard/package.json` 加 `prebuild` 钩子**（自动从 public-data 重写 generated/）
+- [x] **Makefile `dashboard` target 改为 PUBLIC 模式**（不再依赖 `tower.py build` 即 data 版 generated）
+- [x] **Makefile 新增 `dashboard-local` target**（opt-in 调试用 data/ + `SKIP_DASHBOARD_PREBUILD=1`）
+- [x] **Makefile 新增 `public-data-real` target**（data → public-data/ 脱敏切片）
+- [x] **Makefile `publish-preflight` 第一步改为 `public-data-real`**（不再走 examples）
+- [x] **`scripts/export_public_data.py` 新增 5 个参数**：`--project-id` / `--agent-id` / `--max-events` / `--replace` / `--repo-prefix`
+- [x] **导出真实子集**：1 project / 1 agent / 7 events
+- [x] **rejection safety**：`data/` 仍 gitignored；`local/<id>` 占位符被 `conanxin/` 改写；0 FAIL / 0 WARN
+- [x] `make all` PASS（53/53，data/ 链路）
+- [x] `make publish-preflight` PASS（1/1/7，public-data 链路）
+- [x] `cd apps/dashboard && npm run build` PASS（4 pages，prebuild 钩子从 public-data 重写 generated/）
+- [x] pre-commit audit CLEAN
+- [x] `tower.py report-phase ACT-6` 上报（PASS / health=green）
 - [x] README / DEPLOYMENT_PLAN / MVP_PLAN 同步更新
-- [x] 写 ACT-5B 阶段报告
+- [x] 写 ACT-6 阶段报告
 
-### 6.2 ACT-5B 已知限制
+### 6.2 ACT-6 已知限制
 
-- ❌ **未配 pages.dev → custom domain 301 redirect** — 见 §4.9（决策：保留 fallback）
-- ❌ **HSTS 未显式启用** — Cloudflare 默认 SSL 已生效
-- ❌ **无 Web Analytics** — ACT-5 已知限制
+- ❌ **未跑在线 URL 验收**（custom domain + pages.dev）—— ACT-6 范围只验证本地 + 构建链路；在线重新部署由 `git push` 触发
+- ❌ **多 project export 合并语义不明确** —— ACT-6 用 `--replace` 整体覆盖；想"添加而不删"需新设计
+- ❌ **`make public-data-real` 默认只导 1 个 project** —— 接入第 2 个项目需修改 `PUBLIC_DATA_PROJECT` 变量
+- ❌ **`make publish-preflight` 第一步 hardcode 走 `public-data-real`** —— 想切回 examples demo 链需手工跑 `make public-data && make publish-preflight`
+- ❌ **未配 pages.dev → custom domain 301 redirect** — 沿用 ACT-5B 决策
+- ❌ **HSTS / Web Analytics / UptimeRobot 未配** — 沿用 ACT-5B 限制
 - ❌ **无自定义 404 页** — CF Pages 默认 404
-- ❌ **未配置 UptimeRobot** — 当前依赖人工 curl 验证
-- ❌ **demo 数据，不含真实运行 data/** — public-data/ 只含 examples 导出 (2/3/3)。真实 data/ **仍不公开**
+- ❌ **demo 数据 local-book-tool / cloud-art-site 仍存在 data/ 但不导出**（--project-id 过滤）
 
-### 6.3 ACT-5B 故意不做的
+### 6.3 ACT-6 故意不做的
 
-- ❌ **不**在 CLI 配 Cloudflare API token（避免 token 泄露）
+- ❌ **不**在 CLI 配 Cloudflare API token（沿用 ACT-4B 决策）
 - ❌ **不**改 `apps/dashboard/` 任何源码（部署问题一律在 CF Pages UI 解决）
-- ❌ **不**配 pages.dev → custom domain 301 redirect（fallback 安全）
-- ❌ **不**接入真实 data/（推到 ACT-6 决策）
-- ❌ **不**启用 Web Analytics / HSTS（推到 ACT-5C 或更后）
-- ❌ **不**改 public-data 策略（沿用 ACT-4A/5 的"demo only"边界）
+- ❌ **不**改 public-data 边界（仍 gitignore `data/` 和 `generated/`，仍只暴露 `public-data/`）
+- ❌ **不**接 5 个项目（只接 1 个；ACT-6B 候选再接）
+- ❌ **不**配 redirect / HSTS / Analytics（推到 ACT-5C 或更后）
 
-### 6.4 ACT-5B 完整 deploy 流程（已跑通）
+### 6.4 ACT-6 完整 deploy 流程（已跑通）
 
-**Step 1**: Cloudflare Dashboard 绑定
-1. https://dash.cloudflare.com/ → Workers & Pages → Create application
-2. Pages tab → Connect to Git → Authorize Cloudflare（首次）
-3. 选 `conanxin` org / `agent-project-control-tower` repo
-4. 配置（按 §4.1）：
-   - Project name: `agent-project-control-tower`
-   - Production branch: `main`
-   - Root directory: `apps/dashboard`
-   - Build command: `npm ci && npm run build`
-   - Build output directory: `dist`
-5. Save and Deploy
+**Step 1**: 真实事件上报到 data/
+1. `python scripts/tower.py register-project --project-id ...`（如未注册）
+2. `python scripts/tower.py report-phase --project-id ... --phase-id ... --status PASS ...`
 
-**Step 2**: 等待首次部署
-- Cloudflare Pages 第一次 build 大约 1–2 分钟
-- 部署后 URL：`https://agent-project-control-tower.pages.dev/`
+**Step 2**: 导出 public-data 真实子集
+1. `make public-data-real`（或 `python scripts/export_public_data.py --source data --project-id ... --replace`）
+2. 验证 redaction 0 FAIL
 
-**Step 3**: 验收
-- 访问 `https://agent-project-control-tower.pages.dev/`
-- 检查：summary cards / 项目列表 / agent 列表 / timeline
-- 测试：搜索 / health 筛选 / 排序 / 主题切换 / 移动端
+**Step 3**: 验证构建链
+1. `make all` — data 链路 53/53
+2. `make publish-preflight` — public-data 链路 PASS
+3. `cd apps/dashboard && npm run build` — prebuild 钩子从 public-data 重写 generated/
+4. `python /tmp/precommit_audit.py` — CLEAN
 
-**Step 4**: 绑自定义域（可选，ACT-5 决定）
-- Pages project → Custom domains → Set up a custom domain
-- 输入 `control-tower.<your-domain>` → Continue
-- Cloudflare 自动配 CNAME + SSL
+**Step 4**: 提交 + push
+1. `git add public-data/ Makefile apps/dashboard/package.json scripts/export_public_data.py docs/ README.md reports/`
+2. `git commit -m "ACT-6: ..."
+3. `git push origin main` → CF Pages 自动 re-deploy，custom domain 30s 内刷新
 
 ## 7. 不在 MVP 部署里的
 

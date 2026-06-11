@@ -5,8 +5,8 @@
 > 🌍 **GitHub**: <https://github.com/conanxin/agent-project-control-tower>（public，ACT-4B 已 push）
 > 🚀 **Online Dashboard (custom domain)**: <https://control-tower.conanxin.com/>（ACT-5B ✅ 已绑 custom domain）
 > 🔁 **Online Dashboard (pages.dev fallback)**: <https://agent-project-control-tower.pages.dev/>（ACT-5 ✅，与 custom domain 服务同一份 dist）
-> 🟢 **状态**: ACT-5B ✅ COMPLETE（custom domain 验收 7/7 URL HTTP 200，公开数据仍是 public-data demo only）
-> ⏸ **下一步**: ACT-6（接入真实项目脱敏公开状态）
+> 🟢 **状态**: ACT-6 ✅ COMPLETE（公开数据从 demo 2/3/3 升级为真实子集 1/1/7 — `agent-project-control-tower` 自身）
+> ⏸ **下一步**: ACT-6B（接入第 2 个真实开源项目，如 `artvee-gallery` / `booktrans-desk`）
 
 ---
 
@@ -703,6 +703,164 @@ git push origin main
 
 - custom domain 7 URL 的 `Content-Length` / `Date` / `report-to: cf-nel` 响应头与 pages.dev 7 URL **完全一致**（同 dist、同 CDN edge），证明是**同一份** build 在两个 URL 上
 - `conanxin.com` 父域 DNS 已在 Cloudflare 托管（用户的 conanxin-homepage 项目相关），所以 custom domain 绑定是**零配置**——Cloudflare Pages UI 输入 `control-tower.conanxin.com` 后自动配 CNAME + 签 SSL，~30s 完成
+
+### ACT-6 First Real Project Public Export（**已完成**）
+
+ACT-6 把公开数据从"demo 2/3/3"升级到"**真实** 1/1/7"——把控制塔自身作为第一个真实公开项目。
+
+**重大决策点**：
+
+| 维度 | ACT-5B（demo） | ACT-6（real） |
+| --- | --- | --- |
+| 数据源 | `examples/` | `data/`（脱敏切片） |
+| 公开 projects | 2 demo | 1 real（`agent-project-control-tower` 自身） |
+| 公开 agents | 3 demo | 1 real（`local-hermes`） |
+| 公开 events | 3 demo | 7 real（ACT-0 ~ ACT-5B 全阶段 + 注册事件） |
+| repo 字段 | examples placeholder | 脱敏后真实 GitHub `conanxin/agent-project-control-tower` |
+| `make publish-preflight` 第一步 | `public-data`（examples 导出） | `public-data-real`（data 切片导出） |
+| 真实 `data/` | gitignored | gitignored（**仍不公开**） |
+
+**为什么 ACT-6 把控制塔自身作为第一个真实项目**：
+
+- `agent-project-control-tower` 自身就是 ACT-0 ~ ACT-5B 全部阶段 event 的产生者
+- 公开这个项目能直接告诉访客"这个 dashboard 是怎么诞生的"——dogfooding
+- 真实 events 里没有 home 路径 / token / IP —— data/ 的 `local/<id>` placeholder 是**预先设计**的安全占位符（不是真实路径）
+- ACT-5B 已经验证了 7 URL + 隐私扫描 + CF Pages custom domain 链路，ACT-6 在同一链路上换数据
+
+**build 链路的 ACT-6 改进**：
+
+1. **`apps/dashboard/package.json` 加 `prebuild` 钩子**：
+   ```bash
+   if [ "$SKIP_DASHBOARD_PREBUILD" = "1" ]; then
+     echo "prebuild: SKIPPED, using existing generated/index.json"
+   else
+     cd ../.. && python scripts/tower.py validate --source public-data \
+              && python scripts/tower.py build --source public-data --no-embedded
+   fi
+   ```
+   - 任何 `npm run build` 都**自动**从 public-data 重写 `generated/index.json`
+   - **不需要**外部先生成 generated —— Cloudflare Pages build 期间 self-contained
+   - `SKIP_DASHBOARD_PREBUILD=1` 留给 `make dashboard-local`（用 data/ 调试）
+
+2. **`Makefile` 拆分 dashboard target**：
+   - `make dashboard` —— **PUBLIC** dist（默认；用 prebuild 钩子从 public-data 生成）
+   - `make dashboard-local` —— **LOCAL** dist（opt-in 调试；先 `tower.py build` 写 data 版 generated，再 `SKIP_DASHBOARD_PREBUILD=1 npm run build`）
+
+3. **`Makefile` 拆分 public-data target**：
+   - `make public-data` —— ACT-4A 默认（examples → public-data/，CI 用）
+   - `make public-data-real` —— ACT-6 新增（data → public-data/ 脱敏切片，**`make publish-preflight` 默认走这条**）
+
+4. **`make publish-preflight` 第一步改为 `public-data-real`**：公开数据从 demo 2/3/3 升级为真实 1/1/7。
+
+**`scripts/export_public_data.py` ACT-6 新增参数**：
+
+```bash
+# ACT-6 实际跑过的命令（已写进 make public-data-real）
+python scripts/export_public_data.py \
+  --source data \
+  --output public-data \
+  --project-id agent-project-control-tower \
+  --agent-id local-hermes \
+  --max-events 20 \
+  --repo-prefix conanxin \
+  --replace
+```
+
+| 参数 | 作用 |
+| --- | --- |
+| `--project-id` | 只导出该 project registry + 关联 events（可重复） |
+| `--agent-id` | 只导出该 agent（可重复） |
+| `--max-events N` | 每个 project 最多 N 个 event（默认 50，newest first） |
+| `--replace` | 清空 `public-data/{registry,events}` 再写（默认 merge） |
+| `--repo-prefix` | 把 `local/<project-id>` 改写为 `<prefix>/<project-id>`（默认 `conanxin`） |
+
+**当前 public-data 统计**（真实子集，1/1/7）：
+
+```yaml
+projects:
+  - id: agent-project-control-tower
+    name: Agent Project Control Tower
+    repo: conanxin/agent-project-control-tower      # ← rewritten from local/
+    location: local
+    category: agent-infra
+    status: ACTIVE
+    primary_agent: local-hermes
+
+agents:
+  - id: local-hermes
+    type: hermes
+    machine: local
+    display_name: Local Hermes (notebook)
+    operator: xin
+    capabilities: [scaffolding, orchestration, long-running]
+
+events:
+  - 2026-06-11T03:20:59Z  PROJECT_REGISTERED
+  - 2026-06-11T03:20:59Z  PHASE_REPORT  ACT-0   PASS  (Project Design and Architecture)
+  - 2026-06-11T03:21:00Z  PHASE_REPORT  ACT-1   PASS  (Local Data Flow Prototype)
+  - 2026-06-11T03:21:00Z  PHASE_REPORT  ACT-2   PASS  (Tower CLI and Event Reporting)
+  - 2026-06-11T03:37:58Z  PHASE_REPORT  ACT-3A  PASS  (Astro Dashboard Shell)
+  - 2026-06-11T11:43:38Z  PHASE_REPORT  ACT-5   PASS  (Cloudflare Pages Online Verification)
+  - 2026-06-11T12:42:21Z  PHASE_REPORT  ACT-5B  PASS  (Custom Domain Verification)
+```
+
+> **注**：ACT-3B / ACT-4A / ACT-4B 这 3 个阶段没有 PHASE_REPORT 上报到 data/（只更新 docs/），所以 timeline 共 7 个 event 而不是 10 个。**这是真实的控制塔状态**。
+
+**rejection safety**：
+
+- 真实 `data/` 仍 gitignored
+- `local/<id>` placeholder 在 data/ 里就是"安全占位符"——不会触发 home path regex（regex 是 `/home/<user>/`，`local/` 不匹配）
+- `local-book-tool` / `cloud-art-site` demo events 仍存在 data/ 但**不**被 ACT-6 导出（--project-id 过滤）
+- export redaction 0 FAIL / 0 WARN（dry-run 验证 + 实际写后验证）
+
+**`public-data/MANIFEST.json` 升级**：
+
+```json
+{
+  "agent_filter": ["local-hermes"],
+  "event_count": 7,
+  "max_events_per_project": 20,
+  "project_filter": ["agent-project-control-tower"],
+  "registry_files": ["agents.yml", "projects.yml"],
+  "repo_prefix": "conanxin",
+  "source": "data"
+}
+```
+
+之前 ACT-5 demo 版的 MANIFEST 是 `event_count: 3, source: examples` —— ACT-6 之后改为 `event_count: 7, source: data`。
+
+**如何在 ACT-6 后接入第 2 个真实项目**（ACT-6B 候选）：
+
+```bash
+# 1) 在 data/ 里跑 1 个真实 event（如果项目还没注册）
+python scripts/tower.py register-project --project-id booktrans-desk --repo ...
+python scripts/tower.py report-phase --project-id booktrans-desk --phase-id L1 ...
+
+# 2) 导出（注意用 --output public-data --replace，会清空 ACT-6 的 agent-project-control-tower 数据）
+#    → 想要"多项目并集"需要 export 两次（--source data, --source data2）后人工合并
+#    → 或者：写 export_public_data.py 支持 --project-id 多个 (可重复参数)，已支持
+
+# 3) 验证 + push
+make publish-preflight
+git add public-data/
+git commit -m "data: add booktrans-desk to public-data"
+git push origin main
+# → CF Pages 自动 re-deploy，custom domain 30s 内刷新
+```
+
+**已知限制**：
+
+- ❌ **`make public-data-real` 默认只导 1 个 project**（`agent-project-control-tower`）—— 接入第 2 个项目需要修改 `PUBLIC_DATA_PROJECT` 变量或重写 export 脚本逻辑（多 project 合并）
+- ❌ **`make publish-preflight` 第一步 hardcode 走 `public-data-real`** —— 想切回 examples demo 链需手工跑 `make public-data && make publish-preflight`
+- ❌ **多 project export 的合并语义不明确** —— ACT-6 用 `--replace` 整体覆盖；想"添加而不删"需新设计
+- ❌ **未跑在线 URL 验证**（custom domain + pages.dev）—— ACT-6 范围只验证本地 + 构建链路；在线重新部署由 push 触发，CF Pages build 30s 内完成
+
+**ACT-6 期间发现**：
+
+- ACT-5 报告里"generated/index.json 在 CF Pages build context 里能拿到（机理未深究）"的疑问——ACT-6 通过 `prebuild` 钩子**显式消除**了那个疑问：CF Pages build 现在**不依赖**外部 generated/，而是 `npm run build` 自己跑 `tower.py build --source public-data` 生成
+- `make dashboard` 之前 `dashboard: build` 依赖 `tower.py build`（data 版）—— 这与 ACT-6 的"public-data 是唯一线上源"原则冲突。ACT-6 拆分为 `dashboard`（public）+ `dashboard-local`（data），移除 `dashboard: build` 依赖
+- `make publish-preflight` 第一步之前是 `public-data`（examples）—— ACT-6 改为 `public-data-real`（data 切片），让 publish 链反映 ACT-6 真实子集
+- `data/registry/projects.yml` 的 `local/agent-project-control-tower` 占位符与 `data/events/*.json` 的 `source_repo: local/agent-project-control-tower` 是**配套设计**——导出时 `repo-prefix` 把 `local/` 一并改写为 `conanxin/`，保证公开版不漏 `local/` 字符串
 
 ### ACT-2 关键命令
 

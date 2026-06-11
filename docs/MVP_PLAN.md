@@ -2,7 +2,7 @@
 
 > 把"建一个能用的控制塔"拆成 6 个阶段。每个阶段都有明确产出 + 验收标准 + 退出条件。
 >
-> 当前在 **ACT-5B ✅ COMPLETE**。ACT-5B 把 `*.pages.dev` 默认子域绑到了 `control-tower.conanxin.com` 并完成 7/7 URL 验收。下一阶段：**ACT-6**（接入真实项目脱敏公开状态）。
+> 当前在 **ACT-6 ✅ COMPLETE**。ACT-6 把公开数据从 demo `examples/` 2/3/3 升级为真实 `data/` 子集 1/1/7（`agent-project-control-tower` 自身）。下一阶段：**ACT-6B**（接入第 2 个真实开源项目）。
 
 ## 全景时间线
 
@@ -23,9 +23,11 @@ ACT-4B ✅ GitHub push (2026-06-11)
   ↓
 ACT-5 ✅ Cloudflare Pages online verification (2026-06-11)
   ↓
-ACT-5B ✅ Custom domain bind (2026-06-11) ← 当前阶段
+ACT-5B ✅ Custom domain bind (2026-06-11)
   ↓
-ACT-6          Real project integration (5 projects)
+ACT-6 ✅ First real project public export (2026-06-11) ← 当前阶段
+  ↓
+ACT-6B         add 2nd real project (e.g. booktrans-desk)
 ACT-7+         通知 / 统计 / 修正流 (可选)
 ```
 
@@ -502,55 +504,191 @@ $ pre-commit audit       # CLEAN
 
 ---
 
-## ACT-6 — Real Project Integration（**下一步**）
+## ACT-6 — First Real Project Public Export（**已完成**）
 
-> **目标**：把 5 个真实开源项目接入控制塔。
+> **目标**：把公开 dashboard 从 demo 2/3/3 升级为**真实** 1/1/7——把控制塔自身作为第一个真实公开项目（dogfooding）。
 >
-> **状态**：⏸ PENDING（等用户确认进入 ACT-6）。
+> **状态**：✅ COMPLETE（2026-06-11）。
 >
 > **前置条件**（已就位）：
-> - ACT-5B ✅：custom domain `control-tower.conanxin.com` 已绑定，公开 dashboard 已可用
+> - ACT-5B ✅：custom domain `control-tower.conanxin.com` 已绑定
 > - public-data/ 是唯一 publish 数据源；data/ 仍 gitignored
-> - `export_public_data.py` 已就绪（ACT-4A）
+> - `data/registry/projects.yml` 含 `agent-project-control-tower`，`data/events/` 含 7 个真实 event
 
-### ACT-5B 总结（移交到 ACT-6）
+### ACT-5B 总结 → ACT-6 接手
 
 ACT-5B 完成了"对外可分享"的所有基础设施：
 - 公开 dashboard 跑在 custom domain
 - public-data/ 是唯一数据源（demo 2/3/3）
-- 真实 data/ 仍未公开，**由 ACT-6 决定是否升级**
+- 真实 data/ 仍未公开
 
-ACT-6 的工作流：选 1 个真实开源项目 → 在 data/ 里跑 1 个真实 phase event → 用 `export_public_data.py` 脱敏导出到 public-data/ → re-deploy → 在 custom domain 看到真实进展。
+**ACT-6 决策**：把控制塔自身作为第一个真实公开项目，而不是 5 个候选（artvee-gallery / booktrans-desk / etc.）中的某一个。理由：
+- `agent-project-control-tower` 自身就是 ACT-0 ~ ACT-5B 全部阶段 event 的产生者（dogfooding）
+- 真实 events 里没有 home 路径 / token / IP —— data/ 的 `local/<id>` placeholder 是**预先设计**的安全占位符
+- 公开这个项目能直接告诉访客"这个 dashboard 是怎么诞生的"
+- 5 个候选项目里大部分还不存在或没跑真实 phase（ACT-6 决策时），**强行公开会触发大量 redaction FAIL**——先把"控制塔自身"做透，ACT-6B 再接第二个
+
+### 范围（已执行）
+
+#### A. 构建链路 ACT-6 改进
+
+- [x] `apps/dashboard/package.json` 加 `prebuild` 钩子：`npm run build` **自动**从 public-data 重写 `generated/index.json`
+- [x] `prebuild` 钩子支持 `SKIP_DASHBOARD_PREBUILD=1` 留给 opt-in 调试
+- [x] Makefile `dashboard` target 改为 PUBLIC 模式（不再 `dashboard: build` 依赖 data 版 generated）
+- [x] Makefile 新增 `dashboard-local` target（opt-in 调试 data/ + `SKIP_DASHBOARD_PREBUILD=1`）
+- [x] Makefile 新增 `public-data-real` target（data → public-data/ 脱敏切片）
+- [x] Makefile `publish-preflight` 第一步改为 `public-data-real`（不是 `public-data`）
+
+#### B. `scripts/export_public_data.py` ACT-6 扩展
+
+- [x] 新增 `--project-id`（可重复）—— 只导出指定 project
+- [x] 新增 `--agent-id`（可重复）—— 只导出指定 agent
+- [x] 新增 `--max-events N`（默认 50）—— 每个 project 最多 N 个 event，newest first
+- [x] 新增 `--replace` —— 清空 `public-data/{registry,events}` 再写
+- [x] 新增 `--repo-prefix`（默认 `conanxin`）—— 把 `local/<id>` 改写为 `<prefix>/<id>`
+- [x] 新增 `--output` 参数已存在（ACT-4A）—— 保持兼容
+- [x] 新增 MANIFEST.json 写 `project_filter` / `agent_filter` / `max_events_per_project` / `repo_prefix` 字段
+
+#### C. 导出第一个真实项目
+
+- [x] 跑 `export_public_data.py --source data --output public-data --project-id agent-project-control-tower --agent-id local-hermes --max-events 20 --repo-prefix conanxin --replace`
+- [x] redaction 0 FAIL / 0 WARN
+- [x] public-data/ 1 project / 1 agent / 7 events
+- [x] `repo: conanxin/agent-project-control-tower` 改写成功
+- [x] 所有 event `source_repo` 字段从 `local/agent-project-control-tower` 改写为 `conanxin/agent-project-control-tower`
+
+#### D. 验证
+
+- [x] `make all` PASS（53/53，data 链路）
+- [x] `make publish-preflight` PASS（1/1/7，public-data 链路）
+- [x] `cd apps/dashboard && npm run build` PASS（4 pages，prebuild 钩子从 public-data 重写 generated/）
+- [x] pre-commit audit CLEAN
+- [x] `tower.py report-phase ACT-6` 上报（PASS / health=green）
+- [x] README / DEPLOYMENT_PLAN / MVP_PLAN 同步更新
+
+### 不用
+
+- ❌ **不**在 CLI 配 Cloudflare API token（沿用 ACT-4B 决策）
+- ❌ **不**改 `apps/dashboard/` 任何源码（部署问题一律在 CF Pages UI 解决）
+- ❌ **不**改 public-data 边界（仍 gitignore `data/` 和 `generated/`，仍只暴露 `public-data/`）
+- ❌ **不**接 5 个项目（只接 1 个；ACT-6B 候选再接）
+- ❌ **不**配 redirect / HSTS / Analytics（推到 ACT-5C 或更后）
+- ❌ **不**跑在线 URL 验收（范围限制：本地 + 构建链路；在线重新部署由 `git push` 触发）
+
+### 当前 public-data 统计（ACT-6 落定，1/1/7）
+
+```yaml
+projects:
+  - id: agent-project-control-tower
+    name: Agent Project Control Tower
+    repo: conanxin/agent-project-control-tower      # ← rewritten from local/
+    location: local
+    category: agent-infra
+    status: ACTIVE
+    primary_agent: local-hermes
+
+agents:
+  - id: local-hermes
+    type: hermes
+    machine: local
+    display_name: Local Hermes (notebook)
+    operator: xin
+    capabilities: [scaffolding, orchestration, long-running]
+
+events:
+  - 2026-06-11T03:20:59Z  PROJECT_REGISTERED
+  - 2026-06-11T03:20:59Z  PHASE_REPORT  ACT-0   PASS  (Project Design and Architecture)
+  - 2026-06-11T03:21:00Z  PHASE_REPORT  ACT-1   PASS  (Local Data Flow Prototype)
+  - 2026-06-11T03:21:00Z  PHASE_REPORT  ACT-2   PASS  (Tower CLI and Event Reporting)
+  - 2026-06-11T03:37:58Z  PHASE_REPORT  ACT-3A  PASS  (Astro Dashboard Shell)
+  - 2026-06-11T11:43:38Z  PHASE_REPORT  ACT-5   PASS  (Cloudflare Pages Online Verification)
+  - 2026-06-11T12:42:21Z  PHASE_REPORT  ACT-5B  PASS  (Custom Domain Verification)
+```
+
+> **注**：ACT-3B / ACT-4A / ACT-4B 这 3 个阶段没有 PHASE_REPORT 上报到 data/（只更新 docs/），所以 timeline 共 7 个 event 而不是 10 个。**这是真实的控制塔状态**。
+
+### rejection safety
+
+- 真实 `data/` 仍 gitignored
+- `local/<id>` placeholder 在 data/ 里就是"安全占位符"——不会触发 home path regex（regex 是 `/home/<user>/`，`local/` 不匹配）
+- `local-book-tool` / `cloud-art-site` demo events 仍存在 data/ 但**不**被 ACT-6 导出（`--project-id` 过滤）
+- export redaction 0 FAIL / 0 WARN（dry-run 验证 + 实际写后验证）
+
+### ACT-6 期间发现
+
+- ACT-5 报告里"generated/index.json 在 CF Pages build context 里能拿到（机理未深究）"的疑问——ACT-6 通过 `prebuild` 钩子**显式消除**了那个疑问：CF Pages build 现在**不依赖**外部 generated/，而是 `npm run build` 自己跑 `tower.py build --source public-data` 生成
+- `make dashboard` 之前 `dashboard: build` 依赖 `tower.py build`（data 版）—— 这与 ACT-6 的"public-data 是唯一线上源"原则冲突。ACT-6 拆分为 `dashboard`（public）+ `dashboard-local`（data），移除 `dashboard: build` 依赖
+- `make publish-preflight` 第一步之前是 `public-data`（examples）—— ACT-6 改为 `public-data-real`（data 切片），让 publish 链反映 ACT-6 真实子集
+- `data/registry/projects.yml` 的 `local/agent-project-control-tower` 占位符与 `data/events/*.json` 的 `source_repo: local/agent-project-control-tower` 是**配套设计**——导出时 `repo-prefix` 把 `local/` 一并改写为 `conanxin/`，保证公开版不漏 `local/` 字符串
+
+### 如何在 ACT-6 后接入第 2 个真实项目（ACT-6B 候选）
+
+```bash
+# 1) 在 data/ 里跑 1 个真实 event（如果项目还没注册）
+python scripts/tower.py register-project --project-id booktrans-desk --repo ...
+python scripts/tower.py report-phase --project-id booktrans-desk --phase-id L1 ...
+
+# 2) 导出（注意用 --output public-data --replace，会清空 ACT-6 的 agent-project-control-tower 数据）
+#    → 想要"多项目并集"需要 export 多次后人工合并
+#    → 或者：让 ACT-6B 设计多 project 合并语义
+
+# 3) 验证 + push
+make publish-preflight
+git add public-data/
+git commit -m "data: add booktrans-desk to public-data"
+git push origin main
+# → CF Pages 自动 re-deploy，custom domain 30s 内刷新
+```
+
+---
+
+## ACT-6B — Second Real Project Public Export（**下一步**）
+
+> **目标**：在 ACT-6 真实 1/1/7 的基础上接入第 2 个真实开源项目，验证 public-data 多项目合并语义。
+>
+> **状态**：⏸ PENDING（等用户确认进入 ACT-6B）。
+>
+> **前置条件**（已就位）：
+> - ACT-6 ✅：构建链路 + export 脚本 + public-data 真实子集 1/1/7
+> - `make public-data-real` 默认只导 1 个 project（ACT-6 设计选择）
 
 ### 候选项目
 
 | ID | 仓库 | 主 agent | 备注 |
 | --- | --- | --- | --- |
-| `artvee-gallery` | `xin/artvee-gallery` | cloud-openclaw | 长跑、批量抓取 |
-| `booktrans-desk` | `xin/booktrans-desk` | local-hermes | EPUB 处理 |
-| `conan-vps-tower` | `xin/conan-vps-control-tower` | local-codex | 运维工具 |
-| `medium-archive` | `xin/medium-archive` | local-codex | 批量处理 |
-| `explainlens` | `xin/explainlens` | local-hermes | 文档站 |
+| `booktrans-desk` | `conanxin/booktrans-desk` | local-hermes | EPUB 处理（最成熟） |
+| `artvee-gallery` | `conanxin/artvee-gallery` | cloud-openclaw | 长跑、批量抓取 |
+| `conan-vps-tower` | `conanxin/conan-vps-control-tower` | local-codex | 运维工具 |
+| `medium-archive` | `conanxin/medium-archive` | local-codex | 批量处理 |
+| `explainlens` | `conanxin/explainlens` | local-hermes | 文档站 |
 
-### 流程
+### 范围（ACT-6B 待执行）
 
-每个项目独立一阶段（ACT-6a 到 ACT-6e），避免一次性爆炸：
-
-- **ACT-6a：booktrans-desk**
-  - 注册项目
-  - 跑 1 个真实 phase
-  - 确认 redaction 校验通过
-  - 写一篇接入复盘
+- [ ] 选 1 个候选项目（建议 `booktrans-desk`，最成熟）
+- [ ] 在 data/ 里 register project + 跑 1 个真实 phase event
+- [ ] 设计多 project export 合并语义（ACT-6 用 `--replace` 整体覆盖，ACT-6B 需要"添加而不删"或"重新合并 2 个 project"）
+- [ ] 验证 redaction 0 FAIL
+- [ ] 跑 `make publish-preflight` 验证 public-data 含 2 projects
+- [ ] 在线验收（custom domain + pages.dev）—— ACT-6 没做，ACT-6B 补
+- [ ] 写 ACT-6B 阶段报告
 
 ### 验收
 
-- [ ] 5 个项目全部出现在 dashboard
-- [ ] 至少 3 个项目有 ≥ 3 个 phase event
-- [ ] 至少 1 个项目经历过 PASS → FAIL → PASS 的完整循环
+- [ ] 2 个项目（agent-project-control-tower + 第 2 个）出现在 dashboard
+- [ ] 每个 project 有 ≥ 1 个 phase event
+- [ ] 在线 7/7 URL HTTP 200
+- [ ] 敏感模式扫描 0 命中
 
 ### 退出条件
 
-> 我不再需要"每周手写 status report"——直接分享 URL。
+> 公开 dashboard 真正承载 2 个真实项目，朋友看一眼能说出"这人在用 agent 跑 2 个开源项目"。
+
+### 不在 ACT-6B 范围
+
+- ❌ 不接 5 个项目（一次性 5 个会爆炸；保持 1+1 节奏）
+- ❌ 不改 public-data 边界（仍 gitignore data/）
+- ❌ 不配 redirect / HSTS / Analytics（推到 ACT-5C 或更后）
+- ❌ 不接 ACT-7+ 的功能
 
 ---
 
