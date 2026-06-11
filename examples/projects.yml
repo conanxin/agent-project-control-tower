@@ -1,0 +1,44 @@
+# Agent Project Control Tower — Example Projects
+#
+# Each project lives in its OWN git repository. The control tower only stores
+# metadata + pointers (repo URL, primary agent, topics). Real code, commits,
+# PRs all stay in the project's own repo.
+#
+# IDs are kebab-case and immutable. If you really need to rename a project,
+# write a "correction" event rather than mutating this file.
+
+# Local-side project: an offline EPUB processor.
+# Lives in: https://github.com/xin/local-book-tool
+# Primary agent on the notebook.
+- id: local-book-tool
+  name: "Local Book Tool"
+  repo: https://github.com/xin/local-book-tool
+  scope: local
+  home_machine: local
+  primary_agent: local-hermes
+  description: "Offline EPUB to Markdown converter with knowledge sidecar"
+  topics:
+    - ebook
+    - epub
+    - knowledge-base
+  status: ACTIVE
+  registered_at: 2026-06-11T09:05:00Z
+  homepage: null
+
+# Cloud-side project: a static art gallery generated on VPS.
+# Lives in: https://github.com/xin/cloud-art-site
+# Primary agent on the cloud VPS.
+- id: cloud-art-site
+  name: "Cloud Art Site"
+  repo: https://github.com/xin/cloud-art-site
+  scope: cloud
+  home_machine: cloud
+  primary_agent: cloud-openclaw
+  description: "Static gallery for public-domain art, generated nightly on VPS"
+  topics:
+    - art
+    - static-site
+    - gallery
+  status: ACTIVE
+  registered_at: 2026-06-11T09:35:00Z
+  homepage: https://cloud-art-site.example

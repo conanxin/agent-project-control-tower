@@ -1,0 +1,30 @@
+# Generated data — re-built by CI on every push
+generated/
+site/dist/
+site/.astro/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Node
+node_modules/
+.npm/
+.eslintcache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Local config / secrets
+.env
+.env.local
+*.local

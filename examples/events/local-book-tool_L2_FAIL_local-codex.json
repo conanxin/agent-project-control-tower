@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0.0",
+  "event_id": "9f1a0c12-0000-4000-8000-000000000003",
+  "event_type": "phase",
+  "event_time": "2026-06-11T12:00:00Z",
+  "project_id": "local-book-tool",
+  "agent_id": "local-codex",
+  "machine": "local",
+  "phase": "L2",
+  "status": "FAIL",
+  "summary": "EPUB to Markdown parser crashes on DRM-protected files (TypeError in opf parser)",
+  "commit": "beef0001",
+  "commit_url": "https://github.com/xin/local-book-tool/commit/beef0001",
+  "next": "L2-fix: graceful skip DRM files + emit warnings.json",
+  "artifacts": {
+    "error_class": "TypeError",
+    "failing_test": "test_drm_protected_epub_skipped",
+    "duration_minutes": 28
+  },
+  "tags": ["refactor", "drm", "needs-fix"],
+  "blocker": "Need to detect DRM-protected EPUBs before parsing"
+}

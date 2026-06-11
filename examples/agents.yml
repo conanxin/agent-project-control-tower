@@ -1,0 +1,45 @@
+# Agent Project Control Tower — Examples
+#
+# These files are the ground truth that ACT-1 will hand-render.
+# They are intentionally sanitized: no real paths, no real IPs, no real tokens.
+# All project / agent IDs are placeholders, all commit SHAs are obviously fake.
+
+# ============================================================
+# AGENTS — every agent that may report to the control tower
+# ============================================================
+- id: local-hermes
+  type: hermes
+  machine: local
+  display_name: "Local Hermes (notebook)"
+  operator: xin
+  capabilities:
+    - scaffolding
+    - orchestration
+    - long-running
+  status: ACTIVE
+  registered_at: 2026-06-11T09:00:00Z
+  last_seen_at: 2026-06-11T16:00:00Z
+
+- id: local-codex
+  type: codex
+  machine: local
+  display_name: "Local Codex (notebook)"
+  operator: xin
+  capabilities:
+    - refactor
+    - code-review
+    - batch-edit
+  status: ACTIVE
+  registered_at: 2026-06-11T09:00:00Z
+
+- id: cloud-openclaw
+  type: openclaw
+  machine: cloud
+  display_name: "Cloud OpenClaw (VPS)"
+  operator: xin
+  capabilities:
+    - long-running
+    - scraping
+    - deploy
+  status: ACTIVE
+  registered_at: 2026-06-11T09:30:00Z

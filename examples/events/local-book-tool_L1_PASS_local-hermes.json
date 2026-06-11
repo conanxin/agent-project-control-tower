@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0.0",
+  "event_id": "9f1a0c12-0000-4000-8000-000000000001",
+  "event_type": "phase",
+  "event_time": "2026-06-11T10:00:00Z",
+  "project_id": "local-book-tool",
+  "agent_id": "local-hermes",
+  "machine": "local",
+  "phase": "L1",
+  "status": "PASS",
+  "summary": "EPUB CLI parser with 18 unit tests passing",
+  "commit": "abc1234",
+  "commit_url": "https://github.com/xin/local-book-tool/commit/abc1234",
+  "next": "L2: convert EPUB to Markdown with image extraction",
+  "artifacts": {
+    "tests": "18/18 passing",
+    "duration_minutes": 42,
+    "lines_added": 612
+  },
+  "tags": ["cli", "tests", "epub-parser"]
+}
