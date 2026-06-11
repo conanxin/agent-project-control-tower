@@ -1,7 +1,12 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import TimelineItem from "../../components/TimelineItem.astro";
-import { tower, agentTimeline } from "../../lib/tower-data";
+import {
+  tower,
+  agentTimeline,
+  projectsByAgent,
+  countByEventType,
+} from "../../lib/tower-data";
 
 export function getStaticPaths() {
   return tower.agents.map((a) => ({
@@ -12,10 +17,43 @@ export function getStaticPaths() {
 const { agent_id } = Astro.params;
 const agent = tower.agents.find((a) => a.agent_id === agent_id)!;
 const timeline = agentTimeline(agent_id);
+const projects = projectsByAgent(agent_id);
+const typeCounts = countByEventType(timeline);
+
+// Type label map (mirrors TimelineItem)
+const TYPE_LABEL: Record<string, string> = {
+  AGENT_REGISTERED:   "AGENT REG",
+  PROJECT_REGISTERED: "PROJECT REG",
+  PHASE_REPORT:       "PHASE",
+  REVIEW_REPORT:      "REVIEW",
+  HANDOFF:            "HANDOFF",
+  RELEASE:            "RELEASE",
+  FAILURE:            "FAILURE",
+  BLOCK:              "BLOCK",
+  UNBLOCK:            "UNBLOCK",
+  ARCHIVE:            "ARCHIVE",
+};
+
+// Type badge class — phase/review/handoff/release/failure/block
+const TYPE_BADGE: Record<string, string> = {
+  PHASE_REPORT:  "badge-phase",
+  REVIEW_REPORT: "badge-review",
+  HANDOFF:       "badge-handoff",
+  RELEASE:       "badge-release",
+  FAILURE:       "badge-failure",
+  BLOCK:         "badge-block",
+  UNBLOCK:       "badge-unblock",
+  ARCHIVE:       "badge-archive",
+  AGENT_REGISTERED:   "badge-info",
+  PROJECT_REGISTERED: "badge-info",
+};
 ---
 <BaseLayout title={`${agent.name} — Agent Project Control Tower`}>
   <section>
-    <h2>Agent</h2>
+    <div class="section-head">
+      <h2>Agent</h2>
+      <span class="pill pill-gray">{agent.machine}</span>
+    </div>
     <dl class="detail-grid">
       <dt>ID</dt>             <dd><code>{agent.agent_id}</code></dd>
       <dt>Name</dt>           <dd>{agent.name}</dd>
@@ -28,11 +66,53 @@ const timeline = agentTimeline(agent_id);
   </section>
 
   <section>
-    <h2>Timeline</h2>
+    <h2>Event-type breakdown</h2>
     {timeline.length === 0
-      ? <p>(no events yet)</p>
+      ? <p class="muted">(no events yet)</p>
+      : <div class="type-badges">
+          {Object.entries(typeCounts).map(([k, n]) => (
+            <span class={`type-badge ${TYPE_BADGE[k] ?? ""}`}>
+              {TYPE_LABEL[k] ?? k} · {n}
+            </span>
+          ))}
+        </div>
+    }
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Projects touched ({projects.length})</h2>
+    </div>
+    {projects.length === 0
+      ? <p class="muted">(no projects)</p>
+      : <ul class="related-projects">
+          {projects.map((p) => (
+            <li>
+              <a href={`/projects/${p.project_id}/`}>{p.name}</a>
+              <span class={`pill pill-${p.current_health}`}>{p.current_health}</span>
+            </li>
+          ))}
+        </ul>
+    }
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Activity timeline</h2>
+      <span class="count-badge">{timeline.length} events</span>
+    </div>
+    {timeline.length === 0
+      ? <p class="muted">(no events yet)</p>
       : <div class="timeline">
-          {timeline.map((t) => <TimelineItem entry={t} />)}
+          {timeline.map((t) => (
+            <div
+              data-item="agent-event"
+              data-event_type={t.event_type}
+              data-status={t.status}
+            >
+              <TimelineItem entry={t} />
+            </div>
+          ))}
         </div>
     }
   </section>

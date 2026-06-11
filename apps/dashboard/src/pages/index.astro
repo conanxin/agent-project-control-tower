@@ -8,6 +8,13 @@ import { tower } from "../lib/tower-data";
 
 const s = tower.summary;
 const recent = tower.timeline.slice(0, 10);
+const projects = tower.projects;
+const agents = tower.agents;
+
+// Distinct values for filter dropdowns
+const agentOptions = agents
+  .map((a) => ({ id: a.agent_id, name: a.name }))
+  .sort((a, b) => a.name.localeCompare(b.name));
 ---
 <BaseLayout title="Agent Project Control Tower">
   <section>
@@ -24,23 +31,104 @@ const recent = tower.timeline.slice(0, 10);
   </section>
 
   <section>
-    <h2>Projects</h2>
+    <div class="section-head">
+      <h2>Projects</h2>
+      <span class="count-badge" data-count-target>{projects.length} total</span>
+    </div>
+    <form class="filter-bar" data-filter-form aria-label="Filter projects">
+      <label class="search-field">
+        <span class="visually-hidden">Search</span>
+        <input
+          type="search"
+          name="q"
+          placeholder="Search by name, id, repo, summary…"
+          autocomplete="off"
+        />
+      </label>
+      <label>
+        <span class="visually-hidden">Health</span>
+        <select name="health">
+          <option value="">All health</option>
+          <option value="green">green</option>
+          <option value="yellow">yellow</option>
+          <option value="red">red</option>
+          <option value="gray">gray</option>
+        </select>
+      </label>
+      <label>
+        <span class="visually-hidden">Status</span>
+        <select name="status">
+          <option value="">All status</option>
+          <option value="ACTIVE">ACTIVE</option>
+          <option value="PASS">PASS</option>
+          <option value="FAIL">FAIL</option>
+          <option value="PARTIAL">PARTIAL</option>
+          <option value="BLOCKED">BLOCKED</option>
+          <option value="PAUSED">PAUSED</option>
+          <option value="RELEASED">RELEASED</option>
+        </select>
+      </label>
+      <label>
+        <span class="visually-hidden">Last agent</span>
+        <select name="last_agent">
+          <option value="">All agents</option>
+          {agentOptions.map((a) => <option value={a.id}>{a.name}</option>)}
+        </select>
+      </label>
+      <label>
+        <span class="visually-hidden">Sort</span>
+        <select name="sort">
+          <option value="updated">Recently updated</option>
+          <option value="health">Health (red first)</option>
+          <option value="name">Name A–Z</option>
+        </select>
+      </label>
+      <button type="button" data-filter-clear class="clear-btn">Clear</button>
+    </form>
+
+    <div class="row-list" data-container="items">
+      {projects.map((p) => (
+        <div
+          data-item="project"
+          data-name={p.name}
+          data-id={p.project_id}
+          data-repo={p.repo ?? ""}
+          data-summary={p.last_summary ?? ""}
+          data-health={p.current_health}
+          data-status={p.current_status}
+          data-last_agent={p.last_agent_id ?? ""}
+          data-updated_at={p.last_event_at ?? ""}
+        >
+          <ProjectCard project={p} />
+        </div>
+      ))}
+    </div>
+    <p class="empty-state" data-empty-state hidden>
+      No projects match the current filters.
+    </p>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Agents</h2>
+      <span class="count-badge">{agents.length} total</span>
+    </div>
     <div class="row-list">
-      {tower.projects.map((p) => <ProjectCard project={p} />)}
+      {agents.map((a) => <AgentCard agent={a} />)}
     </div>
   </section>
 
   <section>
-    <h2>Agents</h2>
-    <div class="row-list">
-      {tower.agents.map((a) => <AgentCard agent={a} />)}
+    <div class="section-head">
+      <h2>Recent activity (newest 10)</h2>
+      <span class="count-badge">{recent.length} shown</span>
     </div>
-  </section>
-
-  <section>
-    <h2>Recent activity (newest 10)</h2>
     <div class="timeline">
       {recent.map((t) => <TimelineItem entry={t} />)}
     </div>
   </section>
+
+  <script>
+    import "../scripts/filters.ts";
+  </script>
 </BaseLayout>

@@ -1,5 +1,6 @@
 # Agent Project Control Tower — Makefile
-# ACT-3A: add `dashboard` target (Astro build). `all` stays zero-dep.
+# ACT-3B: `dashboard` target is now the polished Astro build (search, filter,
+# sort, theme). `all` stays zero-dep — npm build is opt-in via `make dashboard`.
 
 PYTHON ?= python3
 
@@ -30,7 +31,7 @@ build:
 site: build
 	$(PYTHON) scripts/build_embedded_site.py
 
-# ACT-3A: build Astro dashboard. Requires `npm install` (one-time).
+# ACT-3B: build polished Astro dashboard. Requires `npm install` (one-time).
 # `make all` deliberately does NOT run this — keeping the zero-dep path.
 dashboard:
 	@echo "→ npm run build in apps/dashboard/"

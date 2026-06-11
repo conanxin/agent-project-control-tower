@@ -119,6 +119,7 @@ export function getProject(id: string): Project | undefined {
 }
 
 export function getAgent(id: string): Agent | undefined {
+  // Safe: if id is null/undefined, .find still walks the array.
   return tower.agents.find((a) => a.agent_id === id);
 }
 
@@ -128,4 +129,54 @@ export function projectTimeline(projectId: string): TimelineEntry[] {
 
 export function agentTimeline(agentId: string): TimelineEntry[] {
   return tower.timeline.filter((t) => t.agent_id === agentId);
+}
+
+/* ---------- ACT-3B derived helpers (pure, deterministic) ---------- */
+
+/** Distinct values, sorted ascending. Safe on empty arrays. */
+export function distinctProjects(): Project[] {
+  return tower.projects;
+}
+export function distinctAgents(): Agent[] {
+  return tower.agents;
+}
+
+/** Project ids touched by a given agent (ordered by last_event_at desc). */
+export function projectsByAgent(agentId: string): Project[] {
+  const seen = new Set<string>();
+  const out: Project[] = [];
+  for (const t of tower.timeline) {
+    if (t.agent_id !== agentId) continue;
+    if (!t.project_id || seen.has(t.project_id)) continue;
+    seen.add(t.project_id);
+    const p = tower.projects.find((x) => x.project_id === t.project_id);
+    if (p) out.push(p);
+  }
+  return out;
+}
+
+/** Group a timeline by phase_id. Phases appear in first-seen order. */
+export function groupByPhase(entries: TimelineEntry[]): Array<{
+  phase_id: string | null;
+  phase_name: string | null;
+  events: TimelineEntry[];
+}> {
+  const map = new Map<string, { phase_id: string | null; phase_name: string | null; events: TimelineEntry[] }>();
+  for (const t of entries) {
+    const key = t.phase_id ?? "(no phase)";
+    if (!map.has(key)) {
+      map.set(key, { phase_id: t.phase_id, phase_name: t.phase_name, events: [] });
+    }
+    map.get(key)!.events.push(t);
+  }
+  return Array.from(map.values());
+}
+
+/** Counts of timeline entries grouped by event_type. */
+export function countByEventType(entries: TimelineEntry[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const t of entries) {
+    out[t.event_type] = (out[t.event_type] ?? 0) + 1;
+  }
+  return out;
 }

@@ -4,15 +4,101 @@ import TimelineItem from "../components/TimelineItem.astro";
 import { tower } from "../lib/tower-data";
 
 // tower.timeline is already sorted newest-first by build_index.py.
+const tl = tower.timeline;
+const projectOptions = tower.projects
+  .map((p) => ({ id: p.project_id, name: p.name }))
+  .sort((a, b) => a.name.localeCompare(b.name));
+const agentOptions = tower.agents
+  .map((a) => ({ id: a.agent_id, name: a.name }))
+  .sort((a, b) => a.name.localeCompare(b.name));
+
+const eventTypes = Array.from(new Set(tl.map((t) => t.event_type))).sort();
 ---
 <BaseLayout title="Timeline — Agent Project Control Tower">
   <section>
-    <h2>All events (newest first)</h2>
-    <p style="color: var(--text-dim); font-size: 13px;">
-      {tower.timeline.length} events total · sorted by created_at desc
-    </p>
-    <div class="timeline">
-      {tower.timeline.map((t) => <TimelineItem entry={t} />)}
+    <div class="section-head">
+      <h2>All events (newest first)</h2>
+      <span class="count-badge" data-count-target>{tl.length} total</span>
     </div>
+
+    <form class="filter-bar" data-filter-form aria-label="Filter timeline">
+      <label class="search-field">
+        <span class="visually-hidden">Search</span>
+        <input
+          type="search"
+          name="q"
+          placeholder="Search summary, phase, agent…"
+          autocomplete="off"
+        />
+      </label>
+      <label>
+        <span class="visually-hidden">Event type</span>
+        <select name="event_type">
+          <option value="">All event types</option>
+          {eventTypes.map((et) => <option value={et}>{et}</option>)}
+        </select>
+      </label>
+      <label>
+        <span class="visually-hidden">Status</span>
+        <select name="status">
+          <option value="">All status</option>
+          <option value="ACTIVE">ACTIVE</option>
+          <option value="PASS">PASS</option>
+          <option value="FAIL">FAIL</option>
+          <option value="PARTIAL">PARTIAL</option>
+          <option value="BLOCKED">BLOCKED</option>
+          <option value="PAUSED">PAUSED</option>
+          <option value="RELEASED">RELEASED</option>
+        </select>
+      </label>
+      <label>
+        <span class="visually-hidden">Project</span>
+        <select name="project">
+          <option value="">All projects</option>
+          {projectOptions.map((p) => <option value={p.id}>{p.name}</option>)}
+        </select>
+      </label>
+      <label>
+        <span class="visually-hidden">Agent</span>
+        <select name="agent">
+          <option value="">All agents</option>
+          {agentOptions.map((a) => <option value={a.id}>{a.name}</option>)}
+        </select>
+      </label>
+      <label>
+        <span class="visually-hidden">Sort</span>
+        <select name="sort">
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+        </select>
+      </label>
+      <button type="button" data-filter-clear class="clear-btn">Clear</button>
+    </form>
+
+    <div class="timeline" data-container="items">
+      {tl.map((t) => (
+        <div
+          data-item="timeline"
+          data-name={`${t.event_type} ${t.phase_id ?? ""} ${t.summary ?? ""}`.trim()}
+          data-summary={t.summary ?? ""}
+          data-phase_id={t.phase_id ?? ""}
+          data-phase_name={t.phase_name ?? ""}
+          data-event_type={t.event_type}
+          data-status={t.status}
+          data-project={t.project_id ?? ""}
+          data-agent={t.agent_id ?? ""}
+          data-created_at={t.created_at}
+        >
+          <TimelineItem entry={t} />
+        </div>
+      ))}
+    </div>
+    <p class="empty-state" data-empty-state hidden>
+      No events match the current filters.
+    </p>
   </section>
+
+  <script>
+    import "../scripts/filters.ts";
+  </script>
 </BaseLayout>

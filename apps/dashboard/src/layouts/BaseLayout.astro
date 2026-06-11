@@ -1,10 +1,16 @@
 ---
-// BaseLayout.astro — ACT-3A shell layout.
+// BaseLayout.astro — ACT-3A shell layout, ACT-3B polished.
 //
 // Provides the dark-theme chrome (header / nav / footer) and pulls in
 // global.css. Pages compose with this via `import BaseLayout from "..."`.
+//
+// ACT-3B additions:
+//   - theme toggle (light/dark), persisted in localStorage
+//   - Astro <ClientRouter /> for view transitions between pages
+//   - mobile-responsive header
 
 import "../styles/global.css";
+import { ClientRouter } from "astro:transitions";
 
 interface Props {
   title: string;
@@ -13,7 +19,6 @@ interface Props {
 
 const { title, description = "Agent Project Control Tower — multi-agent project progress tracking" } = Astro.props;
 ---
-
 <!doctype html>
 <html lang="en">
   <head>
@@ -21,10 +26,20 @@ const { title, description = "Agent Project Control Tower — multi-agent projec
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
     <title>{title}</title>
+    <ClientRouter />
   </head>
   <body>
     <header class="site">
-      <h1><a href="/">Agent Project Control Tower</a></h1>
+      <div class="site-head-row">
+        <h1><a href="/">Agent Project Control Tower</a></h1>
+        <button
+          id="theme-toggle"
+          type="button"
+          aria-label="Toggle theme"
+          aria-pressed="false"
+          class="theme-btn"
+        >☾ dark</button>
+      </div>
       <div class="meta">Astro dashboard shell · multi-agent project progress</div>
     </header>
     <nav class="site-nav">
@@ -36,7 +51,12 @@ const { title, description = "Agent Project Control Tower — multi-agent projec
       <slot />
     </main>
     <footer class="site">
-      ACT-3A dashboard shell · reads <code>generated/index.json</code> at build time
+      ACT-3B dashboard · reads <code>generated/index.json</code> at build time
     </footer>
+
+    <!-- Theme toggle script: must run early to avoid a flash -->
+    <script>
+      import "../scripts/theme.ts";
+    </script>
   </body>
 </html>

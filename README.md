@@ -268,6 +268,89 @@ npm run preview
 - 两套并存的成本：~88 KB dist vs ~20 KB embedded HTML，可接受
 - 未来**真正**对外发布（ACT-5）会选 `apps/dashboard/dist/`，embedded.html 留作离线归档
 
+### ACT-3B Dashboard UX Polish
+
+ACT-3A 是"能看"，ACT-3B 让它变"好用"——但**仍不引入任何依赖**（无搜索库、无状态管理库、无 UI 库）。
+
+**Home (`/`) 增强**：
+- 项目搜索框：name / id / repo / summary 全文匹配
+- 筛选下拉：health（green/yellow/red/gray）、status（PASS/FAIL/...）、last agent
+- 排序：最近更新 / health 红优先 / 名称 A–Z
+- 一键 **Clear** 按钮 + 当前匹配数量 badge
+- 空筛选结果展示 `empty-state` 占位
+
+**Timeline (`/timeline/`) 增强**：
+- 搜索 summary / phase / agent
+- 筛选：event_type、status、project、agent
+- 排序：newest / oldest
+- 默认展示全部事件倒序
+
+**Project detail (`/projects/[project_id]/`) 增强**：
+- 顶部 status pill（health · status 双色）
+- 独立的 **Latest event** 卡片
+- **Next actions** 区块（独立卡片 + accent 边）
+- **Timeline grouped by phase**（可折叠 details/summary）
+- source commit / repo 直接展示
+
+**Agent detail (`/agents/[agent_id]/`) 增强**：
+- 顶部 machine pill
+- **Event-type breakdown**（badge 矩阵）
+- **Projects touched**（health 左边色块）
+- 活动 timeline（按 event_type 可分类）
+
+**主题切换**：
+- 暗色（默认）/ 亮色
+- 按钮在右上角，localStorage 持久化 `tower-theme`
+- 切换平滑过渡（背景色 / 边框 180ms）
+- 不引入依赖，纯 CSS 变量切换
+
+**View transitions**：
+- Astro `<ClientRouter />` 启用页面间基础过渡
+- 仅 fade+slide，不为动画复杂化结构
+- 浏览器无 View Transitions API 时自动 fallback 到 `animate`
+
+**数据健壮性**：
+- `apps/dashboard/src/lib/tower-data.ts` 对所有字段设默认值
+- `projects / agents / timeline` 缺字段时 build 不崩（`raw.x ?? []`）
+- `schema_version` / `source` / `generated_at` 全部有 fallback
+- `getProject / getAgent` 对空 id 静默返回 `undefined`
+
+**零依赖路径保留**：
+- `site/index.embedded.html` 仍是双击可看的 ACT-1/2 vanilla HTML
+- `make all` **不**触发 npm build
+- `make dashboard` 是 opt-in
+- 两套独立数据流：零依赖 HTML 从 `generated/index.json` 嵌入；Astro build 同样读同一文件
+
+**使用 Astro dashboard**：
+
+```bash
+# 1) 安装依赖（一次性）
+cd apps/dashboard
+npm install
+
+# 2) 在 data/ 已 build 后：
+cd ..
+make dashboard
+# → apps/dashboard/dist/  (8 HTML + 1 CSS + 1 client JS bundle)
+
+# 3) 本地预览
+cd apps/dashboard
+npm run preview
+# 浏览器打开 http://localhost:4321/
+```
+
+**零依赖 vs Astro dashboard 对比**：
+
+| 维度 | 零依赖 HTML（ACT-1/2） | Astro dashboard（ACT-3B） |
+| --- | --- | --- |
+| 安装 | 0 | `npm install`（一次性） |
+| 数据源 | `generated/index.json` 嵌入 | `generated/index.json` 静态 import |
+| 搜索/筛选 | 无（HTML 直接展示） | 前端原生 JS（filters.ts） |
+| 主题切换 | 无 | 暗/亮 + localStorage |
+| View transitions | 无 | Astro ClientRouter |
+| 移动端 | 基础 CSS | 媒体查询优化 |
+| 适用场景 | CI artifact / 邮件附件 / 双击查看 | 真正对外发布 / 个人主页嵌入 |
+
 ### ACT-2 关键命令
 
 ```bash

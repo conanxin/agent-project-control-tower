@@ -2,7 +2,7 @@
 
 > 把"建一个能用的控制塔"拆成 6 个阶段。每个阶段都有明确产出 + 验收标准 + 退出条件。
 >
-> 当前在 **ACT-2 ✅ COMPLETE**。这份文档定义 ACT-3 之后做什么。
+> 当前在 **ACT-3B ✅ COMPLETE**。ACT-4 是 GitHub Actions CI 起步。
 
 ## 全景时间线
 
@@ -11,9 +11,11 @@ ACT-0  ✅ 设计与架构        (2026-06-11, commit adcd937)
   ↓
 ACT-1  ✅ 本地数据流原型     (2026-06-11, commit eb08bee)
   ↓
-ACT-2  ✅ Tower CLI         (2026-06-11) ← ACT-3 准备接手
+ACT-2  ✅ Tower CLI         (2026-06-11, commit 0bfbb70)
   ↓
-ACT-3          Astro 静态 dashboard
+ACT-3A ✅ Dashboard shell    (2026-06-11, commit a0d37d4)
+  ↓
+ACT-3B ✅ Dashboard UX polish (2026-06-11) ← ACT-4 准备接手
   ↓
 ACT-4          GitHub Actions CI
   ↓
@@ -191,10 +193,11 @@ CLI SMOKE TEST PASSED
 ### 拆解
 
 - [x] **ACT-3A**（已完成）— Dashboard shell：4 个 page + 1 个 layout + 4 个组件 + 暗色 CSS；npm install + npm run build PASS；不替代 ACT-1/2 的 embedded.html
-- [ ] **ACT-3B**（待规划）— 视觉/交互增强：search / filter / sort / 暗色主题切换 / view transitions
-- [ ] **ACT-3C**（可选）— SEO + 暗色主题切换 + accessibility
+- [x] **ACT-3B**（已完成）— UX polish：search / filter / sort / 主题切换 / view transitions / 移动端 / 数据健壮性
+- [ ] **ACT-3C**（可选）— 性能 / accessibility 增强（不在当前 roadmap）
 
 > 详细 ACT-3A 报告：[PHASE_ACT3A_ASTRO_DASHBOARD_SHELL_REPORT.md](../reports/PHASE_ACT3A_ASTRO_DASHBOARD_SHELL_REPORT.md)
+> 详细 ACT-3B 报告：[PHASE_ACT3B_DASHBOARD_UX_POLISH_REPORT.md](../reports/PHASE_ACT3B_DASHBOARD_UX_POLISH_REPORT.md)
 
 ### 范围（ACT-3A 最终交付）
 
@@ -234,12 +237,13 @@ CLI SMOKE TEST PASSED
 
 > "dashboard 在视觉/路由/可部署性上"完整。
 
-### 留给 ACT-3B 的桥
+### 留给 ACT-4 的桥
 
-- 当前 `tower-data.ts` 写死读 `generated/index.json`——如果未来想支持"读自 examples" 切换，加 `BUILD_TARGET` env var 即可
-- `project_id` 维度是 `getStaticPaths()` 展开——新增项目后**必须**重新 build（不破坏 schema）
-- 暗色 CSS 变量已抽出——ACT-3B 加 `prefers-color-scheme` 媒体查询是 5 行 CSS
-- timeline 用 `sort by created_at desc`——已 build-time 排好，client 无需重排
+- `apps/dashboard/dist/` 已经是 100% 静态文件——可以**直接**让 GitHub Actions 上传成 Pages artifact
+- `make dashboard` 已在本地验证 build PASS——CI 同样调用
+- 当前所有 data 来自 `data/`——未来 ACT-4 加"CI 跑 tower.py validate + build"是 1 个 step
+- 零依赖 `site/index.embedded.html` 仍可作为**第二个** artifact（双 dashboard 并行发布）
+- ACT-3B 已加 view transitions + 主题切换 + 搜索/筛选——CI 发布后用户体验已就位
 
 ---
 
