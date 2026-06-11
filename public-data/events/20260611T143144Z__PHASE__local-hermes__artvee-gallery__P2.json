@@ -1,0 +1,16 @@
+{
+  "agent_id": "local-hermes",
+  "created_at": "2026-06-11T14:31:44Z",
+  "event_id": "36d2ec04-05be-4300-82ac-85bd74439d85",
+  "event_type": "PHASE_REPORT",
+  "health": "green",
+  "next": "Add a public digest UI and connect the demo to a static hosting target.",
+  "phase_id": "P2",
+  "phase_name": "Public Demo Export",
+  "project_id": "artvee-gallery",
+  "source_commit": "7f2f1f35b24b6aa89b0107bc31c193dc90acd41c",
+  "source_commit_url": null,
+  "source_repo": "conanxin/artvee-library",
+  "status": "PASS",
+  "summary": "Added public demo export for Artvee Gallery: scripts/export_artvee_gallery_public_demo.py reads P1 outputs and emits a curated, deployable static demo under dist/artvee-gallery-public-demo/. Strategies recent/diverse, default 100 records, path rewriting to assets/thumbs/, no full-size originals copied."
+}

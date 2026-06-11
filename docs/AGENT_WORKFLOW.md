@@ -473,6 +473,57 @@ git push origin main
 - 写权限分层让 agent 的自动化 **不会**绕过人类审核就把敏感内容推上线
 - 自动化 export 用 `--project-id` / `--agent-id` / `--max-events` 三个白名单参数强行收窄输出
 
+ACT-6B 真实项目接入流程（新增）：
+
+1. **agent 在原项目目录完成阶段工作**，并在原项目仓库 commit/push。
+2. **agent 回到控制塔目录，写 `data/`**：
+   ```bash
+   python scripts/tower.py register-project --project-id <id> ...
+   python scripts/tower.py report-phase --project-id <id> --agent-id <agent> ...
+   ```
+3. **人类 review `data/` 状态**：检查 event summary、source_repo、source_commit 是否适合公开。
+4. **人类运行导出脚本**，指定要公开的项目/agent：
+   ```bash
+   python scripts/export_public_data.py \
+     --source data --output public-data \
+     --project-id <project1> --project-id <project2> \
+     --agent-id <agent> --max-events 20 \
+     --repo-prefix conanxin --replace
+   ```
+5. **人类 review `public-data/` diff**：确认 redaction summary FAIL=0，无本地路径/IP/token。
+6. **人类运行 `make publish-preflight`**：验证 public-data → generated → embedded → Astro dist 全链路。
+7. **人类显式 add `public-data/` 并 commit/push**：
+   ```bash
+   git add public-data/registry/projects.yml public-data/registry/agents.yml public-data/events/*.json public-data/MANIFEST.json
+   git commit -m "data: add <project> to public-data"
+   git push origin main
+   ```
+8. **Cloudflare Pages 自动 re-deploy**：custom domain 与 pages.dev 在 ~30s 内刷新。
+
+**关键原则**：
+
+- agent **只**写 `data/`，不直接写 `public-data/`
+- `public-data/` 是**人工确认后的公开快照**
+- 每次 push `public-data/` 前必须跑 `make publish-preflight`
+- 永远不用 `git add .`；永远不把 `data/`、`generated/`、`apps/dashboard/dist/` 加入 commit
+
+### 5.5.5 ACT-6B 多项目导出示例
+
+```bash
+python scripts/export_public_data.py \
+  --source data --output public-data \
+  --project-id agent-project-control-tower --project-id artvee-gallery \
+  --agent-id local-hermes --max-events 20 \
+  --repo-prefix conanxin --replace
+```
+
+结果：
+
+- `public-data/registry/projects.yml`：2 entries
+- `public-data/registry/agents.yml`：1 entry（local-hermes）
+- `public-data/events/`：11 files
+- `public-data/MANIFEST.json`：记录 source=data、project_filter、agent_filter、event_count
+
 ### 5.5.4 ACT-6 真实接出的"第一次"
 
 ```bash
@@ -485,7 +536,7 @@ python scripts/export_public_data.py \
 # → custom domain https://control-tower.conanxin.com/ 30s 内显示真实 1/1/7
 ```
 
-ACT-6B 候选（第二项目接入）：跑相同命令加 `--project-id <新 id>`，**注意** `--replace` 会清空 ACT-6 的旧数据。多项目并集需 `--project-id a --project-id b` 一次跑（脚本已支持可重复参数）。
+ACT-6B 已接入第二项目 `artvee-gallery`：使用 `--project-id agent-project-control-tower --project-id artvee-gallery` 一次导出多项目并集（见 §5.5.5）。
 
 ## 6. 协作剧本（playbook）
 

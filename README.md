@@ -5,8 +5,8 @@
 > 🌍 **GitHub**: <https://github.com/conanxin/agent-project-control-tower>（public，ACT-4B 已 push）
 > 🚀 **Online Dashboard (custom domain)**: <https://control-tower.conanxin.com/>（ACT-5B ✅ 已绑 custom domain）
 > 🔁 **Online Dashboard (pages.dev fallback)**: <https://agent-project-control-tower.pages.dev/>（ACT-5 ✅，与 custom domain 服务同一份 dist）
-> 🟢 **状态**: ACT-6 ✅ COMPLETE（公开数据从 demo 2/3/3 升级为真实子集 1/1/7 — `agent-project-control-tower` 自身）
-> ⏸ **下一步**: ACT-6B（接入第 2 个真实开源项目，如 `artvee-gallery` / `booktrans-desk`）
+> 🟢 **状态**: ACT-6B ✅ COMPLETE（公开数据包含两个真实项目：`agent-project-control-tower` + `Artvee Gallery`）
+> ⏸ **下一步**: ACT-6C（接入第 3 个真实开源项目）或 ACT-7（agent 上报模板与多机器使用手册）
 
 ---
 
@@ -520,15 +520,13 @@ https://agent-project-control-tower.pages.dev/
 
 **在线页面验收结果**（`curl -I -L` + 内容扫描）：
 
-| URL | HTTP | 实体可见 |
-| --- | --- | --- |
-| `/` | 200 | 2 projects + 3 agents + 3 events |
-| `/timeline/` | 200 | 同上 |
-| `/projects/local-book-tool/` | 200 | 单项目页 + 关联 2 agents |
-| `/projects/cloud-art-site/` | 200 | 单项目页 + 关联 1 agent |
-| `/agents/local-hermes/` | 200 | 单 agent 页 + 关联 1 project |
-| `/agents/local-codex/` | 200 | 单 agent 页 + 关联 1 project |
-| `/agents/cloud-openclaw/` | 200 | 单 agent 页 + 关联 1 project |
+|| URL | HTTP | 实体可见 |
+|| --- | --- | --- |
+|| `/` | 200 | 2 real projects + 1 agent + 11 events |
+|| `/timeline/` | 200 | 同上 |
+|| `/projects/agent-project-control-tower/` | 200 | 单项目页 + ACT-6 事件 |
+|| `/projects/artvee-gallery/` | 200 | 单项目页 + P2/P3B 事件 |
+|| `/agents/local-hermes/` | 200 | 单 agent 页 + 关联 2 projects |
 
 **敏感扫描结果**（所有 7 个页面）：
 
@@ -545,30 +543,27 @@ https://agent-project-control-tower.pages.dev/
 
 **当前公开边界**（ACT-5 落定）：
 
-| 内容 | 状态 |
-| --- | --- |
-| 在线 dashboard（Cloudflare Pages） | ✅ 公开，URL 公开可访问 |
-| 仓库元数据（README / docs / LICENSE） | ✅ 公开 |
-| `public-data/` (2 projects / 3 agents / 3 events) | ✅ 公开 |
-| `examples/` (sanitized seed) | ✅ 公开 |
-| `data/` (local real control tower) | ❌ gitignored，**仍不公开** |
-| `generated/` (build artifact) | ❌ gitignored，CF Pages 重新 build |
-| `apps/dashboard/dist/` (Astro build) | ❌ gitignored，CF Pages build 输出 |
+|| 内容 | 状态 |
+|| --- | --- |
+|| 在线 dashboard（Cloudflare Pages） | ✅ 公开，URL 公开可访问 |
+|| 仓库元数据（README / docs / LICENSE） | ✅ 公开 |
+|| `public-data/` (2 real projects / 1 agent / 11 events) | ✅ 公开，**唯一** publish 数据源 |
+|| `examples/` (sanitized seed) | ✅ 公开 |
+|| `data/` (local real control tower) | ❌ gitignored，**仍不公开** |
+|| `generated/` (build artifact) | ❌ gitignored，CF Pages 重新 build |
+|| `apps/dashboard/dist/` (Astro build) | ❌ gitignored，CF Pages build 输出 |
 
-**当前 public-data 统计**（2/3/3）：
+**当前 public-data 统计**（ACT-6B 后：2 real projects / 1 agent / 11 events）：
 
 ```yaml
 projects:
-  - local-book-tool  (scope=local, primary_agent=local-hermes)
-  - cloud-art-site   (scope=cloud, primary_agent=cloud-openclaw)
+  - agent-project-control-tower  (category=agent-infra, primary_agent=local-hermes)
+  - artvee-gallery               (category=art-gallery, primary_agent=local-hermes)
 agents:
-  - local-hermes     (machine=local, type=hermes)
-  - local-codex      (machine=local, type=codex)
-  - cloud-openclaw   (machine=cloud, type=openclaw)
+  - local-hermes                 (machine=local, type=hermes)
 events:
-  - 2026-06-11: local-book-tool L1 PASS  (local-hermes)
-  - 2026-06-11: local-book-tool L2 FAIL  (local-codex)
-  - 2026-06-11: cloud-art-site  C1 PASS  (cloud-openclaw)
+  - agent-project-control-tower: PROJECT_REGISTERED, ACT-0 ~ ACT-6 (8 events)
+  - artvee-gallery:              PROJECT_REGISTERED, P2 PASS, P3B PASS (3 events)
 ```
 
 **如何更新 public-data 并触发部署**：
@@ -590,8 +585,7 @@ git push origin main
 
 **已知限制**：
 
-- ❌ **无自定义域名** — URL 是 `*.pages.dev`，未绑 `control-tower.your-domain.com`
-- ❌ **demo 数据，不含真实运行 data/** — 想看真实项目进展，需要先 ACT-6 接入脱敏子集
+- ❌ **demo 数据已替换为真实子集，但仍不是完整 data/** — 想看全部项目进展，需要继续 ACT-6C/ACT-7
 - ❌ **Cloudflare Pages Dashboard 上手动 Connect 完成** — ACT-5 之前用户手动在 cloudflare.com 配了 Root directory / Build command
 - ❌ **无 analytics** — 没有访问量统计，CF Pages 提供的 Web Analytics 也未启用
 - ❌ **无 fallback / 错误页** — 404 由 CF 默认处理，没有自定义
@@ -861,6 +855,130 @@ git push origin main
 - `make dashboard` 之前 `dashboard: build` 依赖 `tower.py build`（data 版）—— 这与 ACT-6 的"public-data 是唯一线上源"原则冲突。ACT-6 拆分为 `dashboard`（public）+ `dashboard-local`（data），移除 `dashboard: build` 依赖
 - `make publish-preflight` 第一步之前是 `public-data`（examples）—— ACT-6 改为 `public-data-real`（data 切片），让 publish 链反映 ACT-6 真实子集
 - `data/registry/projects.yml` 的 `local/agent-project-control-tower` 占位符与 `data/events/*.json` 的 `source_repo: local/agent-project-control-tower` 是**配套设计**——导出时 `repo-prefix` 把 `local/` 一并改写为 `conanxin/`，保证公开版不漏 `local/` 字符串
+
+### ACT-6B Second Real Project Public Export — Artvee Gallery（**已完成**）
+
+ACT-6B 把第二个真实开源项目 `artvee-gallery` 接入控制塔公开 dashboard，与 `agent-project-control-tower` 同时在线展示。
+
+**重大决策点**：
+
+|| 维度 | ACT-6（1 real） | ACT-6B（2 real） |
+|| --- | --- | --- |
+|| 数据源 | `data/`（脱敏切片） | `data/`（多项目脱敏切片） |
+|| 公开 projects | 1 real | 2 real（`agent-project-control-tower` + `artvee-gallery`） |
+|| 公开 agents | 1 real | 1 real（`local-hermes`） |
+|| 公开 events | 7 real | 11 real（8 + 3） |
+|| `export_public_data.py` | 单 project 导出 | 多 project 并集导出（`--project-id` 可重复） |
+|| 真实 `data/` | gitignored | gitignored（**仍不公开**） |
+
+**Artvee Gallery 本地状态来源**：
+
+- 项目目录：`~/hermes-agent/project/artvee-library`
+- README：`README.md`（本地图库用途与目录结构）
+- 阶段文档：`docs/GALLERY_PUBLIC_DEMO.md`（P2 Public Demo 导出）、`docs/GALLERY_DAILY_DIGEST.md`（P3B Daily Inspiration Digest）
+- 最近 commit：`cd2b7b1`（P3B Daily Inspiration Digest）、`7f2f1f3`（P2 Public Demo Export）
+- 当前阶段：P3B PASS（Daily Inspiration Digest 已生成并接入 nightly wrapper）
+- 下一步：发布 public demo 到静态托管目标 / 添加 digest 落地页
+
+**控制塔本地注册与上报命令**：
+
+```bash
+python scripts/tower.py register-project \
+  --project-id artvee-gallery --name "Artvee Gallery" \
+  --repo "conanxin/artvee-library" --location "public" \
+  --category "art-gallery" --status ACTIVE \
+  --description "Open-source art gallery and daily inspiration digest project." \
+  --agent-id local-hermes
+
+python scripts/tower.py report-phase \
+  --project-id artvee-gallery --agent-id local-hermes \
+  --phase-id P2 --phase-name "Public Demo Export" --status PASS \
+  --summary "Added public demo export for Artvee Gallery..." \
+  --source-repo "conanxin/artvee-library" \
+  --source-commit 7f2f1f35b24b6aa89b0107bc31c193dc90acd41c \
+  --next "Add a public digest UI and connect the demo to a static hosting target."
+
+python scripts/tower.py report-phase \
+  --project-id artvee-gallery --agent-id local-hermes \
+  --phase-id P3B --phase-name "Daily Inspiration Digest" --status PASS \
+  --summary "Added daily inspiration digest for Artvee Gallery..." \
+  --source-repo "conanxin/artvee-library" \
+  --source-commit cd2b7b1f72a007f55bf5d7da7749004fb603452e \
+  --next "Publish the demo to a static hosting target and add a public digest landing page."
+```
+
+**多项目导出命令**：
+
+```bash
+python scripts/export_public_data.py \
+  --source data --output public-data \
+  --project-id agent-project-control-tower --project-id artvee-gallery \
+  --agent-id local-hermes --max-events 20 \
+  --repo-prefix conanxin --replace
+# → public-data: 2 projects / 1 agent / 11 events
+# → redaction summary: FAIL=0, WARN=0
+```
+
+**当前 public-data 统计**（ACT-6B 后：2/1/11）：
+
+```yaml
+projects:
+  - id: agent-project-control-tower
+    name: Agent Project Control Tower
+    repo: conanxin/agent-project-control-tower
+    category: agent-infra
+    status: ACTIVE
+    primary_agent: local-hermes
+  - id: artvee-gallery
+    name: Artvee Gallery
+    repo: conanxin/artvee-library
+    location: public
+    category: art-gallery
+    status: ACTIVE
+    primary_agent: local-hermes
+
+agents:
+  - id: local-hermes
+    type: hermes
+    machine: local
+    display_name: Local Hermes (notebook)
+    operator: xin
+
+events:
+  agent-project-control-tower:
+    - PROJECT_REGISTERED
+    - ACT-0 PASS
+    - ACT-1 PASS
+    - ACT-2 PASS
+    - ACT-3A PASS
+    - ACT-5 PASS
+    - ACT-5B PASS
+    - ACT-6 PASS
+  artvee-gallery:
+    - PROJECT_REGISTERED
+    - P2 PASS  (Public Demo Export)
+    - P3B PASS (Daily Inspiration Digest)
+```
+
+**`public-data/MANIFEST.json` 升级**：
+
+```json
+{
+  "agent_filter": ["local-hermes"],
+  "event_count": 11,
+  "max_events_per_project": 20,
+  "project_filter": ["agent-project-control-tower", "artvee-gallery"],
+  "registry_files": ["agents.yml", "projects.yml"],
+  "repo_prefix": "conanxin",
+  "source": "data"
+}
+```
+
+**已知限制**：
+
+- ❌ **`make public-data-real` Makefile 变量仍只支持单 project** — 多 project 导出需要直接调用 `export_public_data.py`（已支持 `--project-id` 重复参数）
+- ❌ **未跑在线 URL 验证** — ACT-6B 范围只验证本地 + 构建链路；在线重新部署由 push 触发，CF Pages build 30s 内完成
+- ❌ **artvee-gallery 的 public demo / digest 尚未发布到独立 URL** — 控制塔只展示项目状态，不托管图库原图
 
 ### ACT-2 关键命令
 

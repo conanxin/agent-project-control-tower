@@ -2,7 +2,7 @@
 
 > 把"建一个能用的控制塔"拆成 6 个阶段。每个阶段都有明确产出 + 验收标准 + 退出条件。
 >
-> 当前在 **ACT-6 ✅ COMPLETE**。ACT-6 把公开数据从 demo `examples/` 2/3/3 升级为真实 `data/` 子集 1/1/7（`agent-project-control-tower` 自身）。下一阶段：**ACT-6B**（接入第 2 个真实开源项目）。
+> 当前在 **ACT-6B ✅ COMPLETE**。ACT-6B 把第二个真实开源项目 `artvee-gallery` 接入公开 dashboard，当前 public-data 为 2 real projects / 1 agent / 11 events。下一阶段：**ACT-6C**（接入第 3 个真实开源项目）或 **ACT-7**（agent 上报模板与多机器使用手册）。
 
 ## 全景时间线
 
@@ -25,10 +25,13 @@ ACT-5 ✅ Cloudflare Pages online verification (2026-06-11)
   ↓
 ACT-5B ✅ Custom domain bind (2026-06-11)
   ↓
-ACT-6 ✅ First real project public export (2026-06-11) ← 当前阶段
+ACT-6  ✅ First real project public export    (2026-06-11)
   ↓
-ACT-6B         add 2nd real project (e.g. booktrans-desk)
-ACT-7+         通知 / 统计 / 修正流 (可选)
+ACT-6B ✅ Second real project — Artvee Gallery (2026-06-11) ← 当前阶段
+  ↓
+ACT-6C         add 3rd real project
+ACT-7          agent 上报模板与多机器使用手册
+ACT-8+         通知 / 统计 / 修正流 (可选)
 ```
 
 每个 ACT 的预算：**1–2 周业余时间**，不超过 30 个 commit。

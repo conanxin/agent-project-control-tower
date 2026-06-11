@@ -86,12 +86,14 @@ make publish-preflight
 > **ACT-5 已完成**：首次部署到 `*.pages.dev`。
 > **ACT-5B 已完成**：custom domain `control-tower.conanxin.com` 绑定并验收。
 > **ACT-6 已完成**：公开数据从 demo `examples/` 2/3/3 升级为 `data/` 真实子集 1/1/7。
+> **ACT-6B 已完成**：公开数据升级为 2 real projects / 1 agent / 11 events（`agent-project-control-tower` + `artvee-gallery`）。
 >
 > - **主入口（custom domain）**：<https://control-tower.conanxin.com/>
 > - **备入口（pages.dev fallback）**：<https://agent-project-control-tower.pages.dev/>
 > - 两个 URL 服务**同一份** dist
 > - 首次 build command：`npm ci && npm run build`（在 `apps/dashboard/` root dir）
 > - **ACT-6 关键改进**：`npm run build` 现在**自动**从 public-data 重新生成 `generated/index.json`（prebuild 钩子），CF Pages build 不再依赖外部先生成 generated/
+> - **ACT-6B 关键改进**：`export_public_data.py` 支持 `--project-id` 重复参数，一次导出多项目并集
 > - 部署时间：~30s（CF Pages 首次 build + deploy）
 
 ### 4.1 实际 Cloudflare Pages 配置（ACT-5 落定）

@@ -6,4 +6,12 @@
   status: ACTIVE
   description: A Git-backed control tower for multi-agent project progress tracking.
   primary_agent: local-hermes
+- id: artvee-gallery
+  name: Artvee Gallery
+  repo: conanxin/artvee-library
+  location: public
+  category: art-gallery
+  status: ACTIVE
+  description: Open-source art gallery and daily inspiration digest project.
+  primary_agent: local-hermes
 
