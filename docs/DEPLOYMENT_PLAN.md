@@ -1,7 +1,9 @@
 # Deployment Plan
 
 > 怎么把"Git 仓库里的 events"变成"任何浏览器都能看的 dashboard"。
-> **当前（ACT-4A 之后）**：所有 CI 已写好、文档已就位。**仍未**创建远程仓库、**未** push、**未**部署。下一阶段 ACT-4B 才执行。
+> **当前（ACT-7 之后）**：所有 CI 已写好、文档已就位。远程仓库、push、Cloudflare Pages 部署均已完成。下一阶段 ACT-8 或 ACT-7B（见 `docs/MVP_PLAN.md`）。
+>
+> **ACT-7 新增**：上线后验收的完整 checklist 指向 `templates/checklists/online-verification-checklist.md`（四 URL HTTP 200、BookTrans Desk 误归类回归检查、敏感扫描、`pages.dev` 兜底等）。
 
 ## 0. 设计判断
 
@@ -566,6 +568,37 @@ git push origin main
 | `~/.ssh/` / `~/.aws/` / `.env` 引用 | 0 |
 | smoke 测试数据 (`smoke-1/2/proj`) | 0 |
 | `data/` 路径泄漏 | 0 |
+
+## 9.6 ACT-7 上线后验证 checklist（指向 templates/checklists/）
+
+ACT-7 之后，所有上线后验证的步骤都集中在 `templates/checklists/online-verification-checklist.md`。本文档不再重复细节，**只保留指向指针**。
+
+| 场景 | 指向 |
+| --- | --- |
+| 任何 push 到 `main` 之后 | `templates/checklists/online-verification-checklist.md`（A–I 全套） |
+| 仅想快速 spot-check 关键 URL | 同上 checklist §B–§D（HTTP 200 / 内容 / 计数） |
+| 想确认 ACT-6C 误归类没回归 | 同上 checklist §F |
+| 想做敏感扫描 | 同上 checklist §G |
+| `control-tower.conanxin.com` 边缘卡住想兜底 | 同上 checklist §H（`pages.dev` mirror） |
+| 上线前（push 之前） | `templates/checklists/preflight-checklist.md` + `templates/checklists/public-data-review-checklist.md` |
+| 仅 redaction 审核 | `templates/checklists/redaction-checklist.md` |
+
+**部署总流程（ACT-7 之后的标准流程）**：
+
+```text
+1. 本地完成报告（agent 写 data/events/）
+2. 人类 review + 运行 export_public_data.py（写 public-data/）
+3. 人类走 templates/checklists/public-data-review-checklist.md
+4. 人类走 templates/checklists/redaction-checklist.md
+5. 显式 git add public-data/...  （绝对不要 git add .）
+6. 走 templates/checklists/preflight-checklist.md
+7. git commit + git push
+8. 等待 60-90s（Cloudflare Pages 部署 + CDN 边缘缓存）
+9. 走 templates/checklists/online-verification-checklist.md（A–I）
+10. 如果发现 regression，回滚见本文档 §9
+```
+
+任何一步 fail：**停、报告、不要**用"fix forward"绕过——回滚→分析→重发，而不是把错误 deploy 累加下去。
 
 ## 10. 成本估算
 

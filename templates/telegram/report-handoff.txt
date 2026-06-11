@@ -1,0 +1,38 @@
+Hand off a project from one agent to another in the Agent Project
+Control Tower. The handoff event lives forever in the timeline and
+tells future readers where the work went.
+
+Run on the FROM agent's machine (or any machine that has a working
+`data/` for the project), inside the tower repo:
+
+  cd ~/workspace/projects/agent-project-control-tower
+
+Fill in the placeholders before sending.
+
+  PROJECT_ID    = <PROJECT_ID>
+  FROM_AGENT_ID = <AGENT_ID>           # the agent passing the work
+  TO_AGENT_ID   = <TO_AGENT_ID>        # the agent receiving the work
+  REASON        = "<short reason>"     # e.g. "shutting down", "wrong context", "specialist needed"
+  SOURCE_REPO   = <owner>/<repo>
+  SOURCE_COMMIT = <real commit hash from git log of SOURCE_REPO>
+
+Command:
+
+  python scripts/tower.py report-handoff \
+    --project-id     <PROJECT_ID> \
+    --agent-id       <FROM_AGENT_ID> \
+    --to-agent       <TO_AGENT_ID> \
+    --reason         "<short reason>" \
+    --source-repo    "<owner>/<repo>" \
+    --source-commit  <SOURCE_COMMIT>
+
+After the handoff event, the TO agent can continue with `report-phase`
+events as normal. The handoff event is permanent history; future
+readers (human or agent) can reconstruct the chain of custody.
+
+Hard rules:
+
+  - Do NOT include real tokens, real home paths, real IPs, or .env
+    references in --reason. The scanner will refuse to write.
+  - Do NOT run git add . in this repo. Always list files explicitly.
+  - data/ is gitignored. Do not attempt to commit it.

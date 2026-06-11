@@ -1,8 +1,11 @@
-# MVP Plan — ACT-1 to ACT-6
+# MVP Plan — ACT-1 to ACT-7
 
-> 把"建一个能用的控制塔"拆成 6 个阶段。每个阶段都有明确产出 + 验收标准 + 退出条件。
+> 把"建一个能用的控制塔"拆成阶段。每个阶段都有明确产出 + 验收标准 + 退出条件。
 >
-> 当前在 **ACT-6C ✅ COMPLETE**。ACT-6C 把第三个真实开源项目 `booktrans-desk` 接入公开 dashboard，当前 public-data 为 3 real projects / 1 agent / 14 events。下一阶段：**ACT-7**（agent 上报模板与多机器使用手册）。
+> 当前在 **ACT-7 ✅ COMPLETE**。ACT-7 不接入新项目、不开发新 dashboard UI、不引入数据库、不引入登录系统、不使用 Cloudflare API token。ACT-7 的唯一产出是**文档 + 模板 + 检查清单**——`docs/AGENT_USAGE_PLAYBOOK.md` / `docs/MULTI_MACHINE_SETUP.md` / `docs/PUBLIC_DATA_EXPORT_PLAYBOOK.md` / `templates/telegram/*.txt` / `templates/checklists/*.md`。当前 public-data 为 3 real projects / 1 agent / 14 events。
+> 下一阶段（二选一）：
+> 1. **ACT-8：real multi-agent onboarding trial**——在新机器（或新 agent persona）上跑手册的第一个端到端流程，把"应然"与"实然"差异填回文档。
+> 2. **ACT-7B：convert templates into CLI command generator**——把 `templates/telegram/*.txt` 的占位符变成 `scripts/tower.py cmd ...` 的 wrapper。
 
 ## 全景时间线
 
@@ -29,10 +32,9 @@ ACT-6  ✅ First real project public export    (2026-06-11)
   ↓
 ACT-6B ✅ Second real project — Artvee Gallery (2026-06-11)
   ↓
-ACT-6C ✅ Third real project — BookTrans Desk  (2026-06-11) ← 当前阶段
-  ↓
-ACT-7          agent 上报模板与多机器使用手册
-ACT-8+         通知 / 统计 / 修正流 (可选)
+ACT-6C ✅ Third real project — BookTrans Desk  (2026-06-11) + ACT-6C hotfix
+ACT-7  ✅ Multi-machine Agent Usage Playbook (2026-06-12) ← 当前阶段
+ACT-8          real multi-agent onboarding trial (planned)
 ```
 
 每个 ACT 的预算：**1–2 周业余时间**，不超过 30 个 commit。
@@ -728,16 +730,60 @@ git push origin main
 
 ---
 
-## ACT-7+ — Optional Enhancements
+## ACT-7 — Multi-machine Agent Usage Playbook（**已完成**）
 
-> ACT-6 完成后再讨论的扩展。**不要提前做**。
+ACT-7 的目标是**把控制塔从"项目已经能跑"升级为"其他 agent / 其他机器都能按手册稳定使用"**。本阶段不接入新项目、不开发新 dashboard UI、不引入数据库、不引入登录系统、不使用 Cloudflare API token。ACT-7 的全部产出是文档 + 模板 + 检查清单。
 
-- **ACT-7**：通知（Discord / Telegram webhook 在 CI 末尾）
-- **ACT-8**：统计（`generated/stats.json`、跨项目聚合页）
-- **ACT-9**：错误修正流（`correction` event 真正被 build_index 消费）
-- **ACT-10**：第二份控制塔（私密项目）—— 独立仓库 + 独立域名
-- **ACT-11**：Astro 升级到 v5，引入 view transitions
-- **ACT-12**：被其他人 fork → 写 CONTRIBUTING.md
+**新增文档**：
+
+- `docs/AGENT_USAGE_PLAYBOOK.md`（主手册，13 节）
+- `docs/MULTI_MACHINE_SETUP.md`（多机器 / 多 agent persona / 跨机器 git 协作）
+- `docs/PUBLIC_DATA_EXPORT_PLAYBOOK.md`（公开数据导出 + ACT-6C 误归类教训专章 §7）
+
+**新增模板**：
+
+- `templates/telegram/*.txt`：8 个 Telegram 直发模板（register-agent / register-project / report-phase / report-failure / report-review / report-handoff / report-release / export-public-data / cloudflare-verify）
+- `templates/checklists/*.md`：4 个 checklist（preflight / redaction / public-data-review / online-verification）
+
+**ACT-6C 教训如何写入手册**：
+
+- 主手册 §4 列出"the `repo` field is the ground truth"
+- 主手册 §5 列出"反例：optimistic `status=PASS`"（用 S13 的 PARTIAL/amber 作为引用）
+- 主手册 §12.1 把"误归类"列为第一个常见错误
+- 公开数据手册 §7 整节讲 ACT-6C 案例 + 4 个问题 + 4 个检查
+- `public-data-review-checklist.md` §B §C §D 写死回归检查
+- `online-verification-checklist.md` §F 单独一节 ACT-6C regression check
+
+**验收**：
+
+- `make all` / `make publish-preflight` / `npm run build` 全 PASS
+- pre-commit 等效扫描 CLEAN
+- 文档敏感扫描命中均为预期教学示例（详见 `reports/PHASE_ACT7_AGENT_USAGE_PLAYBOOK_REPORT.md`）
+- 线上 dashboard 不变（BookTrans Desk 仍 S13 / 16f38b6 / PARTIAL）
+- data/ 仍 gitignored
+- working tree clean
+
+**下一阶段建议**（二选一）：
+
+1. **ACT-8**：real multi-agent onboarding trial——在新机器（或新 agent persona）上跑手册的端到端流程。
+2. **ACT-7B**：convert templates into CLI command generator——把 `templates/telegram/*.txt` 的占位符变成 `scripts/tower.py cmd ...` 的 wrapper。
+
+详见 `reports/PHASE_ACT7_AGENT_USAGE_PLAYBOOK_REPORT.md`。
+
+---
+
+## ACT-7+ — Future Optional Enhancements
+
+> ACT-7 完成后讨论的扩展。**不要提前做**。
+
+- **ACT-7B**（候选）：templates → CLI command generator（`scripts/tower.py cmd ...`）
+- **ACT-8**（候选）：real multi-agent onboarding trial
+- **ACT-9**：统计（`generated/stats.json`、跨项目聚合页）
+- **ACT-10**：错误修正流（`correction` event 真正被 build_index 消费）
+- **ACT-11**：第二份控制塔（私密项目）—— 独立仓库 + 独立域名
+- **ACT-12**：Astro 升级到 v5，引入 view transitions
+- **ACT-13**：被其他人 fork → 写 CONTRIBUTING.md
+- **未来**：通知（Discord / Telegram webhook 在 CI 末尾）—— ACT-4A 已决定不引入，避免增加 secret 管理负担
 
 ## 风险控制
 

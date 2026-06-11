@@ -1,0 +1,55 @@
+Verify a Cloudflare Pages deployment of the Agent Project Control
+Tower dashboard. Run after `git push` to main, AFTER waiting 60-90s
+for the CDN edge cache to refresh.
+
+Run anywhere with curl. The expected public site is:
+
+  https://control-tower.conanxin.com/
+
+The pages.dev mirror is also a valid check:
+
+  https://agent-project-control-tower.pages.dev/
+
+Steps:
+
+  1. HTTP status of the four core URLs:
+
+       for u in / /timeline/ /projects/booktrans-desk/ /agents/local-hermes/; do
+         code=$(curl -sL -o /dev/null -w "%{http_code}" "https://control-tower.conanxin.com$u")
+         echo "$code  https://control-tower.conanxin.com$u"
+       done
+     # expected: 200 200 200 200
+
+  2. Spot-check key content on the project page:
+
+       curl -sL https://control-tower.conanxin.com/projects/booktrans-desk/ \
+         | grep -E "BookTrans|S13|16f38b6|PARTIAL|conanxin/booktrans-desk"
+     # expected: at least one match per pattern; no "conanxin-homepage" or "HP-33"
+
+  3. Spot-check the home and timeline:
+
+       curl -sL https://control-tower.conanxin.com/ \
+         | grep -E "3 projects|14 events|BookTrans"
+       curl -sL https://control-tower.conanxin.com/timeline/ \
+         | grep -E "S13|16f38b6|conanxin/booktrans-desk"
+
+  4. Live-page sensitive scan (must return nothing):
+
+       for u in / /timeline/ /projects/booktrans-desk/ /agents/local-hermes/; do
+         curl -sL "https://control-tower.conanxin.com$u" \
+           | grep -nE "api_key=|token=|Authorization:|<REAL_|/home/[^/]+/|/Users/[^/]+/"
+       done
+     # expected: empty output
+
+  5. pages.dev mirror check (in case the custom-domain edge is lagging):
+
+       curl -sL https://agent-project-control-tower.pages.dev/projects/booktrans-desk/ \
+         | grep -E "S13|16f38b6|conanxin/booktrans-desk"
+
+If the custom-domain edge is lagging by more than 5 minutes while the
+pages.dev mirror is fresh, that is a Cloudflare Pages edge cache
+glitch -- not a deploy failure. Do not panic-revert.
+
+If you see "conanxin-homepage" or "HP-33" in any project page for
+booktrans-desk, the mis-attribution regression is back. See the
+ACT-6C hotfix in docs/PUBLIC_DATA_EXPORT_PLAYBOOK.md section 7.

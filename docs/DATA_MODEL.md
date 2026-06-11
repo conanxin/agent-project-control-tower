@@ -382,6 +382,37 @@ def derive_health(project, recent_events):
 --health-gray:   #9ca3af;
 ```
 
+### 4.1 ACT-7 强化 status / health 选择原则（2026-06-12）
+
+ACT-6C 暴露了一个反复出现的失误：**自动化全 PASS 但手动项未完成时，被错记为 `PASS/green`**。BookTrans Desk S13（`16f38b6`）就是这种情况：所有 `npm` 检查都绿，但 Windows 桌面真实 click-through 仍是 `BLOCKED_MANUAL`。ACT-7 之后，`status` / `health` 的选择有了下面的明确原则。
+
+| `status` | 派生 `health` | 何时使用 | 反例（什么时候**不要**用） |
+| --- | --- | --- | --- |
+| `PASS` | `green` | 阶段目标 100% 达成，包括所有手动项。**Dashboard 上的绿色 = "可以放心对外宣布"**。 | 自动化 PASS 但手动 click-through / 真实集成 / 人工审查还没做。 |
+| `PARTIAL` | `amber`（dashboard 中显示为 "amber / PARTIAL"；CSS 内部仍叫 `--health-yellow`）| 阶段部分达成：部分 PASS 部分 pending；或主流程 PASS 但次流程有 blocker。**这是 ACT-6C 之后"最常被低估"的 status**。 | 不要用它来回避报告"还差什么"——`summary` 和 `next` 必须明确写"pending"项。 |
+| `FAIL` | `red` | 阶段目标未达成，存在可重现的失败。`report-failure` 命令会把 status 写死为 `FAIL`、health 写死为 `red`，并要求 `--failure-reason`。 | 不要在 `report-phase` 里手写 `status=FAIL`——请用 `report-failure` 以保证 `failure_reason` 字段被结构化记录。 |
+| `BLOCKED` | `red` | 阶段被外部因素阻塞（依赖未就绪、被人/平台/事件等）。可以使用 `report-phase` 写 `status=BLOCKED`，并用 `summary` / `next` 写清楚阻塞点。 | 不要把"我自己没时间做"写成 `BLOCKED`。`BLOCKED` 的语义是"想做但做不了"，不是"不想做"。 |
+| `PAUSED` | `gray` | 主动暂停：项目 / 阶段被故意放下一段时间。不期待近期恢复。 | 不要把"等用户回复"写成 `PAUSED`——这是 `BLOCKED`（被外部阻塞）。 |
+| `SKIPPED` | `gray` | 阶段在原计划中存在但决定跳过（变更了路线图）。 | 不要把"忘了做"写成 `SKIPPED`。 |
+
+**反例：乐观虚标 → ACT-6C 的真实案例**
+
+| 时间 | 错误做法（before ACT-6C） | 正确做法（after ACT-6C hotfix） |
+| --- | --- | --- |
+| S13 完成时 | `status=PASS health=green` | `status=PARTIAL health=amber` |
+| 报告 `summary` | "S13 done" | "S13 automated PASS (build/test/release:check/pack all green); real Windows desktop click-through remains BLOCKED_MANUAL" |
+| 报告 `next` | "ship" | "Continue release hardening; await a human Windows desktop click-through to clear BLOCKED_MANUAL" |
+
+**三步判断法**（每次 `report-phase` 之前）：
+
+1. **如果把这条事件公开贴到项目主页上，读者会不会觉得"自动化都过了 = 全过了"？** 如果会，而你又知道有手动项没做，**用 `PARTIAL/amber`**。
+2. **如果有 `report-failure` 应该用 `report-failure` 吗？** 如果阶段彻底没达成，**用 `report-failure`** 而不是 `report-phase` 写 `status=FAIL`。
+3. **`summary` 和 `next` 字段是否诚实地反映了真实状态？** 如果 `summary` 写"all green"而 `next` 写"click-through pending"——状态一定是 `PARTIAL/amber`，不是 `PASS/green`。
+
+**对 `health=amber` 的 CSS 变量名**：
+
+`build_index.py` 内部用 `yellow`，CSS 变量用 `--health-yellow`，但 dashboard UI 文案统一显示 `amber`（与状态枚举名对齐）。这是历史遗留命名分歧，**不要修改**——除非同时改 `scripts/build_index.py` 和 `apps/dashboard/` 所有 CSS / 文案。
+
 ---
 
 ## 5. ID 命名约束

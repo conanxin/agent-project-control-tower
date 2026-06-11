@@ -1,0 +1,37 @@
+Register a new agent persona in the Agent Project Control Tower.
+
+Run on the agent's own machine (the one doing the work), inside the
+tower repo:
+
+  cd ~/workspace/projects/agent-project-control-tower
+
+Fill in the placeholders before sending.
+
+  agent_id   = <AGENT_ID>            # kebab-case, stable, never renamed
+  name       = <Human Readable Name>
+  machine    = <machine-tag>         # local | local-wsl | cloud-vps | cloud-railway (NOT a real hostname)
+  role       = <role-tag>            # primary-coding-agent | reviewer | telegram-bridge | unattended
+  operator   = <handle>              # NOT a real name or email
+
+Command:
+
+  python scripts/tower.py register-agent \
+    --agent-id   <AGENT_ID> \
+    --name       "<Human Readable Name>" \
+    --machine    "<machine-tag>" \
+    --role       "<role-tag>" \
+    --operator   "<handle>"
+
+After running:
+
+  - python scripts/tower.py validate      # should say OVERALL: PASS
+  - the new agent now appears in data/registry/agents.yml (gitignored)
+  - re-running with the same --agent-id is idempotent
+
+Hard rules:
+
+  - Do NOT put a real hostname, real IP, real name, or real email in
+    --machine or --operator. Use a de-sanitized tag.
+  - Do NOT commit data/ to git. data/ is gitignored on purpose.
+  - Do NOT run git add . in this repo. Always list files explicitly.
+  - Do NOT push to master. Main branch is main.

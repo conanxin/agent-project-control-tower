@@ -5,6 +5,11 @@
 > 配套：[DATA_MODEL.md](DATA_MODEL.md) 讲数据长什么样；[USAGE_SIMULATION.md](USAGE_SIMULATION.md) 讲完整的一天。
 >
 > **本阶段（ACT-2）已经把"手写 event JSON"替换为 `tower.py` CLI——所有命令都通过 `python scripts/tower.py ...` 调用。**
+>
+> **本阶段（ACT-7）已经把"操作手册"扩展为完整使用剧本**：新机器 / 新 agent / 新项目的接入、跨机器协作、公开数据导出、Cloudflare 部署验收，全部写在了
+> [`docs/AGENT_USAGE_PLAYBOOK.md`](AGENT_USAGE_PLAYBOOK.md)、[`docs/MULTI_MACHINE_SETUP.md`](MULTI_MACHINE_SETUP.md)、
+> [`docs/PUBLIC_DATA_EXPORT_PLAYBOOK.md`](PUBLIC_DATA_EXPORT_PLAYBOOK.md) 以及 `templates/telegram/`、`templates/checklists/` 中。
+> **本文档（AGENT_WORKFLOW.md）保留为 ACT-2 时期的命令级参考**；日常使用请优先按 ACT-7 剧本走。
 
 ## 0. 安装与配置
 

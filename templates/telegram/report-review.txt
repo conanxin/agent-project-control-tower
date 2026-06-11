@@ -1,0 +1,40 @@
+Report a code/design review in the Agent Project Control Tower.
+
+Use this for checkpoints that are neither a phase pass nor a failure:
+a code review, a design review, an audit, an acceptance gate.
+
+Run on the agent's own machine, inside the tower repo:
+
+  cd ~/workspace/projects/agent-project-control-tower
+
+Fill in the placeholders before sending.
+
+  PROJECT_ID       = <PROJECT_ID>
+  AGENT_ID         = <AGENT_ID>
+  PHASE_ID         = <PHASE_ID>           # the phase being reviewed
+  PHASE_NAME       = "<short name>"
+  SUMMARY          = "<what was reviewed and the verdict>"
+  DESIGN_REASON    = "<why this design>"
+  IMPACT_ANALYSIS  = "<what changes if we proceed>"
+  SOURCE_REPO      = <owner>/<repo>
+  SOURCE_COMMIT    = <real commit hash from git log of SOURCE_REPO>
+
+Command:
+
+  python scripts/tower.py report-review \
+    --project-id       <PROJECT_ID> \
+    --agent-id         <AGENT_ID> \
+    --phase-id         <PHASE_ID> \
+    --phase-name       "<short name>" \
+    --summary          "<what was reviewed and the verdict>" \
+    --design-reason    "<why this design>" \
+    --impact-analysis  "<what changes if we proceed>" \
+    --source-repo      "<owner>/<repo>" \
+    --source-commit    <SOURCE_COMMIT>
+
+Hard rules:
+
+  - Do NOT include real tokens, real home paths, real IPs, or .env
+    references in any string field. The scanner will refuse to write.
+  - Do NOT run git add . in this repo. Always list files explicitly.
+  - data/ is gitignored. Do not attempt to commit it.

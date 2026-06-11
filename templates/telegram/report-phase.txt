@@ -1,0 +1,58 @@
+Report a phase completion in the Agent Project Control Tower.
+
+Run on the agent's own machine, inside the tower repo:
+
+  cd ~/workspace/projects/agent-project-control-tower
+
+Fill in the placeholders before sending.
+
+  PROJECT_ID    = <PROJECT_ID>                          # e.g. booktrans-desk
+  AGENT_ID      = <AGENT_ID>                            # e.g. local-hermes
+  PHASE_ID      = <PHASE_ID>                            # e.g. S13
+  PHASE_NAME    = "<short name>"                        # e.g. "Blocker Fixes and Manual Validation Rerun"
+  STATUS        = PASS | PARTIAL | FAIL | BLOCKED | PAUSED | SKIPPED
+  HEALTH        = green | amber | red | gray            # usually auto-derived from STATUS
+  SUMMARY       = "<1-2 sentences, NO secrets/paths/IPs>"
+  NEXT          = "<what comes next, no secrets/paths/IPs>"
+  SOURCE_REPO   = <owner>/<repo>                        # the real source repo
+  SOURCE_COMMIT = <real commit hash from git log of SOURCE_REPO>
+
+Command:
+
+  python scripts/tower.py report-phase \
+    --project-id       <PROJECT_ID> \
+    --agent-id         <AGENT_ID> \
+    --phase-id         <PHASE_ID> \
+    --phase-name       "<short name>" \
+    --status           <STATUS> \
+    --health           <HEALTH> \
+    --summary          "<1-2 sentences>" \
+    --next             "<what comes next>" \
+    --source-repo      "<owner>/<repo>" \
+    --source-commit    <SOURCE_COMMIT>
+
+Status / health defaults:
+
+  PASS    -> green
+  PARTIAL -> amber
+  FAIL    -> red
+  BLOCKED -> red
+  PAUSED  -> gray
+  SKIPPED -> gray
+
+Anti-pattern:
+
+  If automated checks PASS but a real human click-through is still
+  pending, the truth is PARTIAL/amber, NOT PASS/green. Do not paper
+  over the manual gap.
+
+Hard rules:
+
+  - SOURCE_COMMIT must come from `git log --oneline -5` in the
+    project's own repo. If you don't have one, stop.
+  - Do NOT put real tokens, real home paths, real IPs, or .env
+    references in --summary or --next. The scanner will refuse.
+  - Do NOT run git add . in this repo. Always list files explicitly.
+  - data/ is gitignored. Do not attempt to commit it.
+  - Do NOT push public-data/ yourself; the human reviewer does that
+    after running export_public_data.py.

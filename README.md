@@ -5,8 +5,51 @@
 > 🌍 **GitHub**: <https://github.com/conanxin/agent-project-control-tower>（public，ACT-4B 已 push）
 > 🚀 **Online Dashboard (custom domain)**: <https://control-tower.conanxin.com/>（ACT-5B ✅ 已绑 custom domain）
 > 🔁 **Online Dashboard (pages.dev fallback)**: <https://agent-project-control-tower.pages.dev/>（ACT-5 ✅，与 custom domain 服务同一份 dist）
-> 🟢 **状态**: ACT-6C ✅ COMPLETE（公开数据包含三个真实项目：`agent-project-control-tower` + `Artvee Gallery` + `BookTrans Desk`）
-> ⏸ **下一步**: ACT-7（agent 上报模板与多机器使用手册）
+|> 🟢 **状态**: ACT-7 ✅ COMPLETE（多机器 agent 使用手册 + Telegram 模板 + 公开数据审核清单）
+|> 🟢 **当前线上真实项目**: `agent-project-control-tower` + `artvee-gallery` + `booktrans-desk`（BookTrans Desk 已修正为 `conanxin/booktrans-desk` / S13 / `16f38b6` / PARTIAL）
+|> ⏸ **下一步**: ACT-8（real multi-agent onboarding trial）或 ACT-7B（templates → CLI command generator）
+
+---
+
+## 🚀 Start here
+
+If you are a new agent (or a new human) opening this repo for the first
+time, follow this order:
+
+1. Read `docs/AGENT_USAGE_PLAYBOOK.md` — the main handbook.
+2. For new machines / new agent personas, read
+   `docs/MULTI_MACHINE_SETUP.md`.
+3. For public dashboard / `public-data/` export questions, read
+   `docs/PUBLIC_DATA_EXPORT_PLAYBOOK.md`.
+4. Use the copy-paste Telegram command templates in
+   `templates/telegram/*.txt` to command an agent.
+5. Before any commit touching `public-data/`, walk through
+   `templates/checklists/preflight-checklist.md` and
+   `templates/checklists/public-data-review-checklist.md`.
+6. After any push, walk through
+   `templates/checklists/online-verification-checklist.md`.
+
+---
+
+## ✅ Current recommended usage path
+
+| You want to ... | Use this |
+| --- | --- |
+| Bring a new machine online | `docs/MULTI_MACHINE_SETUP.md` §1, §4.1 |
+| Register a new agent persona | `docs/AGENT_USAGE_PLAYBOOK.md` §3 + `templates/telegram/register-agent.txt` |
+| Register a new project | `docs/AGENT_USAGE_PLAYBOOK.md` §4 + `templates/telegram/register-project.txt` (注意 `repo` 必须指向真实代码仓库，详见 ACT-6C 教训) |
+| Report a phase completion | `docs/AGENT_USAGE_PLAYBOOK.md` §5 + `templates/telegram/report-phase.txt` |
+| Report a failure | `docs/AGENT_USAGE_PLAYBOOK.md` §6 + `templates/telegram/report-failure.txt` |
+| Report a review / handoff / release | `docs/AGENT_USAGE_PLAYBOOK.md` §7, §8, §9 |
+| Export redacted `public-data/` | `docs/PUBLIC_DATA_EXPORT_PLAYBOOK.md` + `templates/telegram/export-public-data.txt` |
+| Verify a Cloudflare Pages deploy | `templates/telegram/cloudflare-verify.txt` + `templates/checklists/online-verification-checklist.md` |
+| Avoid the ACT-6C mis-attribution bug | `docs/PUBLIC_DATA_EXPORT_PLAYBOOK.md` §7 |
+
+## 🟢 Current live real projects
+
+- **`agent-project-control-tower`** — this repo, `conanxin/agent-project-control-tower`, `local`, `agent-infra`. Tracks the tower itself.
+- **`artvee-gallery`** — `conanxin/artvee-library`, `public`, `art-gallery`. Open-source art gallery + daily inspiration digest.
+- **`booktrans-desk`** — `conanxin/booktrans-desk`, `public`, `reading-tool`. Open-source desktop tool for structured PDF and EPUB translation workflows. Current phase: **S13 (Blocker Fixes and Manual Validation Rerun)**, source commit `16f38b6`, status **PARTIAL/amber** (real Windows desktop click-through still `BLOCKED_MANUAL`).
 
 ---
 
@@ -1118,6 +1161,70 @@ events:
 - ❌ **`make public-data-real` Makefile 变量仍只支持单 project** — 多 project 导出需要直接调用 `export_public_data.py`（已支持 `--project-id` 重复参数）
 - ❌ **artvee-gallery 的 public demo / digest 尚未发布到独立 URL** — 控制塔只展示项目状态，不托管图库原图
 - ❌ **booktrans-desk 的公开 demo 未独立部署** — 控制塔只展示项目页和案例研究状态
+
+### ACT-7 Multi-machine Agent Usage Playbook（**已完成**）
+
+ACT-7 不接入新项目、不开发新 dashboard UI、不引入数据库、不引入登录系统、不使用 Cloudflare API token。ACT-7 的唯一产出是**文档 + 模板 + 检查清单**——让其他 agent、其他机器、其他项目能"按手册"稳定使用控制塔。
+
+**为什么 ACT-7 写手册而不是接第四个项目**：
+
+- 三个真实项目（`agent-project-control-tower` / `artvee-gallery` / `booktrans-desk`）已经覆盖了 `local`/`public` 两种 location、`agent-infra`/`art-gallery`/`reading-tool` 三种 category、ACT/HP/S/P/L 多种 phase 编号、PARTIAL/amber 这种诚实状态——足够作为手册的示例。
+- ACT-6C 暴露了一个根本问题：booktrans-desk 被错挂到 `conanxin-homepage` 子目录、HP-33 被当成了 booktrans-desk 的"当前阶段"。这是**流程问题**，不是**工具问题**——手册 + 清单比再多接一个项目更能防止回归。
+- 任何新 agent 第一次跑 `report-phase` 都会触达 ACT-5B（"别乐观虚标"）、ACT-6C（"别误归类"）、ACT-4A（"data 不公开"）三条教训。把它们写入手册是规模化的必要步骤。
+
+**新增文档**：
+
+| 文档 | 作用 |
+| --- | --- |
+| `docs/AGENT_USAGE_PLAYBOOK.md` | 主手册：13 节，覆盖新机器 / 新 agent / 新项目 / 上报 / 失败 / 复查 / handoff / release / 公开导出 / 部署验收 / 常见错误 |
+| `docs/MULTI_MACHINE_SETUP.md` | 多机器场景：local / cloud / 同一机器多 agent / 跨机器 git 协作 / push-rejected 恢复 |
+| `docs/PUBLIC_DATA_EXPORT_PLAYBOOK.md` | 公开数据导出：data/ vs public-data/ 边界 / 可公开 / 不可公开 / redaction 规则 / 多 project 导出 / MANIFEST 阅读 / ACT-6C 误归类教训（4 个问题 + 4 个检查）|
+
+**新增模板**：
+
+- `templates/telegram/`：8 个 Telegram 直发模板（`register-agent` / `register-project` / `report-phase` / `report-failure` / `report-review` / `report-handoff` / `report-release` / `export-public-data` / `cloudflare-verify`）
+- `templates/checklists/`：4 个 checklist（`preflight-checklist` / `redaction-checklist` / `public-data-review-checklist` / `online-verification-checklist`）
+
+**三个真实项目如何支撑手册**：
+
+- `agent-project-control-tower` —— 演示"自我追踪"的项目、primary agent 是它自己的 CLI 用户、ACT-0..ACT-6C 完整 phase 链展示了如何用 `ACT-N` 编号。
+- `artvee-gallery` —— 演示"另一个 agent 接管"模式（`local-hermes` 注册并维护）、`P2`/`P3B` 简单 phase 编号。
+- `booktrans-desk` —— 演示"PARTIAL/amber 是诚实" + "repo 必须指向真实代码仓库（不是 homepage 子目录）"，即 ACT-6C 教训。S13 状态自动成为手册中"`status=PARTIAL` 不是 PASS"反例的引用。
+
+**ACT-6C 教训如何写入手册**：
+
+- `AGENT_USAGE_PLAYBOOK.md` §4 注册新项目时硬性列出"ACT-6C lesson: the `repo` field is the ground truth"小节
+- `AGENT_USAGE_PLAYBOOK.md` §5 状态选择加了"反例：optimistic `status=PASS`"专门引用 S13 的 PARTIAL/amber
+- `AGENT_USAGE_PLAYBOOK.md` §12 七个常见错误中第一个就是 12.1 误归类
+- `PUBLIC_DATA_EXPORT_PLAYBOOK.md` §7 整节讲 ACT-6C 案例 + 4 个问题 + 4 个检查 + 4 个 anti-pattern
+- `public-data-review-checklist.md` §B §C §D 写死"booktrans-desk.repo 必须是 conanxin/booktrans-desk"的回归检查
+- `online-verification-checklist.md` §F 单独一节"ACT-6C regression check"
+
+**验证**：
+
+| 项 | 结果 |
+| --- | --- |
+| `make all` | PASS |
+| `make publish-preflight` | PASS（3 projects / 1 agent / 14 events，redaction FAIL=0 WARN=0） |
+| `npm run build` (apps/dashboard) | PASS（6 pages） |
+| pre-commit 等效扫描 | CLEAN（0 token / 0 IP / 0 home / 0 data leak 在 public-data + 新 docs + 新 templates） |
+| 文档敏感扫描 | 见 `reports/PHASE_ACT7_AGENT_USAGE_PLAYBOOK_REPORT.md` §4，所有命中为预期教学示例 |
+| 线上 dashboard | 不变（BookTrans Desk 仍 S13 / 16f38b6 / PARTIAL） |
+| data/ 仍 gitignored | 是 |
+
+**当前系统状态**：
+
+- 三个真实项目在线
+- BookTrans Desk 误归类已修
+- ACT-7 把 ACT-6C 教训从"一次性的 hotfix 报告"升级为"长期可执行的手册 + 清单"
+- ACT-7 本身不写 public-data event（保持本轮范围 = 文档 + 模板 + 清单；后续 act 可选决定是否让 ACT-7 event 公开）
+
+**下一阶段建议**（二选一）：
+
+1. **ACT-8：real multi-agent onboarding trial**——在新机器（或新 agent persona）上跑手册的第一个端到端流程，把手册的"应然"和"实然"差异填回文档。
+2. **ACT-7B：convert templates into CLI command generator**——把 `templates/telegram/*.txt` 中的占位符变成 `scripts/tower.py cmd ...` 的 wrapper，让 agent 不需要手抄命令。
+
+详见 `reports/PHASE_ACT7_AGENT_USAGE_PLAYBOOK_REPORT.md`。
 
 ### ACT-2 关键命令
 

@@ -1,0 +1,54 @@
+Register a new project in the Agent Project Control Tower.
+
+Run on the agent's own machine, inside the tower repo:
+
+  cd ~/workspace/projects/agent-project-control-tower
+
+Fill in the placeholders before sending.
+
+  PROJECT_ID       = <PROJECT_ID>     # kebab-case, stable, never renamed
+  PROJECT_NAME     = <Project Name>
+  REPO             = <owner>/<repo>   # THE REAL SOURCE REPO. Not a homepage sub-directory.
+  LOCATION         = public | local
+  CATEGORY         = <category>       # reading-tool | art-gallery | agent-infra | ...
+  DESCRIPTION      = <one-line description, no secrets, no paths, no IPs>
+  AGENT_ID         = <AGENT_ID>       # the agent_id of whoever is registering
+
+Command:
+
+  python scripts/tower.py register-project \
+    --project-id   <PROJECT_ID> \
+    --name         "<Project Name>" \
+    --repo         "<owner>/<repo>" \
+    --location     <public|local> \
+    --category     "<category>" \
+    --status       ACTIVE \
+    --description  "<one-line description>" \
+    --agent-id     <AGENT_ID>
+
+After running:
+
+  - python scripts/tower.py validate   # OVERALL: PASS
+  - the new project is in data/registry/projects.yml (gitignored)
+  - re-running with the same --project-id is idempotent on the registry
+
+CRITICAL -- the repo field:
+
+  --repo must point at the project's OWN source-code repository.
+  Do NOT point a tool at a sub-directory of conanxin-homepage or any
+  other "showcase" repo. The ACT-6C hotfix was needed exactly because
+  booktrans-desk had been pointing at conanxin/conanxin-homepage.
+
+  Wrong:  --repo conanxin/conanxin-homepage          (for booktrans-desk)
+  Right:  --repo conanxin/booktrans-desk            (for booktrans-desk)
+
+If the project also has a case study on conanxin.com, register the
+homepage as a SEPARATE project (conanxin-homepage), not as a sub-claim
+on the tool.
+
+Hard rules:
+
+  - Do NOT include any real home path, IP, token, or .env reference
+    in --description. The redaction scanner will refuse to write.
+  - Do NOT run git add . in this repo. Always list files explicitly.
+  - data/ is gitignored. Do not attempt to commit it.

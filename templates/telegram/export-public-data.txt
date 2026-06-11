@@ -1,0 +1,75 @@
+Export a redacted public-data snapshot for the Agent Project Control
+Tower dashboard. THIS IS THE GATE TO THE PUBLIC INTERNET.
+
+This is normally run by the human reviewer (or a designated exporter
+agent), not by the agent that wrote the events.
+
+Run inside the tower repo:
+
+  cd ~/workspace/projects/agent-project-control-tower
+
+Fill in the placeholders before sending.
+
+  PROJECTS = the list of <PROJECT_ID>s to include in the public
+            dataset, e.g. agent-project-control-tower, artvee-gallery,
+            booktrans-desk
+  AGENT    = <AGENT_ID>, usually local-hermes
+  MAX      = <max events per project, default 50>
+  PREFIX   = <repo prefix for local/<id> rewrite, default conanxin>
+
+Command (three real projects):
+
+  python scripts/export_public_data.py \
+    --source data \
+    --output public-data \
+    --project-id agent-project-control-tower \
+    --project-id artvee-gallery \
+    --project-id booktrans-desk \
+    --max-events 50 \
+    --repo-prefix conanxin \
+    --replace
+
+After running:
+
+  1. Confirm the redaction summary line:
+        redaction summary: FAIL=0, WARN=0
+     FAIL must be 0. If FAIL > 0, the export did NOT write. Find the
+     offending field, rewrite it, and re-run.
+
+  2. Inspect public-data/:
+        cat public-data/registry/projects.yml
+        cat public-data/MANIFEST.json
+        ls public-data/events/ | sort
+
+  3. Run the pre-push review checklist:
+        templates/checklists/public-data-review-checklist.md
+        templates/checklists/redaction-checklist.md
+
+  4. Build the public artifacts:
+        make public-build
+        make site-only
+        make dashboard
+
+  5. Stage the public-data files EXPLICITLY (no git add .):
+        git add public-data/registry/projects.yml \
+                public-data/registry/agents.yml \
+                public-data/MANIFEST.json \
+                public-data/events/<new event file>
+        git status --short    # review before commit
+
+  6. Commit and push:
+        git commit -m "<phase-id>: <what changed in public-data>"
+        git push              # never --force, never to master
+
+  7. Wait 60-90s for Cloudflare Pages + CDN cache.
+
+  8. Verify online with templates/checklists/online-verification-checklist.md.
+
+Hard rules:
+
+  - data/ is gitignored. Do not attempt to commit it.
+  - generated/ is gitignored. Do not attempt to commit it.
+  - The export ALWAYS uses --replace. Merge mode is for one-offs.
+  - If a project's public repo is wrong (e.g. points at a homepage
+    sub-directory), STOP and fix the registry first. Do not push
+    a mis-attributed export.

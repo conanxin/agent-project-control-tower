@@ -1,0 +1,36 @@
+Report a public release of a project in the Agent Project Control
+Tower. This powers the "Latest release" card on the dashboard.
+
+Run on the agent's own machine, inside the tower repo:
+
+  cd ~/workspace/projects/agent-project-control-tower
+
+Fill in the placeholders before sending.
+
+  PROJECT_ID    = <PROJECT_ID>
+  AGENT_ID      = <AGENT_ID>
+  VERSION       = <vX.Y.Z>                # e.g. v0.2.2-alpha
+  RELEASE_URL   = <public URL>             # e.g. https://github.com/<owner>/<repo>/releases/tag/vX.Y.Z
+  SUMMARY       = "<1-2 sentences, no secrets/paths/IPs>"
+  SOURCE_REPO   = <owner>/<repo>
+  SOURCE_COMMIT = <real commit hash from git log of SOURCE_REPO>
+
+Command:
+
+  python scripts/tower.py report-release \
+    --project-id     <PROJECT_ID> \
+    --agent-id       <AGENT_ID> \
+    --version        <vX.Y.Z> \
+    --release-url    "<public URL>" \
+    --summary        "<1-2 sentences>" \
+    --source-repo    "<owner>/<repo>" \
+    --source-commit  <SOURCE_COMMIT>
+
+Hard rules:
+
+  - --release-url must be public. If the release is private, mark the
+    project location=local and do NOT export it to public-data.
+  - Do NOT include real tokens, real home paths, real IPs, or .env
+    references in --summary. The scanner will refuse.
+  - Do NOT run git add . in this repo. Always list files explicitly.
+  - data/ is gitignored. Do not attempt to commit it.
