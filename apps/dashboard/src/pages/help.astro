@@ -318,63 +318,66 @@ python3 scripts/build_embedded_site.py</code></pre>
       如果未来有 per-project plan 文件，名字可能不同；请以 <code>ls config/</code> 实际结果为准。
     </p>
 
-    <h3 id="example-step-7">Step 7 — 显式 <code>git add</code> + <code>commit</code> + <code>push</code></h3>
+    <h3 id="example-step-7">Step 7 — 只 add 允许公开的文件</h3>
     <div class="callout callout-danger">
       <strong>禁止</strong> <code>git add .</code>
-      <p>必须<strong>逐文件显式列出</strong>。下表是这次 P5F 例子应该 add 的清单：</p>
+      <p>必须显式只 add 允许公开的目录，永远不要 add 私有目录：</p>
+      <ul>
+        <li>不要 add <code>data/</code>（gitignored，本来加不进去）</li>
+        <li>不要 add <code>generated/</code>（构建产物，不是 source of truth）</li>
+        <li>不要 add <code>artifacts/</code>（审查材料，review-only）</li>
+        <li>不要 add <code>apps/dashboard/dist/</code>（构建产物）</li>
+      </ul>
     </div>
     <p><strong>给 agent 的命令：</strong></p>
     <pre><code>cd &lt;control-tower-repo&gt;
 
-# 7.1 二次检查：哪些文件变了？是否混入了不该 commit 的东西？
 git status --short
-git status --short --ignored \
-  | grep -E "data/|generated/|artifacts/|apps/dashboard/dist|node_modules|\.env" \
-  || echo "OK: no forbidden paths staged"
 
-# 7.2 显式 add（不要 git add .）
-git add public-data/MANIFEST.json
-git add public-data/registry/projects.yml
-git add public-data/registry/agents.yml
-git add public-data/events/*.json
-git add site/index.embedded.html
+git add public-data/
+git add site/index.embedded.html 2&gt;/dev/null || true
+git add reports/ docs/ 2&gt;/dev/null || true
 
-# 7.3 再次确认 staged 内容
-git status --short
-git diff --cached --stat
+git status --short</code></pre>
+    <p class="muted">
+      <strong>提示：</strong><code>public-data/</code> 用目录 add 是因为 ACT-11 preflight 之后，MANIFEST +
+      registry + events 经常同步变。逐文件 add 也行，但目录 add + <code>git status --short</code>
+      二次审查更安全。其它目录如果<strong>这次</strong>没有要更新的内容，就跳过。
+    </p>
 
-# 7.4 commit + push
-git commit -m "Artvee Gallery P5F: approved publish after curation filters"
+    <h3 id="example-step-8">Step 8 — commit + push</h3>
+    <p><strong>给 agent 的命令：</strong></p>
+    <pre><code>git commit -m "Update public Control Tower state for Artvee Gallery P5F"
 git push</code></pre>
+    <p class="muted">
+      <strong>提示：</strong>commit 信息可以更具体，例如
+      <code>Artvee Gallery P5F: approved publish after curation filters</code>。
+      但<strong>绝不能</strong>写 token / IP / 本地路径 / <code>.env</code> 引用。
+    </p>
 
-    <h3 id="example-step-8">Step 8 — 线上验证 dashboard</h3>
+    <h3 id="example-step-9">Step 9 — 线上验证</h3>
     <p><strong>给 agent 的命令（push 后等 60–90 秒）：</strong></p>
-    <pre><code>cd &lt;control-tower-repo&gt;
-
-# 8.1 首页 200 + 含项目名
-curl -sL -o /dev/null -w "%&#123;http_code&#125;\n" https://control-tower.conanxin.com/
-curl -sL https://control-tower.conanxin.com/ \
+    <pre><code>curl -I https://control-tower.conanxin.com/
+curl -I https://control-tower.conanxin.com/timeline/
+curl -I https://control-tower.conanxin.com/help/
+curl -I https://control-tower.conanxin.com/projects/artvee-gallery/</code></pre>
+    <p class="muted">
+      <strong>说明：</strong>Cloudflare Pages 需要约 30–60 秒部署，再等 60–90 秒 CDN 缓存稳定。
+      <code>curl -I</code> 只看 HTTP 头，最快。如果想确认内容更新，再跑：
+    </p>
+    <pre><code>curl -sL https://control-tower.conanxin.com/ \
   | grep -E "Artvee|artvee-gallery|P5F" -o | sort -u
 
-# 8.2 项目详情页 200 + P5F / PASS
-curl -sL -o /dev/null -w "%&#123;http_code&#125;\n" \
-  https://control-tower.conanxin.com/projects/artvee-gallery/
 curl -sL https://control-tower.conanxin.com/projects/artvee-gallery/ \
-  | grep -E "P5F|24e5aa7|通过|Approved" -o | sort -u
-
-# 8.3 时间线 200 + 新 event
-curl -sL -o /dev/null -w "%&#123;http_code&#125;\n" \
-  https://control-tower.conanxin.com/timeline/
-curl -sL https://control-tower.conanxin.com/timeline/ \
-  | grep -E "P5F|artvee-gallery|PASS" -o | sort -u
-
-# 8.4 确认 data/ / generated/ 没被公开
-curl -sL https://control-tower.conanxin.com/ \
-  | grep -E "/home/|\.env|token=" -o \
-  || echo "OK: no secrets on public dashboard"</code></pre>
+  | grep -E "P5F|24e5aa7|通过|Approved" -o | sort -u</code></pre>
+    <p class="muted">
+      本示例没有 <code>JSON endpoint</code>，Dashboard 渲染靠 <code>apps/dashboard/dist/</code>
+      + <code>site/index.embedded.html</code>（构建时读 <code>generated/index.json</code>）。
+      如果未来加 JSON endpoint，再补同样的 <code>curl -I</code> + grep 检查。
+    </p>
 
     <h3>示例结束时面板看起来什么样</h3>
-    <p>假设所有 8 步都通过，线上 dashboard 的变化是：</p>
+    <p>假设所有 9 步都通过，线上 dashboard 的变化是：</p>
     <ul>
       <li><strong>首页</strong>：Artvee Gallery 行的 phase pill 从 <code>P3B · 通过 · PASS</code> 变成 <code>P5F · 通过 · PASS</code>。</li>
       <li><strong>Artvee Gallery 项目页</strong>：当前阶段显示 <code>P5F — Approved publish after curation filters</code>，source commit <code>24e5aa7</code>，状态 <code>PASS · green</code>，最近事件摘要更新。</li>
@@ -383,6 +386,55 @@ curl -sL https://control-tower.conanxin.com/ \
       <li><strong>data/ / generated/ / artifacts/</strong>：仍 gitignored，不公开。</li>
     </ul>
 
+    <h2 id="quick-reference">速记</h2>
+    <p>如果你只记一件事：</p>
+    <pre><code>agent 只能先写 data/；
+人审核 artifacts；
+通过后才 export 到 public-data/；
+最后只 add public-data + site；
+永远不要 git add .</code></pre>
+
+    <h2 id="what-to-send-agent">我该把什么发给 agent？</h2>
+    <p>最简单的消息模板：</p>
+    <pre><code>请把 &lt;项目名&gt; 的 &lt;阶段名&gt; 写入 Control Tower。
+
+阶段结果：
+- status:
+- source repo:
+- commit:
+- public URL:
+- report:
+- summary:
+
+要求：
+1. 只写 data/ event。
+2. 不 export public-data。
+3. 不 git push。
+4. 生成事件后告诉我 event JSON 路径。</code></pre>
+    <p class="muted">
+      实际发送时把字段填好。例如：
+    </p>
+    <pre><code>请把 artvee-gallery 的 P5F 写入 Control Tower。
+
+阶段结果：
+- status: PASS
+- source repo: conanxin/artvee-gallery
+- commit: 24e5aa7
+- public URL: https://conanxin.github.io/projects/artvee-gallery-demo/
+- report: reports/artvee-gallery-p5f-approved-publish-after-curation-20260612.md
+- summary: P5F published curated Gallery and Digest demos with 5 unique digest artists and clean public JSON.
+
+要求：
+1. 只写 data/ event。
+2. 不 export public-data。
+3. 不 git push。
+4. 生成事件后告诉我 event JSON 路径。</code></pre>
+    <p class="muted">
+      <strong>说明：</strong>agent 收到后会按 §2「在控制塔写入本地事件 <code>data/</code>」调用
+      <code>scripts/tower.py report-phase</code>，落 <code>data/events/&lt;TIMESTAMP&gt;__PHASE__&lt;AGENT_ID&gt;__&lt;PROJECT&gt;__&lt;PHASE&gt;.json</code>。
+      这是<strong>第一道门</strong>。第二道门（export public-data / commit / push）由人或授权 primary agent 走。
+    </p>
+
     <div class="callout callout-info">
       <strong>示例边界</strong>
       <p>这只是说明流程。真实更新请遵循：</p>
@@ -390,6 +442,7 @@ curl -sL https://control-tower.conanxin.com/ \
         <li>用 <a href="https://github.com/conanxin/agent-project-control-tower/tree/main/templates/checklists">templates/checklists/</a> 里的 <code>public-data-review-checklist.md</code> 走完整 checklist。</li>
         <li>Commit 信息遵守 ACT-12 / ACT-13 的命名风格（<code>&lt;PROJECT&gt; &lt;PHASE&gt;: short description</code>）。</li>
         <li>遇到 redaction WARN，先回 data/ 修改再走 preflight，不要直接 export。</li>
+        <li>完整 worked example 也在 <a href="https://github.com/conanxin/agent-project-control-tower/blob/main/docs/AGENT_USAGE_PLAYBOOK.md"><code>docs/AGENT_USAGE_PLAYBOOK.md</code></a> §17 留有指针（GitHub 永久链接）。</li>
       </ul>
     </div>
   </section>

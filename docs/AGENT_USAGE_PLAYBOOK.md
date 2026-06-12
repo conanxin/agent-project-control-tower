@@ -972,3 +972,39 @@ introduced by ACT-11 to describe "assisted local update".
 It is **not** Level 4 (PR-only bot) and **not** Level 5
 (auto-merge). The human still does `git add` / `git commit`
 / `git push` by hand.
+
+---
+
+## 17. Full worked example — see the deployed Help page
+
+The detailed end-to-end example (Artvee Gallery P5F: confirm source
+project → write `data/` event → human review → `make public-update-preflight`
+→ check artifacts → human-approved export → explicit `git add` →
+`commit` + `push` → online verification) lives on the deployed
+dashboard so it stays in sync with the current CLI flags and the
+current artifact filenames:
+
+> **<https://control-tower.conanxin.com/help/>**
+>
+> Sections: "完整示例：Artvee Gallery 完成 P5F 后如何更新控制塔"
+> (9 steps), "速记", and "我该把什么发给 agent？".
+
+Why this lives on `/help/` and not in this file:
+
+- The Help page is **deployed** and updateable without a docs-only
+  release; an operator can read it on the same site the dashboard
+  runs on.
+- This Playbook is the **canonical** reference for each command in
+  isolation; the Help page is the **end-to-end narrative** that ties
+  them together.
+- Real command flags (`tower.py report-phase`, `export_public_data.py`)
+  drift over time; the deployed page is rebuilt from the live source.
+
+If `/help/` is unreachable, the same content exists in:
+
+- This repo's `apps/dashboard/src/pages/help.astro` (single source of
+  truth).
+- `templates/telegram/report-phase-artvee-example.txt` — a copy-paste
+  Telegram template with `<PLACEHOLDER>` tokens, suitable for sending
+  to an agent that will fill them in via the ACT-7B command generator.
+

@@ -1,0 +1,93 @@
+Report a phase completion in the Agent Project Control Tower.
+
+This template is the Artvee Gallery P5F worked example referenced from
+https://control-tower.conanxin.com/help/  (section: 完整示例 → Step 2)
+and docs/AGENT_USAGE_PLAYBOOK.md §17.
+
+All values below are PLACEHOLDERS. Replace them before sending, or
+generate a single-line command via:
+
+  python scripts/generate_tower_command.py report-phase \
+      --project-id     <PROJECT_ID> \
+      --agent-id       <AGENT_ID> \
+      --phase-id       <PHASE_ID> \
+      --phase-name     "<short name>" \
+      --status         <PASS|PARTIAL|FAIL|BLOCKED|PAUSED|SKIPPED> \
+      --health         <green|amber|red|gray> \
+      --summary        "<1-2 sentences, NO secrets/paths/IPs>" \
+      --next           "<what comes next>" \
+      --next           "<another next-step if needed>" \
+      --source-repo    <owner>/<repo> \
+      --source-commit  <commit hash from git log of SOURCE_REPO>
+
+DO NOT replace <PLACEHOLDER> tokens in THIS template by hand — the
+generator exists so that the tower.py CLI and the template do not drift.
+
+----------------------------------------------------------------
+
+# Worked example — Artvee Gallery P5F
+
+Project background (CONTEXT only — not part of the command):
+
+  Source repo:    conanxin/artvee-gallery
+  Phase:          P5F — Approved publish after curation filters
+  Source commit:  24e5aa7
+  Status:         PASS / green
+  Public URL:     https://conanxin.github.io/projects/artvee-gallery-demo/
+  Report:         reports/artvee-gallery-p5f-approved-publish-after-curation-<DATE>.md
+  Summary:        P5F published curated Gallery and Digest demos with
+                  5 unique digest artists and clean public JSON.
+
+  This is a TEACHING example. The current real Artvee Gallery phase on
+  the public dashboard is whatever is shown at
+  https://control-tower.conanxin.com/projects/artvee-gallery/ — always
+  verify there before reporting.
+
+----------------------------------------------------------------
+
+# Single-line command (preferred)
+
+  python scripts/generate_tower_command.py report-phase \
+      --project-id     artvee-gallery \
+      --agent-id       local-hermes \
+      --phase-id       P5F \
+      --phase-name     "Approved publish after curation filters" \
+      --status         PASS \
+      --health         green \
+      --summary        "P5F published curated Gallery and Digest demos with 5 unique digest artists and clean public JSON." \
+      --next           "Open the curated demo URL and confirm the JSON feeds load." \
+      --next           "Send the P5F closeout note to the maintainer." \
+      --source-repo    conanxin/artvee-gallery \
+      --source-commit  24e5aa7
+
+----------------------------------------------------------------
+
+# Multi-line fallback (if the generator is unavailable)
+
+  python scripts/tower.py report-phase \
+    --project-id artvee-gallery \
+    --agent-id local-hermes \
+    --phase-id P5F \
+    --phase-name "Approved publish after curation filters" \
+    --status PASS \
+    --health green \
+    --summary "P5F published curated Gallery and Digest demos with 5 unique digest artists and clean public JSON." \
+    --source-repo conanxin/artvee-gallery \
+    --source-commit 24e5aa7 \
+    --next "Open the curated demo URL and confirm the JSON feeds load." \
+    --next "Send the P5F closeout note to the maintainer."
+
+----------------------------------------------------------------
+
+# Hard rules (DO NOT violate)
+
+  * DO NOT add --source-commit-url unless you have the real commit URL.
+  * DO NOT include /home/..., /Users/..., IPv4, .env, sk-..., ghp_...,
+    Bearer tokens, or any other secret in --summary / --next / --phase-name.
+  * DO NOT run export_public_data.py, git add public-data/, or git push
+    on the tower repo. That is the SECOND door — human / authorized
+    primary agent only. See /help/ §6 (双门模型) for details.
+  * After the event lands in data/, report back the exact event JSON
+    path:
+      data/events/<TIMESTAMP>__PHASE__<AGENT_ID>__<PROJECT>__<PHASE>.json
+    The human reviewer will open it before approving the export.
