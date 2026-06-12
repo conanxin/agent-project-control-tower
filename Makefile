@@ -9,7 +9,7 @@
 PYTHON ?= python3
 
 .PHONY: help seed validate build site site-only dashboard dashboard-local test test-cli clean all reset \
-        public-data public-build public-build-final publish-preflight command-test \
+        public-data public-build public-build-final publish-preflight publish-preflight-examples command-test \
         candidate candidate-fixture candidate-test export-plan-test
 
 help:
@@ -210,6 +210,14 @@ public-build-final:
 # exists for seeding an empty public-data/ from examples/; ACT-6
 # publishes from data/.
 #
+# ACT-9C: `publish-preflight` is now plan-driven (it calls
+# `public-data-real` with `--plan config/public-data-export-plan.yml`).
+# The local human runs this on local-hermes, which has the real `data/`.
+# CI cannot run this (it has no data/ — gitignored — and the plan
+# filter expects the 3 real production projects that don't exist on a
+# fresh runner). CI uses `publish-preflight-examples` instead, which
+# is the original ACT-4A path: examples/ → public-data/.
+#
 # Sequence:
 #   1. public-data-real  — export data/ → public-data/ (redacted slice)
 #   2. public-build      — validate public-data + regenerate generated/
@@ -232,4 +240,23 @@ publish-preflight: public-data-real public-build site-only dashboard public-buil
 	@echo "  site/embedded   rebuilt from public-data"
 	@echo "  apps/dashboard  dist/ rebuilt from public-data"
 	@echo "  (nothing deployed — ACT-4B creates the remote and pushes)"
+	@echo "==========================================================="
+
+# publish-preflight-examples — ACT-9C variant of publish-preflight for
+# CI runners. Uses the original ACT-4A `public-data` target (examples/
+# → public-data/) instead of `public-data-real`. Same downstream
+# pipeline (validate → build → site-only → dashboard → final-build),
+# but the export source is the sanitized fixture, not the local real
+# data/. The local-human runbook continues to use `publish-preflight`
+# (the plan-driven one above) for production refreshes.
+publish-preflight-examples: public-data public-build site-only dashboard public-build-final
+	@echo ""
+	@echo "==========================================================="
+	@echo "PUBLISH PREFLIGHT (EXAMPLES): PASS"
+	@echo "  public-data/    exported from examples/ (sanitized fixture)"
+	@echo "  generated/      rebuilt from public-data"
+	@echo "  site/embedded   rebuilt from public-data"
+	@echo "  apps/dashboard  dist/ rebuilt from public-data"
+	@echo "  (CI-runner preflight — local-hermes uses `publish-preflight`"
+	@echo "   with --plan and the real data/ for production refreshes.)"
 	@echo "==========================================================="
