@@ -6,6 +6,7 @@ import {
   EVENT_TYPE_LABEL, STATUS_LABEL, HEALTH_LABEL,
   LOCATION_LABEL, CATEGORY_LABEL, UI,
 } from "../../lib/labels";
+import { getProjectDisplay, getLocalizedEvent } from "../../lib/localized-content";
 
 // Pre-render one page per project. Astro requires this in getStaticPaths.
 export function getStaticPaths() {
@@ -21,6 +22,23 @@ const grouped = groupByPhase(timeline);
 
 // Latest event is the first one (timeline is newest-first by build_index.py)
 const latest = timeline[0] ?? null;
+
+// ACT-13D: Chinese display for the project + latest event.
+const projectDisplay = getProjectDisplay(project);
+const latestZh = latest ? getLocalizedEvent(latest) : null;
+const projectHasZhName = projectDisplay.nameZh && projectDisplay.nameZh !== project.name;
+const projectHasZhDesc = !!projectDisplay.descriptionZh;
+// Per-phase Chinese view: keys phase_id → Chinese phase name, used for
+// the timeline grouping headers below.
+const phaseZh = new Map<string, string>();
+for (const t of timeline) {
+  if (t.phase_id && !phaseZh.has(t.phase_id)) {
+    const zh = getLocalizedEvent(t);
+    if (zh.phaseNameZh && zh.phaseNameZh !== t.phase_name) {
+      phaseZh.set(t.phase_id, zh.phaseNameZh);
+    }
+  }
+}
 
 // Bilingual badges: "中文 · EN" or just the value if no Chinese differs.
 function bi(cn: string | undefined, en: string): string {
@@ -45,13 +63,35 @@ const catText = catCn && catCn !== project.category ? `${catCn} · ${project.cat
     </div>
     <dl class="detail-grid">
       <dt>{UI.projectFieldId}</dt>           <dd><code>{project.project_id}</code></dd>
-      <dt>{UI.projectFieldName}</dt>         <dd>{project.name}</dd>
+      <dt>{UI.projectFieldName}</dt>         <dd>
+        {projectHasZhName ? projectDisplay.nameZh : project.name}
+        {projectHasZhName && <span class="orig-suffix">（原文：{project.name}）</span>}
+      </dd>
+      {projectHasZhDesc && (
+        <>
+          <dt>简介</dt>
+          <dd class="zh-description">{projectDisplay.descriptionZh}</dd>
+        </>
+      )}
       <dt>{UI.projectFieldRepo}</dt>         <dd>{project.repo ? <a href={project.repo}>{project.repo}</a> : "—"}</dd>
       <dt>{UI.projectFieldLocation}</dt>     <dd>{locText}</dd>
       <dt>{UI.projectFieldCategory}</dt>     <dd>{catText}</dd>
       <dt>{UI.projectFieldStatus}</dt>       <dd><code>{statusPill}</code></dd>
       <dt>{UI.projectFieldHealth}</dt>       <dd><code>{healthPill}</code></dd>
-      <dt>{UI.projectFieldCurrentPhase}</dt><dd>{project.current_phase_id ?? "—"} {project.current_phase_name && `· ${project.current_phase_name}`}</dd>
+      <dt>{UI.projectFieldCurrentPhase}</dt>
+      <dd>
+        {project.current_phase_id ?? "—"}
+        {project.current_phase_name && (
+          <>
+            {" · "}
+            {(() => {
+              const id = project.current_phase_id;
+              const zh = id ? phaseZh.get(id) : null;
+              return zh ? zh : project.current_phase_name;
+            })()}
+          </>
+        )}
+      </dd>
       <dt>{UI.projectFieldLastAgent}</dt>   <dd>{project.last_agent_id ? <a href={`/agents/${project.last_agent_id}/`}>{project.last_agent_id}</a> : "—"}</dd>
       <dt>{UI.projectFieldLastEventAt}</dt><dd>{project.last_event_at ?? "—"}</dd>
       <dt>{UI.projectFieldEventCount}</dt>  <dd>{project.event_count}</dd>
@@ -68,7 +108,11 @@ const catText = catCn && catCn !== project.category ? `${catCn} · ${project.cat
           {latest.agent_id && <span>· {latest.agent_id}</span>}
           {latest.phase_id && <span>· {UI.projectPhasePrefix} {latest.phase_id}</span>}
         </div>
-        <div class="latest-card-summary">{latest.summary ?? UI.projectNoSummary}</div>
+        <div class="latest-card-summary">
+          {latestZh?.summaryZh && latestZh.summaryZh !== latest.summary
+            ? latestZh.summaryZh
+            : (latest.summary ?? UI.projectNoSummary)}
+        </div>
       </div>
     </section>
   )}
@@ -76,7 +120,11 @@ const catText = catCn && catCn !== project.category ? `${catCn} · ${project.cat
   <section>
     <h2>{UI.projectNextActions}</h2>
     {project.next
-      ? <p class="next-block">{project.next}</p>
+      ? <p class="next-block">
+          {latestZh?.nextZh && latestZh.nextZh !== project.next
+            ? latestZh.nextZh
+            : project.next}
+        </p>
       : <p class="muted">{UI.projectNoNext}</p>
     }
   </section>
@@ -89,19 +137,23 @@ const catText = catCn && catCn !== project.category ? `${catCn} · ${project.cat
     {timeline.length === 0
       ? <p class="muted">{UI.projectNoEvents}</p>
       : <div class="phase-groups">
-          {grouped.map((g) => (
-            <details open class="phase-group">
-              <summary>
-                <span class="phase-group-title">
-                  {g.phase_id ?? UI.projectNoPhase}{g.phase_name && ` — ${g.phase_name}`}
-                </span>
-                <span class="phase-group-count">{g.events.length}</span>
-              </summary>
-              <div class="timeline">
-                {g.events.map((t) => <TimelineItem entry={t} />)}
-              </div>
-            </details>
-          ))}
+          {grouped.map((g) => {
+            const zhName = g.phase_id ? phaseZh.get(g.phase_id) : null;
+            const displayName = zhName ?? g.phase_name;
+            return (
+              <details open class="phase-group">
+                <summary>
+                  <span class="phase-group-title">
+                    {g.phase_id ?? UI.projectNoPhase}{displayName && ` — ${displayName}`}
+                  </span>
+                  <span class="phase-group-count">{g.events.length}</span>
+                </summary>
+                <div class="timeline">
+                  {g.events.map((t) => <TimelineItem entry={t} />)}
+                </div>
+              </details>
+            );
+          })}
         </div>
     }
   </section>

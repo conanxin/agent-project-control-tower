@@ -4,13 +4,29 @@ import StatCard from "../components/StatCard.astro";
 import ProjectCard from "../components/ProjectCard.astro";
 import AgentCard from "../components/AgentCard.astro";
 import TimelineItem from "../components/TimelineItem.astro";
-import { tower } from "../lib/tower-data";
+import { tower, projectTimeline } from "../lib/tower-data";
 import { SUMMARY_LABELS, UI } from "../lib/labels";
+import { getProjectDisplay, getLocalizedEvent } from "../lib/localized-content";
 
 const s = tower.summary;
 const recent = tower.timeline.slice(0, 10);
 const projects = tower.projects;
 const agents = tower.agents;
+
+// ACT-13D: per-project, the latest event's Chinese summary / next / phase
+// are passed down so the ProjectCard can show them in Chinese while still
+// falling back to the original English fields.
+function latestEventZhFor(projectId: string) {
+  const tl = projectTimeline(projectId);
+  if (tl.length === 0) return null;
+  // projectTimeline is in JSON-sorted (newest-first) order from the build.
+  return getLocalizedEvent(tl[0]);
+}
+const projectsWithZh = projects.map((p) => ({
+  project: p,
+  display: getProjectDisplay(p),
+  lastEventZh: latestEventZhFor(p.project_id),
+}));
 
 // Distinct values for filter dropdowns
 const agentOptions = agents
@@ -36,7 +52,8 @@ const agentOptions = agents
       <h2>{UI.projectsSection}</h2>
       <span class="count-badge" data-count-target>{projects.length} {UI.agentsTotal.toLowerCase()}</span>
     </div>
-    <form class="filter-bar" data-filter-form aria-label="筛选项目">
+    <form class="filter-bar" data-filter-form aria-label="筛选项目"
+      data-search-target="name,nameZh,id,repo,summary,summaryZh,last_agent">
       <label class="search-field">
         <span class="visually-hidden">搜索</span>
         <input
@@ -88,13 +105,15 @@ const agentOptions = agents
     </form>
 
     <div class="row-list" data-container="items">
-      {projects.map((p) => (
+      {projectsWithZh.map(({ project: p, display: d, lastEventZh: zh }) => (
         <div
           data-item="project"
           data-name={p.name}
+          data-name-zh={d.nameZh && d.nameZh !== p.name ? d.nameZh : ""}
           data-id={p.project_id}
           data-repo={p.repo ?? ""}
           data-summary={p.last_summary ?? ""}
+          data-summary-zh={zh?.summaryZh && zh.summaryZh !== p.last_summary ? zh.summaryZh : ""}
           data-health={p.current_health}
           data-status={p.current_status}
           data-last_agent={p.last_agent_id ?? ""}

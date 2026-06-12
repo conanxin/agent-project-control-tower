@@ -1,12 +1,13 @@
-# MVP Plan — ACT-1 to ACT-13B
+# MVP Plan — ACT-1 to ACT-13D
 
 > 把"建一个能用的控制塔"拆成阶段。每个阶段都有明确产出 + 验收标准 + 退出条件。
 
-> 当前在 **ACT-13B ✅ COMPLETE**。ACT-13B 把整个 dashboard 改成中文优先界面（首页 / 时间线 / 项目 / Agent / Help），并把 Help 页面整页重写为中文操作手册（先看这里 / 核心流程 / 什么时候触发 / 常用操作 / 双门模型 / 权限边界 / public-data 检查清单 / 多机器使用 / 深入文档）。英文保留为"机器字"：状态值（PASS / PARTIAL / ACTIVE...）、健康度（green / yellow / red / gray）、路径（data/ / public-data/）、协议标识（commit / push / agent_id / project_id）。**没有改任何控制塔数据 / 功能 / 边界**：public-data 仍是 3 real projects / 2 agents / 24 events，data/ / generated/ / artifacts/ 仍 gitignored，automation level 仍 Level 1 + 1.5 + 2 + 3 (prototype)。
-> 下一阶段（按推荐度排序）：
-> 1. **wait-for-real-update**——等待真实项目阶段更新（BookTrans S14+ / Artvee P3C+ / tower ACT-14+ / 其他真实项目）。
-> 2. **ACT-12B when real update appears**——当 wait-for-real-update 出现真实事件时，再走一次 ACT-12 的 end-to-end flow。
-> 3. **ACT-14：adoption packaging**——为新 agent / 新人类首次 clone 这个仓库准备更顺手的入口。
+> 当前在 **ACT-13D ✅ COMPLETE**。ACT-13D 在 ACT-13B（静态 UI 中文化）之上，把"动态内容"（项目摘要 / 阶段名 / 下一步 / 最近活动原文 / 项目名）也改成中文优先。所有 24 个真实事件在 `apps/dashboard/src/lib/localized-content.ts` 里都做了中文映射；找不到映射的字段自动 fallback 到英文原文，不影响 build；`project_id` / `agent_id` / `repo` / `source_commit` / `phase_id` 这些机器字段保留英文。**没有改动 public-data**：3 real projects / 2 agents / 24 events，data/ / generated/ / artifacts/ 仍 gitignored。
+
+|> 下一阶段（按推荐度排序）：
+|> 1. **wait-for-real-update**——等待真实项目阶段更新（BookTrans S14+ / Artvee P3C+ / tower ACT-14+ / 其他真实项目）。
+|> 2. **ACT-12B when real update appears**——当 wait-for-real-update 出现真实事件时，再走一次 ACT-12 的 end-to-end flow。
+|> 3. **ACT-14：adoption packaging**——为新 agent / 新人类首次 clone 这个仓库准备更顺手的入口。
 
 ## 全景时间线
 
@@ -46,7 +47,8 @@ ACT-11 ✅ Public-data Update Ergonomics (2026-06-12)
 ACT-12 ✅ Recurring Public-data Update Trial (2026-06-12)
 ACT-10B ✅ v0.1.0 Release Polish (2026-06-12)
 ACT-13 ✅ Dashboard Help Page (2026-06-12)
-ACT-13B ✅ Dashboard Chinese Localization & Help Optimization (2026-06-12) ← 当前阶段
+ACT-13B ✅ Dashboard Chinese Localization & Help Optimization (2026-06-12)
+ACT-13D ✅ Dashboard Dynamic Content Chinese Localization (2026-06-12) ← 当前阶段
 ```
 
 每个 ACT 的预算：**1–2 周业余时间**，不超过 30 个 commit。

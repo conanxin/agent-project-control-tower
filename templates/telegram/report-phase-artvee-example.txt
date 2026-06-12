@@ -31,12 +31,19 @@ Project background (CONTEXT only — not part of the command):
 
   Source repo:    conanxin/artvee-gallery
   Phase:          P5F — Approved publish after curation filters
+                  (ACT-13D: phase_name may be Chinese, e.g. "P5F · 精选后正式发布")
   Source commit:  24e5aa7
   Status:         PASS / green
   Public URL:     https://conanxin.github.io/projects/artvee-gallery-demo/
   Report:         reports/artvee-gallery-p5f-approved-publish-after-curation-<DATE>.md
   Summary:        P5F published curated Gallery and Digest demos with
                   5 unique digest artists and clean public JSON.
+                  (ACT-13D: prefer Chinese summary, e.g. "P5F 发布精选
+                  Gallery 与 Digest demo，包含 5 位独立 digest 艺术家
+                  的作品，公开 JSON 干净。")
+  Next:           Open the curated demo URL and confirm the JSON feeds load.
+                  (ACT-13D: prefer Chinese next, e.g. "打开精选 demo URL
+                  确认 JSON 资源正常加载。")
 
   This is a TEACHING example. The current real Artvee Gallery phase on
   the public dashboard is whatever is shown at
@@ -51,12 +58,12 @@ Project background (CONTEXT only — not part of the command):
       --project-id     artvee-gallery \
       --agent-id       local-hermes \
       --phase-id       P5F \
-      --phase-name     "Approved publish after curation filters" \
+      --phase-name     "P5F · 精选后正式发布" \
       --status         PASS \
       --health         green \
-      --summary        "P5F published curated Gallery and Digest demos with 5 unique digest artists and clean public JSON." \
-      --next           "Open the curated demo URL and confirm the JSON feeds load." \
-      --next           "Send the P5F closeout note to the maintainer." \
+      --summary        "P5F 发布精选 Gallery 与 Digest demo，包含 5 位独立 digest 艺术家的作品，公开 JSON 干净。" \
+      --next           "打开精选 demo URL 确认 JSON 资源正常加载。" \
+      --next           "发送 P5F 收尾备忘给维护者。" \
       --source-repo    conanxin/artvee-gallery \
       --source-commit  24e5aa7
 
@@ -68,14 +75,14 @@ Project background (CONTEXT only — not part of the command):
     --project-id artvee-gallery \
     --agent-id local-hermes \
     --phase-id P5F \
-    --phase-name "Approved publish after curation filters" \
+    --phase-name "P5F · 精选后正式发布" \
     --status PASS \
     --health green \
-    --summary "P5F published curated Gallery and Digest demos with 5 unique digest artists and clean public JSON." \
+    --summary "P5F 发布精选 Gallery 与 Digest demo，包含 5 位独立 digest 艺术家的作品，公开 JSON 干净。" \
     --source-repo conanxin/artvee-gallery \
     --source-commit 24e5aa7 \
-    --next "Open the curated demo URL and confirm the JSON feeds load." \
-    --next "Send the P5F closeout note to the maintainer."
+    --next "打开精选 demo URL 确认 JSON 资源正常加载。" \
+    --next "发送 P5F 收尾备忘给维护者。"
 
 ----------------------------------------------------------------
 
@@ -87,6 +94,14 @@ Project background (CONTEXT only — not part of the command):
   * DO NOT run export_public_data.py, git add public-data/, or git push
     on the tower repo. That is the SECOND door — human / authorized
     primary agent only. See /help/ §6 (双门模型) for details.
+  * ACT-13D: prefer Chinese for --summary, --next, --phase-name. The
+    dashboard will display the Chinese text first; the original English
+    (if any) hides behind a "原文" toggle. --project-id / --agent-id /
+    --source-repo / --source-commit stay verbatim. If you send English
+    today, the dashboard still works — but a follow-up commit to
+    apps/dashboard/src/lib/localized-content.ts will be needed to map
+    the new (project_id, phase_id) pair into Chinese. See /help/ §10
+    ("为什么有些字段仍保留英文？").
   * After the event lands in data/, report back the exact event JSON
     path:
       data/events/<TIMESTAMP>__PHASE__<AGENT_ID>__<PROJECT>__<PHASE>.json

@@ -3,17 +3,35 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import TimelineItem from "../components/TimelineItem.astro";
 import { tower } from "../lib/tower-data";
 import { EVENT_TYPE_LABEL, UI } from "../lib/labels";
+import { getLocalizedEvent, getProjectDisplay } from "../lib/localized-content";
 
 // tower.timeline is already sorted newest-first by build_index.py.
 const tl = tower.timeline;
 const projectOptions = tower.projects
-  .map((p) => ({ id: p.project_id, name: p.name }))
+  .map((p) => {
+    const d = getProjectDisplay(p);
+    return { id: p.project_id, name: p.name, nameZh: d.nameZh };
+  })
   .sort((a, b) => a.name.localeCompare(b.name));
 const agentOptions = tower.agents
   .map((a) => ({ id: a.agent_id, name: a.name }))
   .sort((a, b) => a.name.localeCompare(b.name));
 
 const eventTypes = Array.from(new Set(tl.map((t) => t.event_type))).sort();
+
+// Pre-compute the Chinese view for each timeline entry so the
+// data-* filter attributes can index both languages at once.
+const tlWithZh = tl.map((t) => {
+  const zh = getLocalizedEvent(t);
+  return {
+    entry: t,
+    zh,
+    nameForSearch: [
+      t.event_type, t.phase_id ?? "", t.phase_name ?? "", t.summary ?? "",
+      zh.phaseNameZh, zh.summaryZh,
+    ].join(" "),
+  };
+});
 ---
 <BaseLayout title="时间线 — Agent Project Control Tower">
   <section>
@@ -22,7 +40,8 @@ const eventTypes = Array.from(new Set(tl.map((t) => t.event_type))).sort();
       <span class="count-badge" data-count-target>{tl.length} {UI.timelineTotal}</span>
     </div>
 
-    <form class="filter-bar" data-filter-form aria-label="筛选时间线">
+    <form class="filter-bar" data-filter-form aria-label="筛选时间线"
+      data-search-target="summary,summaryZh,phase_id,phase_name,phaseNameZh,event_type,project,agent">
       <label class="search-field">
         <span class="visually-hidden">搜索</span>
         <input
@@ -77,13 +96,15 @@ const eventTypes = Array.from(new Set(tl.map((t) => t.event_type))).sort();
     </form>
 
     <div class="timeline" data-container="items">
-      {tl.map((t) => (
+      {tlWithZh.map(({ entry: t, zh, nameForSearch }) => (
         <div
           data-item="timeline"
-          data-name={`${t.event_type} ${t.phase_id ?? ""} ${t.summary ?? ""}`.trim()}
+          data-name={nameForSearch}
           data-summary={t.summary ?? ""}
+          data-summary-zh={zh.summaryZh && zh.summaryZh !== t.summary ? zh.summaryZh : ""}
           data-phase_id={t.phase_id ?? ""}
           data-phase_name={t.phase_name ?? ""}
+          data-phase_name-zh={zh.phaseNameZh && zh.phaseNameZh !== t.phase_name ? zh.phaseNameZh : ""}
           data-event_type={t.event_type}
           data-status={t.status}
           data-project={t.project_id ?? ""}

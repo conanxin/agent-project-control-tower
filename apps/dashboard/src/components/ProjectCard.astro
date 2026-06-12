@@ -1,9 +1,10 @@
 ---
-// ProjectCard.astro — ACT-13B 中文化。
+// ProjectCard.astro — ACT-13B 中文化 + ACT-13D 动态摘要中文。
 import type { Project } from "../lib/tower-data";
 import {
   locationLabel, categoryLabel, statusLabel, healthBadge,
 } from "../lib/labels";
+import { getProjectDisplay } from "../lib/localized-content";
 
 interface Props {
   project: Project;
@@ -20,16 +21,23 @@ const phaseLabel = p.current_phase_id
 
 const locCn = locationLabel(p.location);
 const catCn = categoryLabel(p.category);
+
+// ACT-13D dynamic Chinese display.
+const display = getProjectDisplay(p);
+const hasZhName = display.nameZh && display.nameZh !== p.name;
+const hasZhDesc = !!display.descriptionZh;
 ---
 <div class={`row ${p.current_health}`}>
   <div class="head">
     <span class="title">
-      <a href={`/projects/${p.project_id}/`}>{p.name}</a>
+      <a href={`/projects/${p.project_id}/`}>{hasZhName ? display.nameZh : p.name}</a>
+      {hasZhName && <span class="orig-suffix">（原文：{p.name}）</span>}
     </span>
     <span class={`tl-type tl-type-${p.last_event_type ?? "PHASE_REPORT"}`}>
       {phaseLabel}
     </span>
   </div>
+  {hasZhDesc && <div class="zh-description">{display.descriptionZh}</div>}
   <div class="meta-line">
     位置: {locCn === p.location ? p.location : `${locCn} · ${p.location}`} ·
     分类: {catCn === p.category ? p.category : `${catCn} · ${p.category}`} ·

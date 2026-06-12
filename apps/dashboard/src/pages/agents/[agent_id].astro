@@ -8,6 +8,7 @@ import {
   countByEventType,
 } from "../../lib/tower-data";
 import { EVENT_TYPE_LABEL, UI } from "../../lib/labels";
+import { getProjectDisplay } from "../../lib/localized-content";
 
 export function getStaticPaths() {
   return tower.agents.map((a) => ({
@@ -20,6 +21,15 @@ const agent = tower.agents.find((a) => a.agent_id === agent_id)!;
 const timeline = agentTimeline(agent_id);
 const projects = projectsByAgent(agent_id);
 const typeCounts = countByEventType(timeline);
+
+// ACT-13D: per-project Chinese display name for the "参与项目" list.
+const projectsWithZh = projects.map((p) => {
+  const d = getProjectDisplay(p);
+  return {
+    project: p,
+    nameZh: d.nameZh && d.nameZh !== p.name ? d.nameZh : null,
+  };
+});
 
 // Map event_type → badge CSS class (used for color-coded badges).
 const TYPE_BADGE: Record<string, string> = {
@@ -73,9 +83,12 @@ const TYPE_BADGE: Record<string, string> = {
     {projects.length === 0
       ? <p class="muted">{UI.agentNoProjects}</p>
       : <ul class="related-projects">
-          {projects.map((p) => (
+          {projectsWithZh.map(({ project: p, nameZh }) => (
             <li>
-              <a href={`/projects/${p.project_id}/`}>{p.name}</a>
+              <a href={`/projects/${p.project_id}/`}>
+                {nameZh ? nameZh : p.name}
+              </a>
+              {nameZh && <span class="orig-suffix">（{p.name}）</span>}
               <span class={`pill pill-${p.current_health}`}>{p.current_health}</span>
             </li>
           ))}

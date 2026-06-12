@@ -5,7 +5,7 @@
 > 🌍 **GitHub**: <https://github.com/conanxin/agent-project-control-tower>（public，ACT-4B 已 push）
 > 🚀 **Online Dashboard (custom domain)**: <https://control-tower.conanxin.com/>（ACT-5B ✅ 已绑 custom domain）
 > 🔁 **Online Dashboard (pages.dev fallback)**: <https://agent-project-control-tower.pages.dev/>（ACT-5 ✅，与 custom domain 服务同一份 dist）
-|> 🟢 **状态**: v0.1.0 ✅ RELEASED + ACT-13 ✅ COMPLETE（Dashboard Help 页面 `/help/`）+ ACT-13B ✅ COMPLETE（Dashboard 中文化 + Help 中文重写）|
+|> 🟢 **状态**: v0.1.0 ✅ RELEASED + ACT-13 ✅ COMPLETE（Dashboard Help 页面 `/help/`）+ ACT-13B ✅ COMPLETE（Dashboard 中文化 + Help 中文重写）+ ACT-13D ✅ COMPLETE（动态内容中文化）|
 |> 🟢 **当前线上真实项目**: `agent-project-control-tower` + `artvee-gallery` + `booktrans-desk`（BookTrans Desk 已修正为 `conanxin/booktrans-desk` / S13 / `16f38b6` / PARTIAL）|
 |> 🟢 **当前线上 agent**: `local-hermes` + `cloud-openclaw`（trial agent 公开）|
 |> 🟢 **当前 public-data**: 3 projects / 2 agents / 24 events |
@@ -48,6 +48,34 @@
 - [`docs/MVP_PLAN.md`](docs/MVP_PLAN.md) — 完整 ACT-0 → 当前 ACT 计划。
 
 **普通访客不能更新我的面板**，只能 fork 或 PR。
+
+---
+
+## 🌐 ACT-13D — Dashboard 动态内容也中文化
+
+ACT-13B 把"静态 UI 标签"（导航、表格列名、状态徽标）变成了中文。
+ACT-13D 进一步把"动态内容"（项目摘要、阶段名、下一步、最近活动原文）
+也变成中文优先：
+
+- **项目名**：首页和项目页同时显示中文项目名（`Agent 项目控制塔` /
+  `Artvee 艺术图库` / `BookTrans Desk`），保留英文原文在「（原文：…）」小字里。
+- **阶段名**：所有 24 个真实事件的 `phase_name` 都做了中文映射，例如
+  `S13 · 阻塞修复与人工验证重跑`、`P3B · 每日灵感摘要`、
+  `ACT-12 · 周期性 public-data 更新试验`。
+- **项目摘要 / 下一步**：首页和项目页"最新事件"卡片显示中文 summary。
+- **Timeline**：每条事件显示中文 phase_name + summary，英文原文折叠在
+  `原文` 区域里，点击展开。
+- **机器字段保留英文**：`project_id` / `agent_id` / `event_id` /
+  `repo` / `source_commit` / `phase_id` 全部保持原文，因为这些是
+  agent / 脚本 / 其他 dashboard 用来识别实体的。
+
+实现方式：所有中文映射集中在
+`apps/dashboard/src/lib/localized-content.ts` 一个文件里，按
+`(project_id, phase_id)` 索引；找不到映射的字段自动 fallback 到
+英文原文，不影响 build。**没有改动任何 public-data JSON**。
+
+新增事件建议直接写中文 summary / next / phase_name，避免 fallback
+到英文。详细解释见 `/help/` 页「为什么有些字段仍保留英文？」章节。
 
 ---
 

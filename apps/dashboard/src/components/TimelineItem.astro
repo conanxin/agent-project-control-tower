@@ -1,7 +1,9 @@
 ---
-// TimelineItem.astro — ACT-13B 中文化（事件类型 / status 文案）。
+// TimelineItem.astro — ACT-13B 中文化（事件类型 / status 文案）+ ACT-13D
+// phase_name / summary / next 中文。
 import type { TimelineEntry, Health } from "../lib/tower-data";
 import { EVENT_TYPE_LABEL, STATUS_LABEL, UI } from "../lib/labels";
+import { getLocalizedEvent, hasLocalizedMapping } from "../lib/localized-content";
 
 interface Props {
   entry: TimelineEntry;
@@ -10,6 +12,19 @@ const { entry: t } = Astro.props;
 
 const typeLabel = EVENT_TYPE_LABEL[t.event_type] ?? t.event_type;
 const statusCn = STATUS_LABEL[t.status] ?? t.status;
+
+// ACT-13D: prefer the curated Chinese display for phase_name / summary.
+const zh = getLocalizedEvent(t);
+const phaseNameDisplay =
+  zh.phaseNameZh && zh.phaseNameZh !== t.phase_name
+    ? zh.phaseNameZh
+    : (t.phase_name ?? "");
+const summaryDisplay =
+  zh.summaryZh && zh.summaryZh !== t.summary
+    ? zh.summaryZh
+    : (t.summary ?? "");
+const showOrig = hasLocalizedMapping(t) && !!t.summary && summaryDisplay === zh.summaryZh;
+const hasMapping = hasLocalizedMapping(t);
 
 function healthFromStatus(s: string): Health {
   return ({
@@ -28,5 +43,16 @@ const h: Health = t.health ?? healthFromStatus(t.status);
     {t.phase_id && ` · ${t.phase_id}`} ·
     {statusCn === t.status ? t.status : `${statusCn} · ${t.status}`}
   </div>
-  <div class="tl-summary">{t.summary ?? ""}</div>
+  {phaseNameDisplay && (
+    <div class="zh-phase-name">{phaseNameDisplay}</div>
+  )}
+  {summaryDisplay && (
+    <div class="tl-summary">{summaryDisplay}</div>
+  )}
+  {showOrig && (
+    <details class="orig-toggle">
+      <summary>原文</summary>
+      <div class="tl-summary orig">{t.summary}</div>
+    </details>
+  )}
 </div>

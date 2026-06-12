@@ -486,6 +486,40 @@ curl -sL https://control-tower.conanxin.com/projects/artvee-gallery/ \
   </section>
 
   <section>
+    <h2>为什么有些字段仍保留英文？</h2>
+    <p>
+      Dashboard 现在的<strong>静态 UI 标签</strong>（导航 / 表格列名 / 事件类型徽标）和
+      <strong>动态内容</strong>（项目摘要 / 阶段名 / 下一步）都是中文优先。
+      但下面这些<strong>机器字段</strong>保留英文原文，永远不会翻译：
+    </p>
+    <ul>
+      <li><code>project_id</code> / <code>agent_id</code> / <code>event_id</code> — agent / 脚本 / 其他 dashboard 用这些 id 识别实体。</li>
+      <li><code>repo</code>（如 <code>conanxin/booktrans-desk</code>）— GitHub URL 的 slug，不能改。</li>
+      <li><code>source_commit</code>（如 <code>16f38b6</code>）— 真实 git commit hash，必须原文。</li>
+      <li><code>phase_id</code>（如 <code>S13</code> / <code>P3B</code> / <code>ACT-12</code>）— 阶段编号，原项目里就是这么命名的。</li>
+    </ul>
+    <p>
+      实际显示时，中文 phase name 出现在 phase_id 后面，例如
+      <code>S13 · 阻塞修复与人工验证重跑</code>。
+    </p>
+    <h3>未来新增事件怎么办？</h3>
+    <p>
+      ACT-13D 把 24 个真实事件都做了中文映射。如果未来新增事件
+      <strong>没有</strong>在 <code>apps/dashboard/src/lib/localized-content.ts</code> 里，
+      会<strong>暂时显示英文原文</strong>，并标"原文"折叠区（隐藏，点击展开）。
+      补中文只需在 <code>localized-content.ts</code> 的
+      <code>EVENT_ZH</code> 字典里追加一行（格式 <code>&quot;project_id::phase_id&quot;</code>），其它文件不用改。
+    </p>
+    <h3>发阶段报告时怎么避免再次出现英文？</h3>
+    <ul>
+      <li><code>summary</code> 建议直接使用中文。</li>
+      <li><code>next</code> 建议直接使用中文。</li>
+      <li><code>phase_name</code> 可以中文优先，例如 <code>"S14 · Windows 桌面人工验证"</code>（<code>phase_id</code> 保留 <code>S14</code>，名字写中文）。</li>
+      <li><code>source_repo</code> / <code>source_commit</code> 保持原文（必须）。</li>
+    </ul>
+  </section>
+
+  <section>
     <h2>public-data 更新检查清单</h2>
     <p><code>git push</code> 之前必须通过这些。ACT-11 preflight 自动覆盖大部分，其余靠人工 review。</p>
     <ul class="checklist">

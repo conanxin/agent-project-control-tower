@@ -10,10 +10,15 @@ Fill in the placeholders before sending.
   AGENT_ID      = <AGENT_ID>                            # e.g. local-hermes
   PHASE_ID      = <PHASE_ID>                            # e.g. S13
   PHASE_NAME    = "<short name>"                        # e.g. "Blocker Fixes and Manual Validation Rerun"
+                       # ACT-13D: may be Chinese, e.g. "S14 · Windows 桌面人工验证"
   STATUS        = PASS | PARTIAL | FAIL | BLOCKED | PAUSED | SKIPPED
   HEALTH        = green | amber | red | gray            # usually auto-derived from STATUS
   SUMMARY       = "<1-2 sentences, NO secrets/paths/IPs>"
+                       # ACT-13D: prefer Chinese. The dashboard will display
+                       #           Chinese summary first; the original English
+                       #           is hidden behind a "原文" toggle.
   NEXT          = "<what comes next, no secrets/paths/IPs>"
+                       # ACT-13D: prefer Chinese.
   SOURCE_REPO   = <owner>/<repo>                        # the real source repo
   SOURCE_COMMIT = <real commit hash from git log of SOURCE_REPO>
 
