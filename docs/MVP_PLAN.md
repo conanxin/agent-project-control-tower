@@ -1,12 +1,11 @@
-# MVP Plan — ACT-1 to ACT-9B
+# MVP Plan — ACT-1 to ACT-9C
 
 > 把"建一个能用的控制塔"拆成阶段。每个阶段都有明确产出 + 验收标准 + 退出条件。
 >
-> 当前在 **ACT-9B ✅ COMPLETE**。ACT-9B 把 `docs/PUBLIC_DATA_AUTOMATION_POLICY.md` §10 的 Level 3 设计落地为一个**原型**——`scripts/build_public_data_candidate.py` + `tests/candidate_artifact_smoke.py` + `.github/workflows/proposed-export.yml` + `make candidate` / `candidate-fixture` / `candidate-test`。**CI 仍然不写 public-data/、不 commit、不 push、不 deploy**——这仍是 §8.2 的 hard rail。当前 public-data 状态：3 real projects / 2 agents / 20 events（ACT-9 phase event 跟随 ACT-9B commit 公开，与 ACT-7B → ACT-8 phase 的 precedent 一致）。当前自动化等级：**Level 1 + Level 2 + Level 3 (prototype)**。
-> 下一阶段（三选一，按推荐度排序）：
-> 1. **ACT-9C：manual review workflow polish**——把"download artifact → 人工 review → promote to real export"流程化（Makefile 默认 3 project 化、reviewer checklist 落地、artifact 命名规范）。不引入新功能；只把 ACT-9B 收口。
-> 2. **ACT-10：v0.1.0 release packaging**——CHANGELOG / VERSION / RELEASE_NOTES / tag。需 user 显式批准。
-> 3. **ACT-10B：GitHub release manual creation + screenshots**——发 GitHub Release + 加 demo 资产。纯 polish。
+> 当前在 **ACT-9C ✅ COMPLETE**。ACT-9C 把"公开导出范围"从散落在 Makefile / 命令历史 / 人工记忆里的隐式状态，收口到一个 tracked YAML 文件 `config/public-data-export-plan.yml`——`make publish-preflight` 与 `make candidate` 都用 `--plan` 读它；`export_public_data.py` 与 `build_public_data_candidate.py` 都加上了 `--plan PATH` 支持；`make publish-preflight` 之前会静默降级到 1 project（`PUBLIC_DATA_PROJECT` 硬编码），ACT-9C 把这个洞关掉了。`make export-plan-test` 把"不降级到 1 project"作为 CI-runnable assertion。**CI 仍然不写 public-data/、不 commit、不 push、不 deploy**——这仍是 §8.2 的 hard rail。当前 public-data 状态：3 real projects / 2 agents / 21 events。当前自动化等级：**Level 1 + Level 2 + Level 3 (prototype)**。
+> 下一阶段（按推荐度排序）：
+> 1. **ACT-10：v0.1.0 release packaging**——CHANGELOG / VERSION / RELEASE_NOTES / tag v0.1.0。需 user 显式批准。
+> 2. **ACT-10B：GitHub release manual creation + screenshots**——发 GitHub Release + 加 demo 资产。纯 polish（依赖 ACT-10）。
 
 ## 全景时间线
 
@@ -39,7 +38,8 @@ ACT-8   ✅ Real Multi-agent Onboarding Trial (2026-06-12)
 ACT-7B  ✅ Template-to-Command Generator (2026-06-12)
 ACT-8B  ✅ Generated-command Multi-agent Trial (2026-06-12)
 ACT-9   ✅ Public-data Export Automation Policy (2026-06-12)
-ACT-9B  ✅ CI Proposed Export Artifact Prototype (2026-06-12) ← 当前阶段
+ACT-9B  ✅ CI Proposed Export Artifact Prototype (2026-06-12)
+ACT-9C  ✅ Export Plan Review Workflow (2026-06-12) ← 当前阶段
 ```
 
 每个 ACT 的预算：**1–2 周业余时间**，不超过 30 个 commit。
@@ -838,7 +838,7 @@ ACT-7 写完了 playbook，ACT-8 验证 playbook 是不是真的能被第二个 
 > ACT-9B 完成后讨论的扩展。**不要提前做**。
 
 - ~~**ACT-9B**：prototype CI proposed-export artifact~~ ✅ 已完成 (2026-06-12)
-- **ACT-9C**（候选）：manual review workflow polish——把 ACT-9B 的"download artifact → 人工 review → promote to real export"流程化（Makefile 默认 3 project 化、reviewer checklist 落地、artifact 命名规范）。不引入新功能。
+- ~~**ACT-9C**：manual review workflow polish——Makefile 默认 3 project 化 + 显式 export plan + reviewer checklist~~ ✅ 已完成 (2026-06-12)
 - **ACT-10**（候选）：v0.1.0 release packaging——CHANGELOG / VERSION / RELEASE_NOTES / tag，无新功能。
 - **ACT-10B**（候选）：GitHub release manual creation + screenshots——发 GitHub Release + 加 demo 资产。
 - **ACT-11**：统计（`generated/stats.json`、跨项目聚合页）

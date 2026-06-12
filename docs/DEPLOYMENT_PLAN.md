@@ -292,7 +292,7 @@ Cloudflare Pages → Custom domains → 选中 `agent-project-control-tower.page
 | `make dashboard-local` | LOCAL dist（opt-in 调试；先 `tower.py build` 写 data 版 generated，再 `SKIP_DASHBOARD_PREBUILD=1 npm run build`） |
 | `make public-data` | ACT-4A 默认：examples → public-data/（CI seed） |
 | `make public-data-real` | ACT-6 新增：data → public-data/ 脱敏切片（`make publish-preflight` 默认走这条） |
-| `make publish-preflight` | ACT-6 升级：第一步走 `public-data-real`（不是 `public-data`） |
+| `make publish-preflight` | ACT-6 升级：第一步走 `public-data-real`（不是 `public-data`）。**ACT-9C 升级**：`public-data-real` 现在用 `--plan config/public-data-export-plan.yml` 读导出范围，不再依赖 Makefile 硬编码的 `PUBLIC_DATA_PROJECT=...` 默认。`make export-plan-test` 把"不降级到 1 project"作为 CI-runnable assertion。 |
 
 **`scripts/export_public_data.py` ACT-6 新增参数**：
 
@@ -639,4 +639,6 @@ CF Pages 的 build 过程会触发 npm prebuild hook，该 hook 会**重新**生
 
 **ACT-9B Level 3 prototype**（已实现）：CI 可以生成 `public-data-candidate` artifact（**只读**、download-only、gitignored、tarball + 4 份 reports）供人类评审。详见 `.github/workflows/proposed-export.yml` 和 `docs/PUBLIC_DATA_AUTOMATION_POLICY.md` §10。**CI 仍然不写 `public-data/`、不 commit、不 push、不 deploy**——这是 §8.2 的 hard rail，ACT-9B 不会越界。
 
-详见 `docs/PUBLIC_DATA_AUTOMATION_POLICY.md` §8 + §10 + `docs/decision/ADR-0001-public-data-automation-boundary.md`。
+**ACT-9C export plan workflow**（已实现）：导出范围从 Makefile 硬编码默认（`PUBLIC_DATA_PROJECT=...`）收口到 `config/public-data-export-plan.yml`——`make publish-preflight` 与 `make candidate` 都通过 `--plan` 读它；`export_public_data.py` 与 `build_public_data_candidate.py` 都加上了 `--plan PATH` 支持；`--plan` 与 `--project-id` / `--agent-id` 互斥（混用即 FAIL）。`make export-plan-test`（`tests/export_plan_smoke.py`，33 个 [PASS]）把"不降级到 1 project"作为 CI-runnable assertion。CI 仍然不写 `public-data/`——plan 文件影响的是本地 `make publish-preflight` 的范围，不是 CI 行为。
+
+详见 `docs/PUBLIC_DATA_AUTOMATION_POLICY.md` §8 + §10 + §10.5 + `docs/decision/ADR-0001-public-data-automation-boundary.md` + `docs/PUBLIC_DATA_EXPORT_PLAYBOOK.md` §13。

@@ -620,6 +620,40 @@ does **not** commit, push, or deploy anything.
   is **not** invoked by this workflow. It is a local
   convenience only.
 
+### 10.5 ACT-9C: the export plan is the contract
+
+ACT-9C added a tracked plan file
+(`config/public-data-export-plan.yml`) that both
+`export_public_data.py` and `build_public_data_candidate.py`
+read via `--plan PATH`. The plan is the single source of
+truth for:
+
+- which project IDs may appear in public-data/
+- which agent IDs may appear in public-data/
+- the export source (`data`) and output dir (`public-data`)
+- the policy block (mirrors §8.2 hard rails)
+
+**Hard rule**: `--plan` and `--project-id` / `--agent-id` are
+mutually exclusive. If you find yourself wanting to override
+the plan with CLI flags, the right answer is to update the
+plan file (so the change is reviewed in a PR), not to pass
+flags on the command line.
+
+**Hard rule**: `make publish-preflight` MUST NOT silently
+degrade to a 1-project export. The ACT-9B-era Makefile had
+`PUBLIC_DATA_PROJECT=agent-project-control-tower` as a
+default, which meant every local rebuild that didn't pass
+explicit `--project-id` flags would silently overwrite
+`public-data/` with a 1-project slice. ACT-9C removed that
+default; `make publish-preflight` now uses the plan file
+exclusively, and `make export-plan-test` pins the
+non-degradation as a CI-runnable test.
+
+The artifact review checklist at
+`templates/checklists/proposed-export-artifact-review-checklist.md`
+was updated to require plan-alignment verification (§1) as
+the first review step.
+
 ---
 
 ## 11. Revisit criteria

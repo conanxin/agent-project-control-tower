@@ -5,11 +5,11 @@
 > 🌍 **GitHub**: <https://github.com/conanxin/agent-project-control-tower>（public，ACT-4B 已 push）
 > 🚀 **Online Dashboard (custom domain)**: <https://control-tower.conanxin.com/>（ACT-5B ✅ 已绑 custom domain）
 > 🔁 **Online Dashboard (pages.dev fallback)**: <https://agent-project-control-tower.pages.dev/>（ACT-5 ✅，与 custom domain 服务同一份 dist）
-|> 🟢 **状态**: ACT-9B ✅ COMPLETE（CI Proposed Export Artifact Prototype：Level 3 从 design-only 升级为 prototype-available；CI 仍不写 public-data/、不 commit、不 push、不 deploy）|
+|> 🟢 **状态**: ACT-9C ✅ COMPLETE（Export Plan Review Workflow：导出范围从 Makefile 硬编码默认收口到 `config/public-data-export-plan.yml`；`make publish-preflight` 与 `make candidate` 都通过 `--plan` 读它；`make export-plan-test` 把"不降级到 1 project"作为 CI-runnable assertion。CI 仍不写 public-data/、不 commit、不 push、不 deploy）|
 |> 🟢 **当前线上真实项目**: `agent-project-control-tower` + `artvee-gallery` + `booktrans-desk`（BookTrans Desk 已修正为 `conanxin/booktrans-desk` / S13 / `16f38b6` / PARTIAL）|
 |> 🟢 **当前线上 agent**: `local-hermes` + `cloud-openclaw`（trial agent 公开）|
-|> 🟢 **当前 public-data**: 3 projects / 2 agents / 20 events（含 ACT-9 phase event，按 precedent 跟随 ACT-9B commit 公开）|
-|> ⏸ **下一步**: ACT-9C（manual review workflow polish）或 ACT-10（v0.1.0 release packaging）|
+|> 🟢 **当前 public-data**: 3 projects / 2 agents / 21 events（含 ACT-9 + ACT-9B phase events，按 precedent 跟随 ACT-9B / ACT-9C commit 公开）|
+|> ⏸ **下一步**: ACT-10（v0.1.0 release packaging — CHANGELOG / VERSION / RELEASE_NOTES / tag）|
 
 ---
 

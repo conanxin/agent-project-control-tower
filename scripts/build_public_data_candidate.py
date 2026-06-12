@@ -140,6 +140,16 @@ def parse_args() -> argparse.Namespace:
         "--tarball-name", default="public-data-candidate.tar.gz",
         help="name of the tarball inside the candidate dir.",
     )
+    p.add_argument(
+        "--plan", default=None, metavar="PATH",
+        help=(
+            "ACT-9C: read export scope (source/output/projects/agents) from a "
+            "tracked plan YAML. MUTUALLY EXCLUSIVE with --project-id and "
+            "--agent-id (mixing the two is a hard error). When set, the plan "
+            "file is recorded in CANDIDATE_SUMMARY.md and MANIFEST_DIFF.md so "
+            "reviewers can verify scope provenance."
+        ),
+    )
     return p.parse_args()
 
 
@@ -183,6 +193,42 @@ def _build_via_export_public_data(
             f"export_public_data.py did not write {manifest_path}"
         )
     return json.loads(manifest_path.read_text(encoding="utf-8"))
+
+
+def _load_plan_file(plan_path: Path) -> dict[str, Any]:
+    """Load an ACT-9C export plan YAML. Same contract as
+    :func:`export_public_data._load_plan_file`. Duplicated here so
+    the candidate script remains a leaf (no import from
+    export_public_data.py) and so CI works without the script
+    being importable as a module.
+    """
+    try:
+        from yaml_mini import load as _load  # type: ignore
+    except Exception:
+        try:
+            import yaml  # type: ignore
+            def _load(p: Path) -> Any:
+                return yaml.safe_load(p.read_text(encoding="utf-8"))
+        except Exception:
+            print(
+                "ERROR: no YAML loader available to read --plan. "
+                "Install PyYAML or ensure scripts/lib/yaml_mini.py is importable.",
+                file=sys.stderr,
+            )
+            raise SystemExit(2)
+    try:
+        data = _load(plan_path)
+    except Exception as e:
+        print(f"ERROR: cannot parse plan file {plan_path}: {e}", file=sys.stderr)
+        raise SystemExit(2)
+    if not isinstance(data, dict):
+        print(
+            f"ERROR: --plan {plan_path} must be a YAML mapping at the top level, "
+            f"got {type(data).__name__}.",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
+    return data
 
 
 def _yaml_dumper() -> "Any":
@@ -510,24 +556,41 @@ def _manifest_diff(
     candidate: dict[str, Any],
 ) -> dict[str, Any]:
     if current is None:
-        return {
+        out: dict[str, Any] = {
             "mode": "no-current-public-data",
             "current_event_count": 0,
             "candidate_event_count": candidate.get("event_count", 0),
             "delta_events": candidate.get("event_count", 0),
         }
-    cur_events = current.get("event_count", 0)
-    cand_events = candidate.get("event_count", 0)
-    cur_files = set(current.get("registry_files", []))
-    cand_files = set(candidate.get("registry_files", []))
-    return {
-        "mode": "diff-vs-current-public-data",
-        "current_event_count": cur_events,
-        "candidate_event_count": cand_events,
-        "delta_events": cand_events - cur_events,
-        "registry_files_added": sorted(cand_files - cur_files),
-        "registry_files_removed": sorted(cur_files - cand_files),
-    }
+    else:
+        cur_events = current.get("event_count", 0)
+        cand_events = candidate.get("event_count", 0)
+        cur_files = set(current.get("registry_files", []))
+        cand_files = set(candidate.get("registry_files", []))
+        out = {
+            "mode": "diff-vs-current-public-data",
+            "current_event_count": cur_events,
+            "candidate_event_count": cand_events,
+            "delta_events": cand_events - cur_events,
+            "registry_files_added": sorted(cand_files - cur_files),
+            "registry_files_removed": sorted(cur_files - cand_files),
+        }
+    # ACT-9C: surface plan provenance in the diff so a reviewer
+    # can see at a glance whether the candidate was built from
+    # the tracked plan or via ad-hoc flags.
+    for k in ("plan_file", "plan_name", "plan_schema_version"):
+        if k in candidate:
+            out[k] = candidate[k]
+    cur_proj = (current or {}).get("project_filter")
+    cand_proj = candidate.get("project_filter")
+    if cand_proj is not None:
+        out["candidate_project_filter"] = cand_proj
+    if cur_proj is not None and cand_proj is not None and cur_proj != cand_proj:
+        out["project_filter_changed"] = {
+            "from": cur_proj,
+            "to": cand_proj,
+        }
+    return out
 
 
 # --------------------------------------------------------------------------- #
@@ -587,6 +650,19 @@ def _write_summary(
     lines.append(f"- **agent filter**: {sorted(args.agent_id) if args.agent_id else 'all referenced'}")
     lines.append(f"- **max_events per project**: {args.max_events}")
     lines.append(f"- **repo_prefix**: `{args.repo_prefix}`")
+    # ACT-9C: plan provenance
+    plan_path = getattr(args, "plan_path", None)
+    if plan_path is not None:
+        lines.append(f"- **plan file**: `{plan_path}`")
+        plan_data = getattr(args, "plan_data", {})
+        if "name" in plan_data:
+            lines.append(f"- **plan name**: `{plan_data['name']}`")
+        if "schema_version" in plan_data:
+            lines.append(f"- **plan schema_version**: `{plan_data['schema_version']}`")
+        if "projects" in plan_data:
+            lines.append(f"- **plan projects**: {plan_data['projects']}")
+        if "agents" in plan_data:
+            lines.append(f"- **plan agents**: {plan_data['agents']}")
     lines.append("")
     lines.append("## Counts")
     lines.append("")
@@ -765,6 +841,46 @@ def main() -> int:
             file=sys.stderr,
         )
         return 2
+
+    # ---- ACT-9C: --plan mutual-exclusion + scope application ----
+    plan_path: Path | None = None
+    plan_data: dict[str, Any] = {}
+    if args.plan:
+        if args.project_id:
+            print(
+                "ERROR: --plan and --project-id are mutually exclusive.",
+                file=sys.stderr,
+            )
+            return 2
+        if args.agent_id:
+            print(
+                "ERROR: --plan and --agent-id are mutually exclusive.",
+                file=sys.stderr,
+            )
+            return 2
+        plan_path = Path(args.plan).resolve()
+        if not plan_path.exists():
+            print(f"ERROR: --plan file not found: {plan_path}", file=sys.stderr)
+            return 2
+        plan_data = _load_plan_file(plan_path)
+        if "projects" in plan_data and plan_data["projects"]:
+            args.project_id = list(plan_data["projects"])
+        if "agents" in plan_data and plan_data["agents"]:
+            args.agent_id = list(plan_data["agents"])
+        if "source" in plan_data:
+            print(
+                f"  [WARN] plan has `source: {plan_data['source']}` but the "
+                f"candidate script's --source is fixed by caller "
+                f"(got `{args.source}`). Ignoring plan.source.",
+                file=sys.stderr,
+            )
+        print(f"build_public_data_candidate.py — plan={plan_path}")
+        if "name" in plan_data:
+            print(f"  plan.name: {plan_data['name']}")
+        # Stash on args so the report writers can include them
+        # without changing their signatures.
+        args.plan_path = plan_path
+        args.plan_data = plan_data
 
     # ---- pre-flight: source/data/ exists check ----
     if args.source == "data" and not DATA.exists():

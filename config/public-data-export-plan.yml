@@ -1,0 +1,58 @@
+# public-data-export-plan.yml — ACT-9C
+#
+# This file is the **single tracked source of truth** for what the public
+# dashboard is allowed to publish. `make publish-preflight` reads it; the
+# candidate artifact (Level 3) reads it; CI validates it; humans review
+# the diff before anything is pushed.
+#
+# Anti-pattern (pre-ACT-9C): the export scope was implicit in the
+# Makefile (a single hard-coded `PUBLIC_DATA_PROJECT`), in command
+# history, and in the human's head. ACT-9C moves it into this file.
+#
+# Hard rules — do NOT violate when editing this file:
+#   * No local-machine absolute paths (e.g. /home/..., /Users/...).
+#   * No IP addresses, no tokens, no API keys, no Authorization headers.
+#   * No reference to data/ or generated/ directory contents.
+#   * The `projects:` list must match what the public dashboard shows.
+#   * Changes here are reviewed via PR, not auto-applied.
+
+schema_version: "0.1"
+name: "default-public-dashboard"
+description: "Reviewed public-data export plan for the production dashboard."
+source: "data"
+output: "public-data"
+
+# Project IDs that may appear in public-data/. Order is not significant
+# for the export (events are sorted by created_at), but the set is
+# authoritative — export_public_data.py will FAIL if any project listed
+# here is missing from data/, so the human must catch drift in PR review.
+projects:
+  - agent-project-control-tower
+  - artvee-gallery
+  - booktrans-desk
+
+# Agent IDs that may appear in public-data/. The export script keeps
+# agents referenced by exported events by default; this list is also
+# used to validate that those agents exist in data/registry/agents.yml.
+agents:
+  - local-hermes
+  - cloud-openclaw
+
+# Export policy. Mirrors PUBLIC_DATA_AUTOMATION_POLICY.md §8.2 hard
+# rails. CI will refuse to write to public-data/ even if `--plan` is
+# passed — humans do that step locally.
+policy:
+  level: "Level 1 + Level 2"
+  human_review_required: true
+  ci_may_validate: true
+  ci_may_commit: false
+  ci_may_push: false
+  trial_agents_may_export: false
+
+# Free-form notes for the next human reviewer. Keep them short; long
+# explanations belong in reports/ or docs/.
+notes:
+  - "data/ remains gitignored."
+  - "public-data/ is the reviewed publish source."
+  - "This plan is tracked; it is not generated."
+  - "ACT-9C: this file replaced the implicit Makefile default of a single project."

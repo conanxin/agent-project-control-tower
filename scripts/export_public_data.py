@@ -36,6 +36,17 @@ ACT-6 additions
   to avoid leaking the real on-disk path; the public version uses
   the actual GitHub org. Default: `conanxin`.
 
+ACT-9C additions
+----------------
+- `--plan PATH`: read export scope (source/output/projects/agents)
+  from a tracked plan YAML (default:
+  `config/public-data-export-plan.yml`). MUTUALLY EXCLUSIVE with
+  `--project-id` and `--agent-id` — mixing the two is a hard error,
+  on purpose, because the plan file is the single source of truth
+  for what the public dashboard is allowed to show. The MANIFEST
+  records the plan file path and name so reviewers can verify
+  provenance.
+
 Usage
 -----
     # ACT-4A: copy from examples/ to public-data/ (default; demo seed)
@@ -52,6 +63,12 @@ Usage
         --agent-id local-hermes \
         --max-events 20 \
         --repo-prefix conanxin \
+        --replace
+
+    # ACT-9C: use a tracked plan (preferred; the only way `make
+    # publish-preflight` invokes the script)
+    python scripts/export_public_data.py \
+        --plan config/public-data-export-plan.yml \
         --replace
 
     # dry-run — show what would change, do not write
@@ -136,6 +153,47 @@ def _scan_event(path: Path, payload: dict[str, Any]) -> list[str]:
         if sev in ("FAIL", "WARN"):
             msgs.append(f"  [{sev}] {path.name}#{f}: {why}")
     return msgs
+
+
+def _load_plan_file(plan_path: Path) -> dict[str, Any]:
+    """Load an ACT-9C export plan YAML.
+
+    Tries :mod:`yaml_mini` first (ships with the project, zero-dep);
+    falls back to PyYAML if installed. Returns a plain dict.
+
+    Hard-fails with a clear error if the file cannot be parsed —
+    a malformed plan is the kind of thing we want humans to notice
+    immediately, not silently ignore.
+    """
+    try:
+        from yaml_mini import load as _load  # type: ignore
+    except Exception:
+        try:
+            import yaml  # type: ignore
+            def _load(p: Path) -> Any:
+                return yaml.safe_load(p.read_text(encoding="utf-8"))
+        except Exception:
+            print(
+                "ERROR: no YAML loader available to read --plan. "
+                "Install PyYAML or ensure scripts/lib/yaml_mini.py is importable.",
+                file=sys.stderr,
+            )
+            raise SystemExit(2)
+
+    try:
+        data = _load(plan_path)
+    except Exception as e:
+        print(f"ERROR: cannot parse plan file {plan_path}: {e}", file=sys.stderr)
+        raise SystemExit(2)
+
+    if not isinstance(data, dict):
+        print(
+            f"ERROR: --plan {plan_path} must be a YAML mapping at the top level, "
+            f"got {type(data).__name__}.",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
+    return data
 
 
 def _filter_projects(entries: list[dict[str, Any]], project_ids: set[str] | None) -> list[dict[str, Any]]:
@@ -253,19 +311,85 @@ def main() -> int:
         help="rewrite 'local/<project-id>' to 'PREFIX/<project-id>' in repo/source_repo "
              "fields (default: conanxin). Set to '' to disable rewriting.",
     )
+    p.add_argument(
+        "--plan", default=None, metavar="PATH",
+        help="ACT-9C: read export scope (source/output/projects/agents) from a "
+             "tracked plan YAML. MUTUALLY EXCLUSIVE with --project-id and "
+             "--agent-id (mixing the two is a hard error).",
+    )
     args = p.parse_args()
+
+    # ---- ACT-9C: load --plan, enforce mutual exclusion ----
+    plan_path: Path | None = None
+    plan_data: dict[str, Any] = {}
+    if args.plan:
+        if args.project_id:
+            print(
+                "ERROR: --plan and --project-id are mutually exclusive. "
+                "List the project IDs in the plan file instead.",
+                file=sys.stderr,
+            )
+            return 2
+        if args.agent_id:
+            print(
+                "ERROR: --plan and --agent-id are mutually exclusive. "
+                "List the agent IDs in the plan file instead.",
+                file=sys.stderr,
+            )
+            return 2
+        plan_path = Path(args.plan).resolve()
+        if not plan_path.exists():
+            print(f"ERROR: --plan file not found: {plan_path}", file=sys.stderr)
+            return 2
+        plan_data = _load_plan_file(plan_path)
+        if not plan_data.get("projects"):
+            print(
+                f"ERROR: --plan {plan_path} has no `projects:` list "
+                "(empty or missing). Refusing to export an unscoped slice.",
+                file=sys.stderr,
+            )
+            return 2
+        # Apply plan values (CLI defaults still win for flags the plan
+        # doesn't specify, e.g. --replace / --max-events / --repo-prefix).
+        if "source" in plan_data:
+            args.source = plan_data["source"]
+        if "output" in plan_data and not args.output:
+            args.output = plan_data["output"]
+        args.project_id = list(plan_data["projects"])
+        if "agents" in plan_data and plan_data["agents"]:
+            args.agent_id = list(plan_data["agents"])
+        print(f"export_public_data.py — plan={plan_path}")
+        if "name" in plan_data:
+            print(f"  plan.name: {plan_data['name']}")
+        print(f"  plan schema_version: {plan_data.get('schema_version', '(none)')}")
+        if "policy" in plan_data:
+            pol = plan_data["policy"]
+            print(f"  plan.policy.level: {pol.get('level', '(none)')}")
+            if pol.get("ci_may_commit") or pol.get("ci_may_push"):
+                print(
+                    "  [WARN] plan.policy says CI may commit/push — but "
+                    "export_public_data.py is a local-only tool. The hard "
+                    "rail is enforced by the tool, not by the plan.",
+                    file=sys.stderr,
+                )
 
     src_root = ROOT / args.source
     if not src_root.exists():
-        print(f"ERROR: source not found: {src_root}", file=sys.stderr)
+        print(
+            f"ERROR: source not found: {src_root}\n"
+            f"  --source {args.source} was {'from plan' if plan_data else 'CLI default'}. "
+            f"If you intended the local real control tower, run `make seed` first "
+            f"or pass --source data explicitly.",
+            file=sys.stderr,
+        )
         return 2
 
     out_root = Path(args.output).resolve() if args.output else PUBLIC_DATA
     out_reg = out_root / "registry"
     out_evt = out_root / "events"
 
-    project_ids: set[str] | None = set(args.project_id) if args.project_id else None
-    agent_ids: set[str] | None = set(args.agent_id) if args.agent_id else None
+    project_ids = set(args.project_id) if args.project_id else None
+    agent_ids = set(args.agent_id) if args.agent_id else None
 
     print(f"export_public_data.py — source={args.source} → {out_root}")
     if project_ids:
@@ -455,6 +579,12 @@ def main() -> int:
         "max_events_per_project": args.max_events,
         "repo_prefix": args.repo_prefix,
     }
+    if plan_path is not None:
+        manifest["plan_file"] = str(plan_path)
+        if "name" in plan_data:
+            manifest["plan_name"] = plan_data["name"]
+        if "schema_version" in plan_data:
+            manifest["plan_schema_version"] = plan_data["schema_version"]
     (out_root / "MANIFEST.json").write_text(
         json.dumps(manifest, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",

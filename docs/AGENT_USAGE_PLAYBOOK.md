@@ -389,7 +389,29 @@ This is the **only** step that puts anything on the public internet. It is
 deliberately separated from agent work. Agents should not run it
 unattended.
 
-### Command (three real projects)
+### ACT-9C: use the tracked plan, not ad-hoc flags
+
+The scope of the export (which project IDs, which agent IDs) is owned by
+`config/public-data-export-plan.yml`. The **preferred** invocation is:
+
+```bash
+# ACT-9C: use the tracked plan (the only way `make publish-preflight`
+# calls the script; the only way `make candidate` builds a candidate)
+python scripts/export_public_data.py \
+  --plan config/public-data-export-plan.yml \
+  --replace
+```
+
+`--plan PATH` is **mutually exclusive** with `--project-id` and
+`--agent-id`. Mixing them is a hard error. The plan file is the
+contract; ad-hoc flags cannot augment it. If you need to change the
+export scope, edit the plan file and open a PR.
+
+### Legacy command (three real projects, ad-hoc)
+
+The pre-ACT-9C invocation is still valid for one-off debug exports,
+but `make publish-preflight` and the artifact review workflow both
+expect the `--plan` form:
 
 ```bash
 python scripts/export_public_data.py \
@@ -402,6 +424,8 @@ python scripts/export_public_data.py \
   --repo-prefix conanxin \
   --replace
 ```
+
+### Redaction summary
 
 The CLI prints a redaction summary at the end:
 
@@ -420,7 +444,9 @@ redaction summary: FAIL=0, WARN=0
 1. `public-data/registry/projects.yml` — `repo` fields point at the **real**
    source repos. No homepage sub-paths masquerading as standalone projects.
 2. `public-data/MANIFEST.json` — `project_filter`, `event_count`,
-   `max_events_per_project` look right.
+   `max_events_per_project` look right. **ACT-9C**: also check
+   `plan_file` / `plan_name` are set and match the plan you just exported
+   from.
 3. `public-data/events/*.json` — the latest event per project is the one
    you expect to see on the dashboard. No stale "current phase" events.
 4. `grep -RE "HP-33|conanxin-homepage" public-data/projects/<id>/` should
@@ -800,7 +826,7 @@ status, which is what ACT-6C was.
 
 ---
 
-## 16. Candidate artifacts (ACT-9B)
+## 16. Candidate artifacts (ACT-9B → ACT-9C)
 
 ACT-9B added a Level 3 prototype that lets you (the
 agent) **build a reviewable candidate artifact** without
@@ -808,16 +834,29 @@ ever writing to `public-data/`. This is useful when the
 human wants a preview of what the next real export would
 look like.
 
+**ACT-9C**: `make candidate` now passes
+`--plan config/public-data-export-plan.yml` to
+`build_public_data_candidate.py`, so the candidate's
+project/agent scope always matches what `make publish-preflight`
+will publish. Mixing `--plan` with `--project-id` /
+`--agent-id` is a hard error (same rule as the export
+script). The artifact's
+`reports/CANDIDATE_SUMMARY.md` now records `plan_file`,
+`plan_name`, `plan_schema_version`, `plan projects`, and
+`plan agents`, so reviewers can verify scope provenance at
+a glance.
+
 **You (the agent) may:**
 
 - Run `python scripts/build_public_data_candidate.py
+  --plan config/public-data-export-plan.yml
   --source public-data --output artifacts/public-data-candidate`
   (no-op reference; safe in any environment).
 - Run the same with `--source examples` (CI-safe fixture).
 - On local-hermes only: run with `--source data` (this
   uses real `data/`; see §15 for the boundary).
 - Run `make candidate` / `make candidate-fixture` /
-  `make candidate-test`.
+  `make candidate-test` / `make export-plan-test`.
 
 **You may NOT (without explicit, per-push human
 authorization):**

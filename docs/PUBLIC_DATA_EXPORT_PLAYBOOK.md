@@ -604,3 +604,79 @@ after fixing the upstream issue. Nothing was published.
 `templates/checklists/public-data-automation-policy-checklist.md`.
 
 **Architectural decision**: `docs/decision/ADR-0001-public-data-automation-boundary.md`.
+
+## 13. ACT-9C: the export plan is the contract
+
+Before ACT-9C, the export scope lived in three implicit
+places: a Makefile variable (`PUBLIC_DATA_PROJECT=...`),
+command history, and the human's head. ACT-9C moves it into
+a single tracked file:
+
+  `config/public-data-export-plan.yml`
+
+That file is the **single source of truth** for what the
+public dashboard is allowed to show. Both
+`export_public_data.py` and `build_public_data_candidate.py`
+now accept `--plan PATH` to read it. Mixing `--plan` with
+`--project-id` / `--agent-id` is a hard error — the plan
+file is the contract; ad-hoc flags cannot augment it.
+
+### 13.1 Plan file shape
+
+```yaml
+schema_version: "0.1"
+name: "default-public-dashboard"
+source: "data"
+output: "public-data"
+projects:
+  - agent-project-control-tower
+  - artvee-gallery
+  - booktrans-desk
+agents:
+  - local-hermes
+  - cloud-openclaw
+policy:
+  level: "Level 1 + Level 2"
+  human_review_required: true
+  ci_may_validate: true
+  ci_may_commit: false
+  ci_may_push: false
+  trial_agents_may_export: false
+```
+
+### 13.2 What changed in the toolchain
+
+- `make publish-preflight` now invokes
+  `export_public_data.py --plan config/public-data-export-plan.yml`.
+  The historical `PUBLIC_DATA_PROJECT=agent-project-control-tower`
+  Makefile default (which silently truncated public-data to 1
+  project on every local rebuild) is gone.
+- `make candidate` now invokes
+  `build_public_data_candidate.py --plan ...` so the candidate
+  artifact uses the same scope as `publish-preflight`.
+- Both scripts record the plan's `plan_file` and `plan_name`
+  in the produced `MANIFEST.json` so reviewers can verify
+  provenance at a glance.
+- A new test (`make export-plan-test`) pins the contract:
+  9 test functions, ~33 assertions, all stdlib.
+
+### 13.3 The artifact review checklist
+
+For every candidate artifact (local tarball or GitHub Actions
+artifact), use:
+
+  `templates/checklists/proposed-export-artifact-review-checklist.md`
+
+It walks through provenance, plan alignment, counts, project
+identity, redaction, CI behavior, and the publish step. ACT-9C
+made the plan-alignment step (§1) mandatory.
+
+### 13.4 Why not just put the projects list in code?
+
+Because the export scope is a **business decision**, not a
+technical one. Adding a fourth project to the public
+dashboard should be a tracked, reviewable change — a PR that
+touches one YAML file and is reviewed by a human — not a
+"remember to also update the Makefile / the script / the
+candidate test" scramble. ACT-9C makes the diff one file, the
+review one file, and the rollback one file.

@@ -395,16 +395,19 @@ PUBLIC_DATA_PROJECTS ?= agent-project-control-tower artvee-gallery booktrans-des
 
 > 但**建议保持开源**——理由：控制塔本身是 meta-tool，没有真正的"商业价值"需要保护；公开反而能让别人 fork、自用、提 issue。
 
-## 14. 自动化边界（ACT-9 落定，ACT-9B 升级）
+## 14. 自动化边界（ACT-9 落定，ACT-9B 升级，ACT-9C 收口）
 
 > ACT-9 在 `docs/PUBLIC_DATA_AUTOMATION_POLICY.md` 中定义了 5 个自动化等级。开源发布是其中最容易踩坑的环节：项目一旦被 fork，外部 contributor 看到的是 `data/`（gitignored） + `public-data/`（committed）的双层结构，**自动化等级就是他们会问的第一个问题**。
 >
 > **ACT-9B 升级**：Level 3 从 design-only 升级为 prototype-available。CI 现在可以生成 `public-data-candidate` artifact（download-only、gitignored、不自动部署），但**仍然不能**写 `public-data/`、不能 commit、不能 push。详细规格见 `docs/PUBLIC_DATA_AUTOMATION_POLICY.md` §10 + `.github/workflows/proposed-export.yml`。
+>
+> **ACT-9C 收口**：导出范围（哪些 project/agent 允许出现在 `public-data/`）从 Makefile 硬编码默认 + 命令历史 + 人工记忆，收口到 `config/public-data-export-plan.yml`——一个 tracked YAML 文件，PR-reviewable。`make publish-preflight` 与 `make candidate` 都通过 `--plan PATH` 读它。混用 `--plan` 和 `--project-id` / `--agent-id` 是 hard error，理由是 plan 是合约、flag 不能凌驾于合约之上。`make export-plan-test` 把"不降级到 1 project"作为 CI-runnable assertion。详细规格见 `docs/PUBLIC_DATA_AUTOMATION_POLICY.md` §10.5 + `docs/PUBLIC_DATA_EXPORT_PLAYBOOK.md` §13。
 
 **给 fork 者的明确说明**：
 
 - 公开仓库的 `public-data/` 是 `data/` 的一个**手工审核过的子集**。不是 `data/` 的全量，不是自动 export，不是 CI 推到 main 的结果。
-- "我想加新项目" → 不能 push 到 main，必须开 PR。PR 会触发 `make all` + `make publish-preflight`（validate + alignment + redaction），失败则不能 merge。
+- **导出范围**由 `config/public-data-export-plan.yml` 决定——改这个文件 = 改 public-data 的范围，必须走 PR 流程；不要去改 Makefile 变量 / `export_public_data.py` 的硬编码默认值。
+- "我想加新项目" → 不能 push 到 main，必须开 PR。PR 会触发 `make all` + `make publish-preflight`（validate + alignment + redaction）+ `make export-plan-test`，失败则不能 merge。
 - "我想 fork 一份做私密项目" → §13 的"不开源"路径适用，但建议仍保留 Level 1 + Level 2 的自动化（CI 验证不写 public-data/）。
 - **不允许**把 `data/` 加到 `public-data/` 旁边的另一个 tracked 目录——`data/` 永远是 gitignored 的本地真实状态，与是否开源无关。
 

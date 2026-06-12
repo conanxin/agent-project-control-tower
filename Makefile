@@ -10,7 +10,7 @@ PYTHON ?= python3
 
 .PHONY: help seed validate build site site-only dashboard dashboard-local test test-cli clean all reset \
         public-data public-build public-build-final publish-preflight command-test \
-        candidate candidate-fixture candidate-test
+        candidate candidate-fixture candidate-test export-plan-test
 
 help:
 	@echo "make targets:"
@@ -24,6 +24,10 @@ help:
 	@echo "  test               - run tests/smoke.py (ACT-1 acceptance)"
 	@echo "  test-cli           - run tests/cli_smoke.py (ACT-2 CLI smoke, isolated temp dir)"
 	@echo "  command-test       - (ACT-7B) run tests/command_generator_smoke.py (generator + alignment check)"
+	@echo "  candidate          - (ACT-9B) build reviewable candidate artifact (public-data reference)"
+	@echo "  candidate-fixture  - (ACT-9B) build candidate from examples/ (CI-safe)"
+	@echo "  candidate-test     - (ACT-9B) run tests/candidate_artifact_smoke.py"
+	@echo "  export-plan-test   - (ACT-9C) run tests/export_plan_smoke.py"
 	@echo "  reset              - delete data/ and re-seed from examples/ (destructive)"
 	@echo "  all                - validate + build + test + test-cli + command-test (zero deps, no npm)"
 	@echo "  clean              - remove generated/ and site/index.embedded.html"
@@ -120,13 +124,16 @@ command-test:
 # These targets are deliberately NOT in `make all` (they create
 # artifacts/public-data-candidate/ on disk). Run them on demand.
 candidate:
-	$(PYTHON) scripts/build_public_data_candidate.py --source public-data --output artifacts/public-data-candidate
+	$(PYTHON) scripts/build_public_data_candidate.py --source public-data --output artifacts/public-data-candidate --plan $(PUBLIC_DATA_PLAN)
 
 candidate-fixture:
 	$(PYTHON) scripts/build_public_data_candidate.py --source examples --output artifacts/public-data-candidate
 
 candidate-test:
 	$(PYTHON) tests/candidate_artifact_smoke.py
+
+export-plan-test:
+	$(PYTHON) tests/export_plan_smoke.py
 
 reset:
 	rm -rf data generated site/index.embedded.html
@@ -138,7 +145,7 @@ all: validate build test test-cli command-test
 clean:
 	rm -f generated/index.json site/index.embedded.html
 
-# ============================================================ ACT-4A / ACT-6
+# ============================================================ ACT-4A / ACT-6 / ACT-9C
 # public-data: write a sanitized snapshot of examples/ into public-data/
 # (default — demo seed; what ACT-4A/5 shipped).
 #
@@ -147,38 +154,33 @@ clean:
 #   `public-data`        — exports examples/ (demo seed). ACT-4A default.
 #                          Kept for CI to seed an empty public-data/.
 #
-#   `public-data-real`   — exports a redacted slice of data/ for a
-#                          specific real project. Used by ACT-6 to
-#                          publish the first real project (this repo
-#                          itself). Defaults:
-#                            project-id = agent-project-control-tower
-#                            agent-id   = local-hermes
-#                            max-events = 20
-#                            repo-prefix= conanxin
-#                          Override via make vars, e.g.
-#                            make public-data-real \
-#                                 PROJECT=other-project AGENT=other-agent
-#                          (The full filter / cap set is also exposed
-#                          by the CLI for one-off exports — see
-#                          scripts/export_public_data.py --help.)
+#   `public-data-real`   — exports a redacted slice of data/ for the
+#                          production dashboard. Used by ACT-6 onward
+#                          to publish the live state.
+#
+# ACT-9C changed `public-data-real` to use a TRACKED PLAN FILE
+# (`config/public-data-export-plan.yml` by default, override via
+# `make public-data-real PUBLIC_DATA_PLAN=...`). The plan is the
+# single source of truth for which projects and agents are
+# allowed in public-data/. Hardcoded 1-project defaults were
+# removed in ACT-9C because they repeatedly caused public-data
+# to be silently truncated to 1 project on local rebuilds.
 #
 # Both targets refuse to write if redaction finds any FAIL-level secrets.
 
-PUBLIC_DATA_PROJECT ?= agent-project-control-tower
-PUBLIC_DATA_AGENT   ?= local-hermes
-PUBLIC_DATA_MAX     ?= 20
+PUBLIC_DATA_PLAN ?= config/public-data-export-plan.yml
+PUBLIC_DATA_MAX     ?= 50
 PUBLIC_DATA_PREFIX  ?= conanxin
 
 public-data:
 	$(PYTHON) scripts/export_public_data.py --source examples
 
 public-data-real:
-	@echo "→ exporting real project slice from data/ → public-data/"
+	@echo "→ exporting real project slice from data/ → public-data/ (via tracked plan)"
 	$(PYTHON) scripts/export_public_data.py \
 	    --source data \
 	    --output public-data \
-	    --project-id $(PUBLIC_DATA_PROJECT) \
-	    --agent-id   $(PUBLIC_DATA_AGENT) \
+	    --plan $(PUBLIC_DATA_PLAN) \
 	    --max-events $(PUBLIC_DATA_MAX) \
 	    --repo-prefix $(PUBLIC_DATA_PREFIX) \
 	    --replace

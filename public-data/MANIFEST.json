@@ -1,7 +1,13 @@
 {
-  "agent_filter": null,
+  "agent_filter": [
+    "cloud-openclaw",
+    "local-hermes"
+  ],
   "event_count": 21,
   "max_events_per_project": 50,
+  "plan_file": "/home/conanxin/workspace/projects/agent-project-control-tower/config/public-data-export-plan.yml",
+  "plan_name": "default-public-dashboard",
+  "plan_schema_version": "0.1",
   "project_filter": [
     "agent-project-control-tower",
     "artvee-gallery",
