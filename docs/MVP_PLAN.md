@@ -1,11 +1,11 @@
-# MVP Plan — ACT-1 to ACT-11
+# MVP Plan — ACT-1 to ACT-12
 
 > 把"建一个能用的控制塔"拆成阶段。每个阶段都有明确产出 + 验收标准 + 退出条件。
 >
-> 当前在 **ACT-11 ✅ COMPLETE**。ACT-11 让日常更新 public-data 的流程更顺手、更可审查、更不容易误操作：新增 `scripts/public_data_update_preflight.py`（自动重生成 public-data + 写审查 artifact）、`tests/public_update_preflight_smoke.py`（12 项检查）、`make public-update-preflight` / `make public-update-test`、Telegram 模板 + 人类 review checklist。预生成的 artifact 目录包含 `UPDATE_SUMMARY.md` / `PUBLIC_DATA_DIFF.md` / `MANIFEST_BEFORE.json` / `MANIFEST_AFTER.json` / `REDACTION_RESULT.md` / `REVIEW_CHECKLIST.md` / `NEXT_STEPS.md`。**不自动 commit / 不自动 push / 不自动 deploy**。当前公开数据状态：3 real projects / 2 agents / 23 events。当前自动化等级：**Level 1 + Level 1.5 + Level 2 + Level 3 (prototype)**，Level 4/5 仍被拒绝。
+> 当前在 **ACT-12 ✅ COMPLETE**。ACT-12 真实跑了一次 recurring public-data update：用 ACT-11 的 preflight 流程录入了 ACT-12 PHASE_REPORT → 跑 preflight（PASS、project_count 不降、booktrans-desk 仍指向 conanxin/booktrans-desk、HP-33=0、redaction 0/0/0）→ 显式 export → 显式 commit / push。在 trial 中顺手修了一个边界 bug：`export_public_data.py` 把 `plan_file` 写成了绝对路径 `/home/conanxin/...`，现在会写相对路径 `config/public-data-export-plan.yml`——避免任何本地绝对路径泄露到 public-data。**不自动 commit / 不自动 push / 不自动 deploy**。当前公开数据状态：3 real projects / 2 agents / 24 events。当前自动化等级：**Level 1 + Level 1.5 + Level 2 + Level 3 (prototype)**，Level 4/5 仍被拒绝。
 > 下一阶段（按推荐度排序）：
 > 1. **ACT-10B：GitHub release polish / screenshots / demo GIF**——纯 polish。
-> 2. **ACT-12：real recurring update trial**——用 ACT-11 流程跑一次真实的多日更新，验证 ergonomic 是否真的让 daily update 更顺手。
+> 2. **ACT-12B：second recurring update trial**——再跑一次真实多日更新，验证 ACT-12 修过的边界 bug 不再发生 + ACT-11 ergonomic 在多天节奏下稳定。
 
 ## 全景时间线
 
@@ -41,7 +41,8 @@ ACT-9   ✅ Public-data Export Automation Policy (2026-06-12)
 ACT-9B  ✅ CI Proposed Export Artifact Prototype (2026-06-12)
 ACT-9C  ✅ Export Plan Review Workflow (2026-06-12)
 ACT-10 ✅ v0.1.0 Release Packaging (2026-06-12)
-ACT-11 ✅ Public-data Update Ergonomics (2026-06-12) ← 当前阶段
+ACT-11 ✅ Public-data Update Ergonomics (2026-06-12)
+ACT-12 ✅ Recurring Public-data Update Trial (2026-06-12) ← 当前阶段
 ```
 
 每个 ACT 的预算：**1–2 周业余时间**，不超过 30 个 commit。

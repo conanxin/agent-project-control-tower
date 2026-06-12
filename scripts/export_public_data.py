@@ -580,7 +580,13 @@ def main() -> int:
         "repo_prefix": args.repo_prefix,
     }
     if plan_path is not None:
-        manifest["plan_file"] = str(plan_path)
+        # ACT-12: write plan path relative to repo root to avoid leaking
+        # local absolute paths (e.g. /home/<user>/...) into public-data.
+        try:
+            plan_rel = str(plan_path.resolve().relative_to(ROOT))
+        except ValueError:
+            plan_rel = plan_path.name
+        manifest["plan_file"] = plan_rel
         if "name" in plan_data:
             manifest["plan_name"] = plan_data["name"]
         if "schema_version" in plan_data:
