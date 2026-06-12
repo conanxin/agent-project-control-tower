@@ -14,17 +14,28 @@ Fill in the placeholders before sending.
   DESCRIPTION      = <one-line description, no secrets, no paths, no IPs>
   AGENT_ID         = <AGENT_ID>       # the agent_id of whoever is registering
 
-Command:
+Two command forms
+-----------------
 
-  python scripts/tower.py register-project \
-    --project-id   <PROJECT_ID> \
-    --name         "<Project Name>" \
-    --repo         "<owner>/<repo>" \
-    --location     <public|local> \
-    --category     "<category>" \
-    --status       ACTIVE \
-    --description  "<one-line description>" \
-    --agent-id     <AGENT_ID>
+(A) RECOMMENDED — single-line command from the generator (ACT-7B).
+
+    python scripts/generate_tower_command.py register-project \
+        --project-id    <PROJECT_ID> \
+        --name          "<Project Name>" \
+        --repo          "<owner>/<repo>" \
+        --location      <public|local> \
+        --category      "<category>" \
+        --status        ACTIVE \
+        --description   "<one-line description>" \
+        --agent-id      <AGENT_ID>
+
+    Real example output (one line):
+
+    python scripts/tower.py register-project --project-id booktrans-desk --name 'BookTrans Desk' --repo conanxin/booktrans-desk --location public --category reading-tool --status ACTIVE --description 'Open-source desktop tool for structured PDF and EPUB translation workflows.' --agent-id local-hermes
+
+(B) MANUAL — single line, no `\` continuations.
+
+    python scripts/tower.py register-project --project-id <PROJECT_ID> --name "<Project Name>" --repo "<owner>/<repo>" --location <public|local> --category "<category>" --status ACTIVE --description "<one-line description>" --agent-id <AGENT_ID>
 
 After running:
 

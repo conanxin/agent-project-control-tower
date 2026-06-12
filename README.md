@@ -5,10 +5,10 @@
 > 🌍 **GitHub**: <https://github.com/conanxin/agent-project-control-tower>（public，ACT-4B 已 push）
 > 🚀 **Online Dashboard (custom domain)**: <https://control-tower.conanxin.com/>（ACT-5B ✅ 已绑 custom domain）
 > 🔁 **Online Dashboard (pages.dev fallback)**: <https://agent-project-control-tower.pages.dev/>（ACT-5 ✅，与 custom domain 服务同一份 dist）
-|> 🟢 **状态**: ACT-8 ✅ COMPLETE（real cross-machine onboarding trial by cloud-openclaw; 3 small playbook gaps found and patched）
+|> 🟢 **状态**: ACT-7B ✅ COMPLETE（template-to-command generator + template/CLI alignment checker; ACT-8 trial's multi-line command failures and template drift are now blocked at the source）
 |> 🟢 **当前线上真实项目**: `agent-project-control-tower` + `artvee-gallery` + `booktrans-desk`（BookTrans Desk 已修正为 `conanxin/booktrans-desk` / S13 / `16f38b6` / PARTIAL）
 |> 🟢 **当前线上 agent**: `local-hermes` + `cloud-openclaw`（trial agent 公开）
-|> ⏸ **下一步**: ACT-9（harden automation around recurring public-data exports）
+|> ⏸ **下一步**: ACT-8B（run second-agent trial using generated commands）或 ACT-9（public-data export automation design, not implementation）
 
 ---
 
@@ -1286,6 +1286,57 @@ ACT-7 写完了 playbook，ACT-8 验证 playbook 是不是真的能被第二个 
 | working tree | clean |
 
 详见 `reports/PHASE_ACT8_REAL_MULTI_AGENT_ONBOARDING_TRIAL_REPORT.md`。
+
+### ACT-7B Template-to-Command Generator（**已完成**）
+
+ACT-8 trial 暴露的 10 个真实问题里有两个属于同一类：**agent 试图自己手写多 flag / 多 token 的 `tower.py` 命令时会断**。一类是 bash `\` 续行被 join 成一个 arg（trial agent 第一次 `report-review` 翻车），另一类是模板/CLI 漂移——`report-handoff.txt` 列了 `--agent-id` / `--to-agent`，但 tower.py 真实参数是 `--from-agent-id` / `--to-agent-id`；`report-review.txt` 旧版本列了 `--source-repo` / `--design-reason`，CLI 不接。ACT-7B 把这两类问题在源头堵住。
+
+**本阶段不接入新项目 / 不开发新 dashboard UI / 不引入数据库 / 不引入登录系统 / 不使用 Cloudflare API token / 不自动 export public-data / 不自动 git commit/push。** 产出全是 stdlib：1 个生成器 + 1 个对齐检查器 + 1 个 8/8 测试 + 1 个 `make command-test` target + 4 个 docs 新章节 + 1 个报告。
+
+**新增脚本**：
+
+| 脚本 | 作用 |
+| --- | --- |
+| `scripts/generate_tower_command.py` | 把 `--flag value --flag value` 拼成**单行** `python scripts/tower.py ...` 命令。任意 flag 不在白名单 → FAIL；缺 required → FAIL；value 含空格/引号/特殊字符自动 `shlex.quote`。**只 print，绝不执行。** 8 个 subcommand 全覆盖：`register-agent` / `register-project` / `report-phase` / `report-failure` / `report-review` / `report-handoff` / `report-release` / `export-public-data` |
+| `scripts/check_template_cli_alignment.py` | 扫描 `templates/telegram/*.txt` 的 `Command:` 块，对照 tower.py schema 检查每个 flag；不接受的 flag → FAIL。直接抓出 ACT-8 暴露的 `report-handoff.txt` 4 个错（`--agent-id` / `--to-agent` / `--source-repo` / `--source-commit`）和 `report-review.txt` 的 `--source-repo` / `--design-reason` / `--impact-analysis` |
+| `tests/command_generator_smoke.py` | 8 个测试点：① report-phase 单行 ② report-review 拒绝 4 个不支持 flag ③ export-public-data 多 project-id 顺序 ④ 空格/引号 shlex.quote ⑤ unknown subcommand FAIL ⑥ 输出无换行无 `\` 续行 ⑦ alignment check 在真实模板上 PASS ⑧ alignment check 在被注入 `--source-repo` 的毒化模板上 FAIL（证明 checker 是真在工作） |
+
+**Makefile** 新增 `command-test` target，已加入 `make all` 链——generator 是 stdlib only，不破坏零依赖路径。
+
+**5 个核心模板全部改写**，每个模板都加"两段命令"：① `generate_tower_command.py` 形式（推荐）+ ② 单行手动形式（fallback）。**不再保留多行 `\` 续行示例**——这是 ACT-8 的失败点。其中 `report-handoff.txt` 顺带修正了 4 个真错（用 `--from-agent-id` / `--to-agent-id` 替代 `--agent-id` / `--to-agent`，去掉 `--source-repo` / `--source-commit`）。
+
+**4 个 docs 新章节**：
+
+| 章节 | 作用 |
+| --- | --- |
+| `AGENT_USAGE_PLAYBOOK.md` §14 | "Command Generator (ACT-7B)"：动机、用法、5 个 report-* 示例、生成器不是什么 |
+| `MULTI_MACHINE_SETUP.md` §11 | 异机命令流：local-hermes 跑生成器 → 单行发给 cloud-openclaw → 远端只返回 event path；显式禁止 `\` 续行链式 |
+| `PUBLIC_DATA_EXPORT_PLAYBOOK.md` §11 | 双门不变；生成器**不**改变 export 的权限边界（trial agent 仍然不能跑 export） |
+| `MVP_PLAN.md` 顶部 + ACT-7+ | 标记 ACT-7B COMPLETE；下一阶段二选一：ACT-8B（重跑异机 trial 验证生成器）或 ACT-9（CI export 设计） |
+
+**生成器与双门的关系**（关键判断）：
+
+- 生成器**只 print 命令**，不执行。`scripts/generate_tower_command.py` **没有 `--execute` flag**——这是设计而非疏漏。
+- 生成器**不**替代人类的 export 决定。trial agent 可以 `print('export-public-data ...')`，但仍然不能 `python scripts/export_public_data.py`。
+- 生成器**不**给任何 agent 提权。打印什么命令 vs. 谁可以执行该命令，是两个不同维度。ACT-7B 只动前者。
+- `make all` 含 `command-test`；CI 可在每次 push 自动跑 alignment check（std-lib only，< 1 秒）。
+
+**验证**：
+
+| 项 | 结果 |
+| --- | --- |
+| `make all` | PASS（含新增 `command-test`） |
+| `make command-test` | PASS（8/8） |
+| `make publish-preflight` | PASS（保持 3 projects / 2 agents / 16 events；redaction FAIL=0 WARN=0）|
+| `npm run build` | PASS（apps/dashboard 仍正常） |
+| pre-commit 等效扫描 | CLEAN（0 token / 0 IP / 0 home / 0 data leak）|
+| 文档敏感扫描 | 见 ACT-7B 报告 §10；所有命中为预期教学文本（"do not write token" / "real home path is forbidden" 等）|
+| alignment check | PASS（9 个 telegram 模板全部对齐 tower.py schema）|
+| public-data 是否被动 | **否**——本阶段 public-data 完全没动，仍是 ACT-8 收尾状态 |
+| data/ 是否仍 gitignored | 是 |
+| working tree | clean（commit 后） |
+
+详见 `reports/PHASE_ACT7B_COMMAND_GENERATOR_REPORT.md`。
 
 ### ACT-2 关键命令
 

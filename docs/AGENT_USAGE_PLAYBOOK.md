@@ -567,3 +567,187 @@ checklist, not as a theoretical list.
 - Re-checking privacy before commit? → `templates/checklists/redaction-checklist.md`
 - Reviewing a public-data change before push? →
   `templates/checklists/public-data-review-checklist.md`
+
+---
+
+## 14. Command Generator (ACT-7B)
+
+This is the ACT-7B answer to the two real failure modes that the
+ACT-8 multi-agent trial (commit `f8543d3`) hit:
+
+1. **Hand-written long multi-line `\` continuations.** Bash collapses
+   them into a single argument; argparse rejects the call. The
+   generator emits exactly one line, no continuations.
+2. **Template ↔ CLI drift.** Older drafts of
+   `templates/telegram/report-review.txt` listed
+   `--source-repo` / `--design-reason`, which tower.py does not
+   accept on `report-review`. Older `report-handoff.txt` listed
+   `--agent-id` and `--to-agent`, which tower.py does not accept
+   on `report-handoff` either. The checker
+   (`scripts/check_template_cli_alignment.py`) catches the class
+   of bug, not just the known instances.
+
+### 14.1 What the generator does
+
+`scripts/generate_tower_command.py` is a **single-line command
+printer**. It has no `--execute` flag, by design:
+
+- It reads a hard-coded **schema** for every tower.py subcommand
+  (and the `export_public_data.py` subcommand). The schema is the
+  same dict that `check_template_cli_alignment.py` reads — single
+  source of truth.
+- You pass flags. Any flag not in the schema → hard FAIL with a
+  list of the flags that **are** allowed for that subcommand.
+- Missing required flags → FAIL with a list of what's missing.
+- String values with whitespace, quote characters, or shell
+  metacharacters are wrapped via `shlex.quote`, so the printed
+  command is always one safe line, no matter what you put in the
+  values.
+- The output is printed to stdout, **never** executed. The
+  generator does not touch `data/`, `public-data/`, or `generated/`.
+  It does not run `git`. It does not push. It does not export.
+
+### 14.2 What the alignment checker does
+
+`scripts/check_template_cli_alignment.py`:
+
+- Reads every `templates/telegram/*.txt`.
+- For each template's `Command:` block, identifies the leading
+  subcommand and cross-checks every `--flag` it finds against the
+  schema.
+- Exits 0 if all real `Command:` blocks use only allowed flags.
+- Exits 1 with a list of drift issues otherwise.
+- Also enforces a few static rules (no `git add .` anywhere).
+
+This is `make command-test`'s primary coverage. The smoke test
+also includes a **drift-injection** test: it copies the real
+templates to a temp dir, poisons `report-review.txt` with a
+forbidden `--source-repo`, and verifies the checker refuses to
+pass. This proves the checker is doing real work, not always
+returning 0.
+
+### 14.3 Three reports — using the generator
+
+**Report a phase** (BookTrans Desk S13 — real example):
+
+```bash
+python scripts/generate_tower_command.py report-phase \
+  --project-id booktrans-desk \
+  --agent-id local-hermes \
+  --phase-id S13 \
+  --phase-name "Blocker Fixes and Manual Validation Rerun" \
+  --status PARTIAL --health amber \
+  --summary "S13 blocker fixes complete; automated checks PASS, but EPUB/PDF click-through is BLOCKED_MANUAL." \
+  --source-repo conanxin/booktrans-desk --source-commit 16f38b6 \
+  --next "Schedule real-user click-through before S14."
+```
+
+The generator prints **one** line. Copy it. Paste it. Run it.
+
+**Report a review** (the ACT-8 cloud-openclaw trial review — real
+example):
+
+```bash
+python scripts/generate_tower_command.py report-review \
+  --project-id agent-project-control-tower \
+  --agent-id cloud-openclaw \
+  --phase-id ACT-8-review \
+  --phase-name "ACT-7 Playbook Review by Second Agent" \
+  --status PASS \
+  --summary "Reviewed ACT-7 playbooks and verified the onboarding flow." \
+  --target-agent-id local-hermes \
+  --target-phase-id ACT-7 \
+  --target-commit 76fa50d \
+  --next "Feed documentation gaps back into ACT-8 report."
+```
+
+If you accidentally pass `--source-repo` here, the generator
+refuses to print anything. The CLI does not accept that flag on
+`report-review` and argparse would have rejected your call
+mid-execution. ACT-7B catches it **before** you run anything.
+
+**Export to public-data** (the three real projects):
+
+```bash
+python scripts/generate_tower_command.py export-public-data \
+  --source data --output public-data \
+  --project-id agent-project-control-tower \
+  --project-id artvee-gallery \
+  --project-id booktrans-desk \
+  --replace
+```
+
+The generator emits the equivalent `python scripts/export_public_data.py ...`
+single-line command. The **double-gate** still applies: the
+generator does not change who is allowed to run the printed
+command. Trial agents do not run export — that is for the human
+reviewer (or the explicitly authorized exporter agent). See
+`docs/PUBLIC_DATA_EXPORT_PLAYBOOK.md` for the full rule.
+
+### 14.4 Other subcommands
+
+The generator also covers:
+
+- `register-agent`
+- `register-project`
+- `report-failure`
+- `report-handoff`
+- `report-release`
+
+For all of them, use the same pattern: pass flags, copy the
+printed line, paste it into the shell.
+
+### 14.5 When to use the generator vs. write a single line manually
+
+- **Use the generator** when the command has more than 3 flags, or
+  when one of the values contains a space, apostrophe, or shell
+  metacharacter. The generator saves you from quoting bugs.
+- **Write a single line manually** when the command is short and
+  the values are simple (kebab-case ids, plain status, plain
+  commit hashes). The template's "manual" section is fine.
+- **Never** use `\` continuations. The whole point of the
+  generator is that bash collapses them and breaks the call.
+  ACT-8 caught this; ACT-7B encoded the lesson.
+
+### 14.6 Multi-machine and Telegram use
+
+When `local-hermes` is sending a command to a different machine
+(e.g. `cloud-openclaw` over SSH or via Telegram):
+
+1. `local-hermes` runs the generator locally and reads stdout.
+2. `local-hermes` sends the **single line** to the other agent.
+3. The other agent pastes it into a shell, runs it.
+4. The other agent returns only the event file or a short
+   summary, never the raw command output.
+5. `local-hermes` reviews the event and (if human is in the loop)
+   runs the export.
+
+This is the recommended flow documented in
+`docs/MULTI_MACHINE_SETUP.md` §4. The generator is what makes
+the cross-machine handoff safe: the printable command is the
+contract between `local-hermes` and the remote agent.
+
+### 14.7 What the generator is NOT
+
+- It is **not** a wizard. It will not invent flags for you.
+  Anything you do not pass is omitted.
+- It is **not** an execution engine. There is no `--execute`
+  flag, and there never will be.
+- It is **not** a template renderer. Templates remain literal
+  for human copy-paste; the generator is a parallel path for
+  agents that need machine-precise commands.
+- It is **not** a public-data authorization. The double-gate
+  rule still applies. See
+  `docs/PUBLIC_DATA_EXPORT_PLAYBOOK.md` §11.
+
+### 14.8 Run the alignment check yourself
+
+```bash
+make command-test
+# or, for just the alignment check:
+python scripts/check_template_cli_alignment.py
+```
+
+The command is fast (< 1 second) and depends only on Python
+stdlib plus the templates on disk. It is safe to add to any
+pre-commit hook.

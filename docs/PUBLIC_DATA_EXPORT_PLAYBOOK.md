@@ -375,3 +375,100 @@ The current public dataset is the union of:
 The ACT-6C hotfix is the reason `booktrans-desk` now points at
 `conanxin/booktrans-desk`. Before the hotfix, it pointed at
 `conanxin/conanxin-homepage`. Do not let that regression come back.
+
+---
+
+## 11. The double-gate and the ACT-7B generator
+
+ACT-7B added `scripts/generate_tower_command.py` and
+`scripts/check_template_cli_alignment.py`. Both live next to the
+double-gate rule, and the rule still applies. This section makes
+the relationship explicit so future contributors do not relax the
+gate under the impression that the generator is "the new export".
+
+### 11.1 What the generator does
+
+`generate_tower_command.py export-public-data ...` prints, on
+stdout, a single-line command such as:
+
+```bash
+python scripts/export_public_data.py --source data --output public-data --project-id agent-project-control-tower --project-id artvee-gallery --project-id booktrans-desk --replace
+```
+
+That is the **whole** effect of the generator for export. It is
+indistinguishable from a careful human hand-writing the line.
+The privilege boundary does not move.
+
+### 11.2 What the generator does not do
+
+- It does **not** call `subprocess.run(...)` against
+  `export_public_data.py`. There is no `--execute` flag. There
+  will never be one.
+- It does **not** touch `data/`, `public-data/`, or `generated/`.
+  It only writes to stdout.
+- It does **not** commit, push, or open a PR. That is the
+  human reviewer's job.
+- It does **not** bypass the trial-agent rule. A trial agent that
+  *runs* the printed command is still in violation of the
+  double-gate rule. The generator does not change who is allowed
+  to run the command, only how the command is *spelled*.
+
+### 11.3 Who is allowed to run the export
+
+The double-gate rule (see §5 for the operational definition)
+remains:
+
+- **Gate 1 (write):** The trial agent that wrote the events into
+  `data/` does not run `export_public_data.py`. Period.
+- **Gate 2 (publish):** The export is a redacted snapshot of
+  `data/`. Pushing it is a human reviewer's action, possibly
+  assisted by a designated exporter agent that has been
+  pre-authorized. Trial agents are not exporters.
+
+The generator's role in this is **only** to make Gate 1's
+command-line spelling robust. It does not give any agent the
+authority to run Gate 2.
+
+### 11.4 The three commands around the export
+
+The full sequence of `tower.py` invocations for an export cycle
+is unchanged by ACT-7B. The generator just makes each invocation
+robust:
+
+```bash
+# (1) Generate the export command (local reviewer only)
+python scripts/generate_tower_command.py export-public-data \
+  --source data --output public-data \
+  --project-id agent-project-control-tower \
+  --project-id artvee-gallery \
+  --project-id booktrans-desk \
+  --replace
+
+# (2) Run the printed command (local reviewer only)
+#     → redaction summary must show FAIL=0, WARN=0
+#     → inspect public-data/registry/ and public-data/events/
+
+# (3) Build the public artifacts
+make public-build
+make site-only
+make dashboard
+
+# (4) Review the diff
+git status --short
+git diff public-data/
+
+# (5) Stage explicitly (no git add .)
+git add public-data/registry/projects.yml \
+        public-data/registry/agents.yml \
+        public-data/MANIFEST.json \
+        public-data/events/<new event file>
+
+# (6) Commit and push
+git commit -m "ACT-7B: <summary of public-data change>"
+git push
+```
+
+If you are tempted to chain these into a single one-liner, the
+generator will not help you. ACT-7B addresses command *spelling*,
+not command *chaining*. The export pipeline is still a human
+operation with explicit stages.

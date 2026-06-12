@@ -1,11 +1,11 @@
-# MVP Plan — ACT-1 to ACT-7
+# MVP Plan — ACT-1 to ACT-7B
 
 > 把"建一个能用的控制塔"拆成阶段。每个阶段都有明确产出 + 验收标准 + 退出条件。
 >
-> 当前在 **ACT-7 ✅ COMPLETE**。ACT-7 不接入新项目、不开发新 dashboard UI、不引入数据库、不引入登录系统、不使用 Cloudflare API token。ACT-7 的唯一产出是**文档 + 模板 + 检查清单**——`docs/AGENT_USAGE_PLAYBOOK.md` / `docs/MULTI_MACHINE_SETUP.md` / `docs/PUBLIC_DATA_EXPORT_PLAYBOOK.md` / `templates/telegram/*.txt` / `templates/checklists/*.md`。当前 public-data 为 3 real projects / 1 agent / 14 events。
+> 当前在 **ACT-7B ✅ COMPLETE**。ACT-7B 不接入新项目、不开发新 dashboard UI、不引入数据库、不引入登录系统、不使用 Cloudflare API token、不自动 export public-data、不自动 git commit/push。ACT-7B 的产出是**命令生成器 + 模板对齐检查器 + 测试 + 文档**——`scripts/generate_tower_command.py` / `scripts/check_template_cli_alignment.py` / `tests/command_generator_smoke.py` / `Makefile` `command-test` target / 4 个 docs 新章节。当前 public-data 为 3 real projects / 2 agents / 16 events（保持 ACT-8 收尾状态；ACT-7B 自己的 phase event 在 `data/events/` 中但 gitignored，不公开）。
 > 下一阶段（二选一）：
-> 1. **ACT-8：real multi-agent onboarding trial**——在新机器（或新 agent persona）上跑手册的第一个端到端流程，把"应然"与"实然"差异填回文档。
-> 2. **ACT-7B：convert templates into CLI command generator**——把 `templates/telegram/*.txt` 的占位符变成 `scripts/tower.py cmd ...` 的 wrapper。
+> 1. **ACT-8B：run second-agent trial using generated commands**——用 ACT-7B 的生成器，让 `cloud-openclaw` 重新跑一遍端到端流程，验证生成器在真实异机场景下可用、模板不再漂移、命令不再断行。
+> 2. **ACT-9：public-data export automation design (not implementation)**——设计 CI 自动 export 的双门方案（仅设计，不实现；自动 export 涉及 secret 与权限，需 user 显式批准）。
 
 ## 全景时间线
 
@@ -33,8 +33,9 @@ ACT-6  ✅ First real project public export    (2026-06-11)
 ACT-6B ✅ Second real project — Artvee Gallery (2026-06-11)
   ↓
 ACT-6C ✅ Third real project — BookTrans Desk  (2026-06-11) + ACT-6C hotfix
-ACT-7  ✅ Multi-machine Agent Usage Playbook (2026-06-12)
-ACT-8  ✅ Real Multi-agent Onboarding Trial (2026-06-12) ← 当前阶段
+ACT-7   ✅ Multi-machine Agent Usage Playbook (2026-06-12)
+ACT-8   ✅ Real Multi-agent Onboarding Trial (2026-06-12)
+ACT-7B  ✅ Template-to-Command Generator (2026-06-12) ← 当前阶段
 ACT-9          harden automation around recurring public-data exports (planned)
 ```
 
@@ -831,10 +832,10 @@ ACT-7 写完了 playbook，ACT-8 验证 playbook 是不是真的能被第二个 
 
 ## ACT-7+ — Future Optional Enhancements
 
-> ACT-8 完成后讨论的扩展。**不要提前做**。
+> ACT-7B 完成后讨论的扩展。**不要提前做**。
 
-- **ACT-7B**（候选）：templates → CLI command generator（`scripts/tower.py cmd ...`）—— ACT-7 评估时优先级低于 ACT-8
-- **ACT-9**（候选）：harden automation around recurring public-data exports——让 `export_public_data.py` 在 CI 上自动跑（需 user 显式批准）
+- **ACT-8B**（候选）：run second-agent trial using generated commands——用 ACT-7B 生成器在 `cloud-openclaw` 上重跑端到端流程，验证生成器在真实异机场景下可用
+- **ACT-9**（候选）：public-data export automation design (not implementation)——设计 CI 自动 export 的双门方案（仅设计；自动 export 涉及 secret 与权限边界）
 - **ACT-10**：统计（`generated/stats.json`、跨项目聚合页）
 - **ACT-11**：错误修正流（`correction` event 真正被 build_index 消费）
 - **ACT-12**：第二份控制塔（私密项目）—— 独立仓库 + 独立域名

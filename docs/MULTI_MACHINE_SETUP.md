@@ -310,3 +310,146 @@ That's it. The only thing you should not do is push to `main` with
 - Want the public-data export details? → `docs/PUBLIC_DATA_EXPORT_PLAYBOOK.md`
 - Want a copy-pasteable command for the next agent? → `templates/telegram/`
 - Want a pre-push review checklist? → `templates/checklists/`
+
+---
+
+## 11. Cross-machine command flow (ACT-7B)
+
+ACT-8 trial (commit `f8543d3`) found that the cross-machine handoff
+of `tower.py` commands is fragile in three concrete ways:
+
+1. **Multi-line bash continuations break.** Sending a long
+   `python scripts/tower.py report-phase \\\n  --project-id ...`
+   block over SSH or Telegram, then having the remote shell
+   collapse it into one argument. The CLI rejects the call.
+2. **Hand-written commands drift from the CLI surface.** Templates
+   that list `--source-repo` on `report-review` (which argparse
+   rejects) made it into trial agents' actual runs.
+3. **Trial agents tried to send back raw command output, leaking
+   token-shaped strings or paths.** Output was not always
+   pre-filtered for secrets.
+
+ACT-7B fixes the first two. ACT-8's `cloud-openclaw` trial is the
+template; ACT-8B (next) will rerun it with the new generator to
+prove the fixes work end-to-end.
+
+### 11.1 Why the generator
+
+`scripts/generate_tower_command.py`:
+
+- Emits exactly **one line** of output. There are no `\\\n`
+  continuations to send or to mis-paste.
+- Refuses to print a command that includes a flag the CLI does
+  not accept for that subcommand. Catches drift before the remote
+  agent runs anything.
+- Quotes values with `shlex.quote`. Apostrophes, spaces, dollar
+  signs, and ampersands survive one round of bash parsing.
+- Does not execute. Does not touch `data/`, `public-data/`, or
+  `generated/`. The remote agent runs the printed command
+  itself; the privilege boundary is unchanged.
+
+### 11.2 Recommended flow (local → remote)
+
+When `local-hermes` needs a remote agent (e.g. `cloud-openclaw`)
+to run a `tower.py` command:
+
+1. **`local-hermes` generates the command locally:**
+
+   ```bash
+   python scripts/generate_tower_command.py report-review \
+     --project-id agent-project-control-tower \
+     --agent-id cloud-openclaw \
+     --phase-id ACT-8B-review \
+     --phase-name "ACT-7B Generator Re-test" \
+     --status PASS \
+     --summary "Re-tested the command generator end-to-end." \
+     --target-agent-id local-hermes \
+     --target-phase-id ACT-7B \
+     --next "Confirm pipeline still green."
+   ```
+
+   The output is one line. Copy it.
+
+2. **`local-hermes` sends the single line** to `cloud-openclaw`
+   over SSH or via Telegram. Do not paste multi-line shell
+   scripts. Do not paste bash heredocs that span messages.
+
+3. **`cloud-openclaw` pastes the line into a shell and runs it.**
+   It returns the tower.py exit code, a short summary, and
+   (optionally) the path of the new event file in `data/events/`.
+   It does **not** return raw `tower.py` output that might
+   contain redaction noise.
+
+4. **`local-hermes` reviews the event file** (path: `data/events/`).
+   `local-hermes` then runs the public-data export itself, with
+   human review, per the double-gate rule.
+
+5. **`local-hermes` commits and pushes the public-data change**
+   if and only if the redaction summary is `FAIL=0`. The remote
+   agent never pushes `public-data/`.
+
+### 11.3 If you must send a multi-line command
+
+Three options, in order of preference:
+
+1. **Generate it.** Even for a 10-flag command, the generator
+   keeps it on one line. This is almost always the right answer.
+2. **Write a small shell script file**, then send the
+   `bash ./do-it.sh` line. The remote agent writes the script
+   to a temp file with a here-doc (allowed), then runs it.
+3. **Write a here-doc directly to a file**, then run the file:
+
+   ```bash
+   cat > /tmp/tower-cmd.sh <<'EOF'
+   python scripts/tower.py report-phase --project-id p ...
+   EOF
+   bash /tmp/tower-cmd.sh
+   ```
+
+   The single-quoted `<<'EOF'` is important — it prevents the
+   local shell from expanding variables before the script even
+   reaches the remote machine.
+
+**Do not** chain with `&&` and `\`-continuations to fake
+"multi-line in one paste". ACT-8 trial agents tried that. The
+shells joined the lines into one argument and the CLI rejected
+the call. The generator is the fix; everything else is a
+workaround.
+
+### 11.4 The handoff event itself
+
+If `local-hermes` is passing a project to `cloud-openclaw`
+(permanent transfer, not just one command), use the handoff
+template — `templates/telegram/report-handoff.txt`. The
+generator covers it: `report-handoff` is a first-class
+subcommand.
+
+`report-handoff` flags are **different from `report-phase`**.
+Do not copy a `report-phase` command and assume it works for
+handoff. The checker (`scripts/check_template_cli_alignment.py`)
+specifically catches the old bug where `report-handoff.txt`
+listed `--agent-id` and `--to-agent` instead of the real
+`--from-agent-id` / `--to-agent-id`.
+
+### 11.5 What the remote agent returns
+
+Recommended: **only the event file path** (or the JSONL line),
+nothing else. Example:
+
+```json
+{"path": "data/events/20260612T001500Z__REVIEW__cloud-openclaw__agent-project-control-tower__ACT-8B-review.json", "exit": 0}
+```
+
+`local-hermes` then:
+
+- `cat data/events/20260612T001500Z__REVIEW__...json | jq .`
+- if redaction `FAIL=0`, continue
+- if redaction `FAIL>0`, fix the source summary and have the
+  remote agent re-emit
+
+The remote agent does **not**:
+
+- Run `export_public_data.py`. (The double-gate rule.)
+- Run `git add`, `git commit`, or `git push`. (Local review
+  only.)
+- Paste raw `tower.py` stdout into Telegram. (Could leak.)

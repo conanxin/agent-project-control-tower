@@ -20,24 +20,40 @@ Fill in the placeholders before sending.
   TARGET_PHASE_ID     = <PHASE_ID_BEING_REVIEWED>
   TARGET_COMMIT       = <real commit hash of the work being reviewed>
 
-Command:
+Two command forms
+-----------------
 
-  python scripts/tower.py report-review \
-    --project-id       <PROJECT_ID> \
-    --agent-id         <AGENT_ID> \
-    --phase-id         <PHASE_ID> \
-    --phase-name       "<short name>" \
-    --status           <STATUS> \
-    --summary          "<what was reviewed + verdict>" \
-    --next             "<what comes next>" \
-    --target-agent-id  <TARGET_AGENT_ID> \
-    --target-phase-id  <TARGET_PHASE_ID> \
-    --target-commit    <TARGET_COMMIT>
+(A) RECOMMENDED — single-line command from the generator (ACT-7B).
+    One line, no `\` continuations, all values auto-quoted by
+    shlex.quote so apostrophes / spaces are safe.
+
+    python scripts/generate_tower_command.py report-review \
+        --project-id       <PROJECT_ID> \
+        --agent-id         <AGENT_ID> \
+        --phase-id         <PHASE_ID> \
+        --phase-name       "<short name>" \
+        --status           <STATUS> \
+        --summary          "<what was reviewed + verdict>" \
+        --next             "<what comes next>" \
+        --target-agent-id  <TARGET_AGENT_ID> \
+        --target-phase-id  <TARGET_PHASE_ID> \
+        --target-commit    <TARGET_COMMIT>
+
+    Real example output (one line, ready to paste):
+
+    python scripts/tower.py report-review --project-id agent-project-control-tower --agent-id cloud-openclaw --phase-id ACT-8-review --phase-name 'ACT-7 Playbook Review by Second Agent' --status PASS --summary 'Reviewed ACT-7 playbooks and verified the onboarding flow.' --next 'Feed documentation gaps back into ACT-8 report.' --target-agent-id local-hermes --target-phase-id ACT-7 --target-commit 76fa50d
+
+(B) MANUAL — if you cannot use the generator, write a single line
+    directly. Do NOT use `\` continuations.
+
+    python scripts/tower.py report-review --project-id <PROJECT_ID> --agent-id <AGENT_ID> --phase-id <PHASE_ID> --phase-name "<short name>" --status <STATUS> --summary "<what was reviewed + verdict>" --next "<what comes next>" --target-agent-id <TARGET_AGENT_ID> --target-phase-id <TARGET_PHASE_ID> --target-commit <TARGET_COMMIT>
 
 ACT-8 onboarding trial notes (these are real, not aspirational):
 
   - `report-review` is the only report-* command that does NOT accept
     `--source-repo` / `--source-commit`. It uses --target-* instead.
+    The ACT-7B generator enforces this; do not hand-add the wrong
+    flags or it will refuse to print the command.
   - `report-review` does NOT accept --design-reason or --impact-analysis.
     Put that content in the --summary field.
   - `report-review` --status accepts PASS / FAIL / COMMENT_ONLY.

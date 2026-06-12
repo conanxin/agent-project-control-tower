@@ -15,19 +15,48 @@ Fill in the placeholders before sending.
             booktrans-desk
   AGENT    = <AGENT_ID>, usually local-hermes
   MAX      = <max events per project, default 50>
-  PREFIX   = <repo prefix for local/<id> rewrite, default conanxin>
+  PREFIX   = <repo prefix for local/<id> rewrite, default conanxin
 
-Command (three real projects):
+Two command forms
+-----------------
 
-  python scripts/export_public_data.py \
-    --source data \
-    --output public-data \
-    --project-id agent-project-control-tower \
-    --project-id artvee-gallery \
-    --project-id booktrans-desk \
-    --max-events 50 \
-    --repo-prefix conanxin \
-    --replace
+(A) RECOMMENDED — single-line command from the generator (ACT-7B).
+    Note: the generator emits a *single line*, so it is safe to
+    paste into an SSH shell, a Telegram reply, or a one-line
+    pipeline. This is the ACT-7B fix for ACT-8's multi-line
+    `\` continuation failure.
+
+    python scripts/generate_tower_command.py export-public-data \
+        --source       data \
+        --output       public-data \
+        --project-id   agent-project-control-tower \
+        --project-id   artvee-gallery \
+        --project-id   booktrans-desk \
+        --max-events   50 \
+        --repo-prefix  conanxin \
+        --replace
+
+    Real example output (one line):
+
+    python scripts/export_public_data.py --source data --output public-data --project-id agent-project-control-tower --project-id artvee-gallery --project-id booktrans-desk --replace
+
+(B) MANUAL — single line, no `\` continuations.
+
+    python scripts/export_public_data.py --source data --output public-data --project-id agent-project-control-tower --project-id artvee-gallery --project-id booktrans-desk --max-events 50 --repo-prefix conanxin --replace
+
+DOUBLE-GATE RULE
+----------------
+This command is a "gate to the public internet". Two rules apply:
+
+  1. The trial agent that *wrote* the events must NOT run this
+     command. The reviewer's whole point is independent verification.
+     ACT-7B does not change this — the generator prints the
+     command, it does not run it, and the privilege boundary is
+     about who runs the printed command, not who typed it.
+
+  2. Even when the human reviewer (or the exporter agent) runs it,
+     they must do the redaction check first. A FAIL>0 means the
+     export did NOT write — fix the source data and re-run.
 
 After running:
 

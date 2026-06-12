@@ -9,22 +9,45 @@ Run on the FROM agent's machine (or any machine that has a working
 
 Fill in the placeholders before sending.
 
-  PROJECT_ID    = <PROJECT_ID>
-  FROM_AGENT_ID = <AGENT_ID>           # the agent passing the work
-  TO_AGENT_ID   = <TO_AGENT_ID>        # the agent receiving the work
-  REASON        = "<short reason>"     # e.g. "shutting down", "wrong context", "specialist needed"
-  SOURCE_REPO   = <owner>/<repo>
-  SOURCE_COMMIT = <real commit hash from git log of SOURCE_REPO>
+  PROJECT_ID      = <PROJECT_ID>
+  FROM_AGENT_ID   = <AGENT_ID>                # the agent passing the work
+  TO_AGENT_ID     = <TO_AGENT_ID>             # the agent receiving the work
+  CURRENT_PHASE   = <PHASE_ID>                # the phase at handoff time
+  REASON          = "shutting down"           # short, no secrets/paths/IPs
 
-Command:
+NOTE: report-handoff is the ONLY report-* subcommand that does NOT
+accept --source-repo, --source-commit, --agent-id, or --to-agent.
+The flags are --from-agent-id and --to-agent-id, plus --current-phase.
+Do not copy those from a report-phase or report-review template.
 
-  python scripts/tower.py report-handoff \
-    --project-id     <PROJECT_ID> \
-    --agent-id       <FROM_AGENT_ID> \
-    --to-agent       <TO_AGENT_ID> \
-    --reason         "<short reason>" \
-    --source-repo    "<owner>/<repo>" \
-    --source-commit  <SOURCE_COMMIT>
+Two command forms
+-----------------
+
+(A) RECOMMENDED — single-line command from the generator (ACT-7B).
+    Always paste one line. No `\` continuations.
+
+    python scripts/generate_tower_command.py report-handoff \
+        --project-id     <PROJECT_ID> \
+        --from-agent-id  <FROM_AGENT_ID> \
+        --to-agent-id    <TO_AGENT_ID> \
+        --current-phase  <CURRENT_PHASE> \
+        --reason         "<short reason>"
+
+    Real example output (one line, no continuations):
+
+    python scripts/tower.py report-handoff --project-id booktrans-desk --from-agent-id local-hermes --to-agent-id cloud-openclaw --current-phase ACT-7 --reason 'shutting down for the night'
+
+(B) MANUAL — if you cannot use the generator, write a single-line
+    command directly. Do NOT use `\` continuations (bash will join
+    lines into one argument and the CLI will reject the call).
+
+    python scripts/tower.py report-handoff --project-id <PROJECT_ID> --from-agent-id <FROM_AGENT_ID> --to-agent-id <TO_AGENT_ID> --current-phase <CURRENT_PHASE> --reason "<short reason>"
+
+Why one line
+------------
+ACT-8 trial agents tried multi-line `\` continuations and bash
+collapsed them into one argument, breaking the call. ACT-7B's
+generator is the fix; if you must write manually, write one line.
 
 After the handoff event, the TO agent can continue with `report-phase`
 events as normal. The handoff event is permanent history; future
@@ -34,5 +57,10 @@ Hard rules:
 
   - Do NOT include real tokens, real home paths, real IPs, or .env
     references in --reason. The scanner will refuse to write.
+  - Do NOT use --agent-id or --to-agent here. Use --from-agent-id
+    and --to-agent-id. The CLI does not have the shorter forms on
+    report-handoff.
+  - Do NOT use --source-repo / --source-commit on report-handoff.
+    Those are not flags for this subcommand.
   - Do NOT run git add . in this repo. Always list files explicitly.
   - data/ is gitignored. Do not attempt to commit it.

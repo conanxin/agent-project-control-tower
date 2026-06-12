@@ -17,19 +17,31 @@ Fill in the placeholders before sending.
   SOURCE_REPO   = <owner>/<repo>                        # the real source repo
   SOURCE_COMMIT = <real commit hash from git log of SOURCE_REPO>
 
-Command:
+Two command forms
+-----------------
 
-  python scripts/tower.py report-phase \
-    --project-id       <PROJECT_ID> \
-    --agent-id         <AGENT_ID> \
-    --phase-id         <PHASE_ID> \
-    --phase-name       "<short name>" \
-    --status           <STATUS> \
-    --health           <HEALTH> \
-    --summary          "<1-2 sentences>" \
-    --next             "<what comes next>" \
-    --source-repo      "<owner>/<repo>" \
-    --source-commit    <SOURCE_COMMIT>
+(A) RECOMMENDED — single-line command from the generator (ACT-7B).
+    One line, no `\` continuations.
+
+    python scripts/generate_tower_command.py report-phase \
+        --project-id     <PROJECT_ID> \
+        --agent-id       <AGENT_ID> \
+        --phase-id       <PHASE_ID> \
+        --phase-name     "<short name>" \
+        --status         <STATUS> \
+        --health         <HEALTH> \
+        --summary        "<1-2 sentences>" \
+        --next           "<what comes next>" \
+        --source-repo    "<owner>/<repo>" \
+        --source-commit  <SOURCE_COMMIT>
+
+    Real example output (one line, ready to paste):
+
+    python scripts/tower.py report-phase --project-id booktrans-desk --agent-id local-hermes --phase-id S13 --phase-name 'Blocker Fixes and Manual Validation Rerun' --status PARTIAL --health amber --summary 'S13 blocker fixes complete; automated checks PASS, but EPUB/PDF click-through is BLOCKED_MANUAL.' --next 'Schedule real-user click-through before S14.' --source-repo conanxin/booktrans-desk --source-commit 16f38b6
+
+(B) MANUAL — single line, no `\` continuations.
+
+    python scripts/tower.py report-phase --project-id <PROJECT_ID> --agent-id <AGENT_ID> --phase-id <PHASE_ID> --phase-name "<short name>" --status <STATUS> --health <HEALTH> --summary "<1-2 sentences>" --next "<what comes next>" --source-repo "<owner>/<repo>" --source-commit <SOURCE_COMMIT>
 
 Status / health defaults:
 

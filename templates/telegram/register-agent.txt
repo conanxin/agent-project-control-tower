@@ -13,14 +13,25 @@ Fill in the placeholders before sending.
   role       = <role-tag>            # primary-coding-agent | reviewer | telegram-bridge | unattended
   operator   = <handle>              # NOT a real name or email
 
-Command:
+Two command forms
+-----------------
 
-  python scripts/tower.py register-agent \
-    --agent-id   <AGENT_ID> \
-    --name       "<Human Readable Name>" \
-    --machine    "<machine-tag>" \
-    --role       "<role-tag>" \
-    --operator   "<handle>"
+(A) RECOMMENDED — single-line command from the generator (ACT-7B).
+
+    python scripts/generate_tower_command.py register-agent \
+        --agent-id   <AGENT_ID> \
+        --name       "<Human Readable Name>" \
+        --machine    "<machine-tag>" \
+        --role       "<role-tag>" \
+        --operator   "<handle>"
+
+    Real example output (one line):
+
+    python scripts/tower.py register-agent --agent-id cloud-openclaw --name 'Cloud OpenClaw Trial Agent' --machine cloud-vps --role reviewer --operator conanxin
+
+(B) MANUAL — single line, no `\` continuations.
+
+    python scripts/tower.py register-agent --agent-id <AGENT_ID> --name "<Human Readable Name>" --machine "<machine-tag>" --role "<role-tag>" --operator "<handle>"
 
 After running:
 

@@ -9,7 +9,7 @@
 PYTHON ?= python3
 
 .PHONY: help seed validate build site site-only dashboard dashboard-local test test-cli clean all reset \
-        public-data public-build public-build-final publish-preflight
+        public-data public-build public-build-final publish-preflight command-test
 
 help:
 	@echo "make targets:"
@@ -22,9 +22,15 @@ help:
 	@echo "  dashboard-local    - (ACT-6) build dashboard from LOCAL data/ (opt-in, debug only)"
 	@echo "  test               - run tests/smoke.py (ACT-1 acceptance)"
 	@echo "  test-cli           - run tests/cli_smoke.py (ACT-2 CLI smoke, isolated temp dir)"
+	@echo "  command-test       - (ACT-7B) run tests/command_generator_smoke.py (generator + alignment check)"
 	@echo "  reset              - delete data/ and re-seed from examples/ (destructive)"
-	@echo "  all                - validate + build + test + test-cli (zero deps, no npm)"
+	@echo "  all                - validate + build + test + test-cli + command-test (zero deps, no npm)"
 	@echo "  clean              - remove generated/ and site/index.embedded.html"
+	@echo ""
+	@echo "ACT-7B generator (zero-dep, stdlib only):"
+	@echo "  scripts/generate_tower_command.py    print a single-line tower.py command"
+	@echo "  scripts/check_template_cli_alignment.py  template ↔ tower.py drift check"
+	@echo "  tests/command_generator_smoke.py      8/8 coverage incl. drift detection"
 	@echo ""
 	@echo "ACT-4A public-publish targets (opt-in; CI uses these):"
 	@echo "  public-data        - export examples/ (sanitized seed) into public-data/"
@@ -94,12 +100,15 @@ test:
 test-cli:
 	$(PYTHON) tests/cli_smoke.py
 
+command-test:
+	$(PYTHON) tests/command_generator_smoke.py
+
 reset:
 	rm -rf data generated site/index.embedded.html
 	$(PYTHON) scripts/tower.py seed --force
 	$(PYTHON) scripts/tower.py build
 
-all: validate build test test-cli
+all: validate build test test-cli command-test
 
 clean:
 	rm -f generated/index.json site/index.embedded.html
