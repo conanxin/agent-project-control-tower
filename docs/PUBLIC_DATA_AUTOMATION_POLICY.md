@@ -2,11 +2,14 @@
 
 > **Status**: ACT-9 ✅ COMPLETE. Adopted. Currently operating at
 > **Level 1 (assisted command generation) + Level 2 (CI
-> validation only)**. **Level 3+ is design-only and not
-> implemented.** See §3 for the level definitions, §4 for the
-> recommended progression, and §10 for the future ACT-9B
-> proposal that would introduce a Level-3 "CI proposed export
+> validation only) + Level 3 (prototype available)**.
+> **Level 4/5 is explicitly rejected.** See §3 for the level definitions, §4 for the
+> recommended progression, and §10 for the ACT-9B
+> proposal that introduced a Level-3 "CI proposed export
 > artifact" with no automatic commit.
+>
+> **ACT-10 update**: v0.1.0 released (2026-06-12). Automation levels unchanged.
+> Level 1 + Level 2 active, Level 3 prototype available, Level 4/5 not allowed.
 >
 > This document is a **policy**, not a code change. No CI was
 > modified in ACT-9. No public-data automation was turned on

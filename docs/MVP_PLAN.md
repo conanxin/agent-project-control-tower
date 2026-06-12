@@ -1,11 +1,11 @@
-# MVP Plan — ACT-1 to ACT-9C
+# MVP Plan — ACT-1 to ACT-10
 
 > 把"建一个能用的控制塔"拆成阶段。每个阶段都有明确产出 + 验收标准 + 退出条件。
 >
-> 当前在 **ACT-9C ✅ COMPLETE**。ACT-9C 把"公开导出范围"从散落在 Makefile / 命令历史 / 人工记忆里的隐式状态，收口到一个 tracked YAML 文件 `config/public-data-export-plan.yml`——`make publish-preflight` 与 `make candidate` 都用 `--plan` 读它；`export_public_data.py` 与 `build_public_data_candidate.py` 都加上了 `--plan PATH` 支持；`make publish-preflight` 之前会静默降级到 1 project（`PUBLIC_DATA_PROJECT` 硬编码），ACT-9C 把这个洞关掉了。`make export-plan-test` 把"不降级到 1 project"作为 CI-runnable assertion。**CI 仍然不写 public-data/、不 commit、不 push、不 deploy**——这仍是 §8.2 的 hard rail。当前 public-data 状态：3 real projects / 2 agents / 21 events。当前自动化等级：**Level 1 + Level 2 + Level 3 (prototype)**。
+> 当前在 **ACT-10 ✅ COMPLETE**。ACT-10 把 ACT-0 到 ACT-9C 的成果打包成 v0.1.0 稳定版本：新增 VERSION、CHANGELOG.md、RELEASE_NOTES、RELEASE_CHECKLIST、tag v0.1.0；更新 README 和核心文档；所有验证 gate PASS；Cloudflare dashboard 正常；BookTrans Desk 回归通过。**CI 仍然不写 public-data/、不 commit、不 push、不 deploy**——这仍是 §8.2 的 hard rail。当前 public-data 状态：3 real projects / 2 agents / 22 events。当前自动化等级：**Level 1 + Level 2 + Level 3 (prototype)**。
 > 下一阶段（按推荐度排序）：
-> 1. **ACT-10：v0.1.0 release packaging**——CHANGELOG / VERSION / RELEASE_NOTES / tag v0.1.0。需 user 显式批准。
-> 2. **ACT-10B：GitHub release manual creation + screenshots**——发 GitHub Release + 加 demo 资产。纯 polish（依赖 ACT-10）。
+> 1. **ACT-10B：GitHub release polish / screenshots / demo GIF**——纯 polish（依赖 ACT-10）。
+> 2. **ACT-11：public-data update ergonomics**——更快的手动刷新工作流。
 
 ## 全景时间线
 
@@ -39,7 +39,8 @@ ACT-7B  ✅ Template-to-Command Generator (2026-06-12)
 ACT-8B  ✅ Generated-command Multi-agent Trial (2026-06-12)
 ACT-9   ✅ Public-data Export Automation Policy (2026-06-12)
 ACT-9B  ✅ CI Proposed Export Artifact Prototype (2026-06-12)
-ACT-9C  ✅ Export Plan Review Workflow (2026-06-12) ← 当前阶段
+ACT-9C  ✅ Export Plan Review Workflow (2026-06-12)
+ACT-10 ✅ v0.1.0 Release Packaging (2026-06-12) ← 当前阶段
 ```
 
 每个 ACT 的预算：**1–2 周业余时间**，不超过 30 个 commit。
@@ -839,13 +840,14 @@ ACT-7 写完了 playbook，ACT-8 验证 playbook 是不是真的能被第二个 
 
 - ~~**ACT-9B**：prototype CI proposed-export artifact~~ ✅ 已完成 (2026-06-12)
 - ~~**ACT-9C**：manual review workflow polish——Makefile 默认 3 project 化 + 显式 export plan + reviewer checklist~~ ✅ 已完成 (2026-06-12)
-- **ACT-10**（候选）：v0.1.0 release packaging——CHANGELOG / VERSION / RELEASE_NOTES / tag，无新功能。
-- **ACT-10B**（候选）：GitHub release manual creation + screenshots——发 GitHub Release + 加 demo 资产。
-- **ACT-11**：统计（`generated/stats.json`、跨项目聚合页）
-- **ACT-12**：错误修正流（`correction` event 真正被 build_index 消费）
-- **ACT-13**：第二份控制塔（私密项目）—— 独立仓库 + 独立域名
-- **ACT-14**：Astro 升级到 v5，引入 view transitions
-- **ACT-15**：被其他人 fork → 写 CONTRIBUTING.md
+- ~~**ACT-10**：v0.1.0 release packaging——CHANGELOG / VERSION / RELEASE_NOTES / tag，无新功能。~~ ✅ 已完成 (2026-06-12)
+- **ACT-10B**（候选）：GitHub release polish / screenshots / demo GIF——纯 polish。
+- **ACT-11**（候选）：public-data update ergonomics——更快的手动刷新工作流。
+- **ACT-12**：统计（`generated/stats.json`、跨项目聚合页）
+- **ACT-13**：错误修正流（`correction` event 真正被 build_index 消费）
+- **ACT-14**：第二份控制塔（私密项目）—— 独立仓库 + 独立域名
+- **ACT-15**：Astro 升级到 v5，引入 view transitions
+- **ACT-16**：被其他人 fork → 写 CONTRIBUTING.md
 - **未来**：通知（Discord / Telegram webhook 在 CI 末尾）—— ACT-4A 已决定不引入，避免增加 secret 管理负担
 
 ## 风险控制

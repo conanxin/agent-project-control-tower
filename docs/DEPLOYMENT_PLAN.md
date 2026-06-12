@@ -1,7 +1,7 @@
 # Deployment Plan
 
 > 怎么把"Git 仓库里的 events"变成"任何浏览器都能看的 dashboard"。
-> **当前（ACT-7 之后）**：所有 CI 已写好、文档已就位。远程仓库、push、Cloudflare Pages 部署均已完成。下一阶段 ACT-8 或 ACT-7B（见 `docs/MVP_PLAN.md`）。
+> **当前（ACT-7 之后）**：所有 CI 已写好、文档已就位。远程仓库、push、Cloudflare Pages 部署均已完成。**v0.1.0 已发布（2026-06-12）**——CHANGELOG / VERSION / RELEASE_NOTES / tag 全部就位。下一阶段 ACT-10B 或 ACT-11（见 `docs/MVP_PLAN.md`）。
 >
 > **ACT-7 新增**：上线后验收的完整 checklist 指向 `templates/checklists/online-verification-checklist.md`（四 URL HTTP 200、BookTrans Desk 误归类回归检查、敏感扫描、`pages.dev` 兜底等）。
 
