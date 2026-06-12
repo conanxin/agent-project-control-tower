@@ -98,6 +98,303 @@ bash /tmp/cmd.sh</code></pre>
   </section>
 
   <section>
+    <h2>完整示例：Artvee Gallery 完成 P5F 后如何更新控制塔</h2>
+
+    <div class="callout callout-info">
+      <strong>这是教学示例，不是真实事件</strong>
+      <p>
+        下面是一个完整的、可照抄的<strong>假想场景</strong>：Artvee Gallery 假设完成了 <code>P5F — Approved publish after curation filters</code>。
+        所有项目名、phase ID、commit hash、报告路径、URL 都是<strong>占位符</strong>，不是真实数据。
+        真实事件请以 <a href="https://control-tower.conanxin.com/">线上 dashboard</a> 为准。
+      </p>
+      <p>
+        想看真实的 Artvee Gallery 当前阶段？打开
+        <a href="/projects/artvee-gallery/">/projects/artvee-gallery/</a>。
+      </p>
+    </div>
+
+    <h3>场景说明</h3>
+    <p>你可以把控制塔理解成"项目进度公告板"。</p>
+    <ul>
+      <li><strong>原项目仓库</strong>（例如 <code>conanxin/artvee-gallery</code>）保存代码。</li>
+      <li><strong>控制塔仓库</strong>（<code>conanxin/agent-project-control-tower</code>）只保存项目状态，<strong>不保存</strong>原项目代码。</li>
+      <li>一次更新分成两道门：
+        <ul>
+          <li>第一道门：agent 把事件写入 <code>data/</code>，这只是<strong>本地事件</strong>，还没公开。</li>
+          <li>第二道门：人类审核后，把合格事件导出到 <code>public-data/</code>，Dashboard 才会更新。</li>
+        </ul>
+      </li>
+    </ul>
+
+    <p>本示例覆盖 8 步：</p>
+    <ol>
+      <li>确认原项目阶段完成</li>
+      <li>在控制塔写入本地 <code>data/</code> event</li>
+      <li>人工审核 data event</li>
+      <li>生成 <code>public-data/</code> 候选</li>
+      <li>检查 preflight artifacts</li>
+      <li>人类批准 + 导出 <code>public-data/</code></li>
+      <li>显式 <code>git add</code> + <code>commit</code> + <code>push</code></li>
+      <li>线上验证 dashboard</li>
+    </ol>
+
+    <h3 id="example-step-1">Step 1 — 确认原项目阶段已经完成</h3>
+    <p><strong>人要确认：</strong></p>
+    <ul>
+      <li>原项目代码已经 <code>commit</code> + <code>push</code>。</li>
+      <li>CI 已通过。</li>
+      <li>阶段报告已生成（放在原项目仓库的 <code>reports/</code> 目录里）。</li>
+      <li>没有 secret 泄露（report 文件里不含 token / IP / 本地路径 / <code>.env</code>）。</li>
+    </ul>
+    <p><strong>给 agent 的命令：</strong></p>
+    <pre><code>cd &lt;artvee-gallery-repo&gt;
+
+# 1.1 工作区干净吗？
+git status --short
+
+# 1.2 最近 3 个 commit
+git log --oneline -3
+
+# 1.3 CI 状态
+gh run list --limit 3
+
+# 1.4 看阶段报告是否存在 + 不含敏感信息
+ls -lah reports/ | grep -i P5F
+grep -RInE "sk-[A-Za-z0-9]&123;8,&125;|ghp_[A-Za-z0-9]&123;8,&125;|/home/|\.env" \
+  reports/&lt;P5F-report&gt;.md || echo "OK: no secrets found"</code></pre>
+
+    <h3 id="example-step-2">Step 2 — 在控制塔写入本地事件 <code>data/</code></h3>
+    <p><strong>人要告诉 agent：</strong></p>
+    <p>
+      "把 Artvee Gallery <code>P5F</code> 的结果写入控制塔，<strong>但不要公开发布</strong>。这是第一道门，写到 <code>data/</code>。"
+    </p>
+    <p><strong>给 agent 的命令（已用 <code>scripts/tower.py report-phase</code> 真实参数）：</strong></p>
+    <pre><code>cd &lt;control-tower-repo&gt;
+
+# 2.1 先看 tower.py 真实 CLI（参数可能升级）
+python3 scripts/tower.py report-phase --help
+
+# 2.2 如果项目已有 command generator，优先用它：
+python3 scripts/generate_tower_command.py \
+  --template templates/telegram/report-phase.txt \
+  --out /tmp/cmd.sh
+# 然后编辑 /tmp/cmd.sh 把 &lt;PLACEHOLDER&gt; 替换为真实值
+bash /tmp/cmd.sh
+
+# 2.3 如果手敲命令（这里使用真实参数名）：
+python3 scripts/tower.py report-phase \
+  --project-id artvee-gallery \
+  --agent-id local-hermes \
+  --phase-id P5F \
+  --phase-name "Approved publish after curation filters" \
+  --status PASS \
+  --health green \
+  --summary "P5F published curated Gallery and Digest demos with 5 unique digest artists and clean public JSON." \
+  --source-repo "https://github.com/conanxin/artvee-gallery" \
+  --source-commit 24e5aa7 \
+  --source-commit-url "https://github.com/conanxin/artvee-gallery/commit/24e5aa7" \
+  --next "Open the curated demo URL and confirm the JSON feeds load." \
+  --next "Send the P5F closeout note to the maintainer."</code></pre>
+    <p class="muted">
+      <strong>注意：</strong><code>--source-commit 24e5aa7</code>、<code>reports/&lt;P5F-report&gt;.md</code> 都是<strong>示例占位符</strong>。
+      真实命令里请用实际 commit hash 和报告文件名替换。
+    </p>
+
+    <h3 id="example-step-3">Step 3 — 人工审核 <code>data/</code> event</h3>
+    <p><strong>这一步只读，不修改任何东西。</strong></p>
+    <p><strong>给 agent 的命令（让人看完决定是否批准）：</strong></p>
+    <pre><code>cd &lt;control-tower-repo&gt;
+
+# 3.1 确认 data/ 没有意外改动
+git status --short
+
+# 3.2 找出刚刚写入的 event JSON（最新的一个）
+find data -type f -name '*.json' -printf '%T@ %p\n' \
+  | sort -nr | head -1 | awk '&123;print $2&125;' &gt; /tmp/latest-event.json
+
+cat /tmp/latest-event.json
+
+# 3.3 JSON 合法性
+python3 -m json.tool &lt; /tmp/latest-event.json &gt; /dev/null \
+  && echo "OK: JSON valid"
+
+# 3.4 敏感信息扫描
+grep -RInE "sk-[A-Za-z0-9]&123;8,&125;|ghp_[A-Za-z0-9]&123;8,&125;|password=|/home/|\.env" \
+  "$(cat /tmp/latest-event.json)" \
+  || echo "OK: no secrets in event"</code></pre>
+    <p><strong>人要在终端 / 文件里检查：</strong></p>
+    <ul>
+      <li><code>project_id</code> 是 <code>artvee-gallery</code>（不是 <code>conanxin-homepage</code> 之类的错误归属）。</li>
+      <li><code>phase_id</code> 是 <code>P5F</code>（不是 <code>P5E</code> 等旧阶段）。</li>
+      <li><code>source_commit</code> 与原项目 <code>git log</code> 顶部一致。</li>
+      <li><code>summary</code> 一句话讲清了"做了什么 / 结果如何"，不含 token / 本地路径 / 私密内容。</li>
+      <li><code>next</code> 是真实的后续动作，不是占位符。</li>
+    </ul>
+
+    <h3 id="example-step-4">Step 4 — 生成 <code>public-data/</code> 候选</h3>
+    <p><strong>这一步走 ACT-11 preflight</strong>，会在 <code>artifacts/public-data-update-preflight/</code> 写出 7+ 份审查材料，<strong>不会</strong>修改 <code>public-data/</code>、<code>data/</code> 或 <code>generated/</code>。</p>
+    <p><strong>给 agent 的命令：</strong></p>
+    <pre><code>cd &lt;control-tower-repo&gt;
+
+# 4.1 跑 preflight
+make public-update-preflight
+
+# 4.2 看 artifacts 目录
+ls -lah artifacts/public-data-update-preflight/</code></pre>
+    <p><strong>期望产出（真实文件名）：</strong></p>
+    <ul>
+      <li><code>UPDATE_SUMMARY.md</code> — 总览（PASS / FAIL 清单）</li>
+      <li><code>PUBLIC_DATA_DIFF.md</code> — 候选 vs 当前 public-data 差异</li>
+      <li><code>REDACTION_RESULT.md</code> — 脱敏检查结果</li>
+      <li><code>REVIEW_CHECKLIST.md</code> — 人工逐条 checklist</li>
+      <li><code>MANIFEST_BEFORE.json</code> / <code>MANIFEST_AFTER.json</code> — manifest 前后对照</li>
+      <li><code>NEXT_STEPS.md</code> — 下一步建议</li>
+      <li><code>VALIDATE_STDOUT.txt</code> / <code>VALIDATE_STDERR.txt</code> / <code>BUILD_STDOUT.txt</code> 等 — 验证日志</li>
+    </ul>
+
+    <h3 id="example-step-5">Step 5 — 检查 preflight artifacts</h3>
+    <p><strong>这一步仍然只读。</strong> 人在 4 份核心 md + 1 份 diff 上各花 1 分钟。</p>
+    <p><strong>给 agent 的命令：</strong></p>
+    <pre><code>cd &lt;control-tower-repo&gt;
+
+# 5.1 列所有 artifacts
+find artifacts/public-data-update-preflight -maxdepth 2 -type f | sort
+
+# 5.2 看 diff
+cat artifacts/public-data-update-preflight/PUBLIC_DATA_DIFF.md
+
+# 5.3 看脱敏
+cat artifacts/public-data-update-preflight/REDACTION_RESULT.md
+
+# 5.4 看 checklist
+cat artifacts/public-data-update-preflight/REVIEW_CHECKLIST.md
+
+# 5.5 兜底敏感扫描
+grep -RInE "FAIL|token=|secret=|/home/|\.env" \
+  artifacts/public-data-update-preflight/ \
+  || echo "OK: no FAIL hits, no secrets"</code></pre>
+    <p><strong>人要在每份 md 上检查：</strong></p>
+    <ul>
+      <li><code>REDACTION_RESULT.md</code>：<code>FAIL = 0</code>，<code>WARN = 0</code>（理想）或仅在可控范围。</li>
+      <li><code>PUBLIC_DATA_DIFF.md</code>：只多出 Artvee Gallery 的 1 个新 event，<strong>没有</strong> 1-project downgrade（项目数从 3 跌到 2）。</li>
+      <li><code>UPDATE_SUMMARY.md</code>：所有 invariant 检查 PASS（如 <code>booktrans_repo_not_homepage</code>、<code>HP-33 = 0</code>）。</li>
+      <li>没有错误的 <code>project_id</code> 覆盖（例：不会把 artvee-gallery 写成 conanxin-homepage）。</li>
+    </ul>
+
+    <h3 id="example-step-6">Step 6 — 人类批准后，导出 <code>public-data/</code></h3>
+    <div class="callout callout-warning">
+      <strong>第二道门 — 仅人工 / 授权 primary agent</strong>
+      <p>普通 trial agent 不要直接执行这一步。trial agent 可以跑 <code>make public-update-preflight</code>（只读）但<strong>不能</strong>运行 <code>export_public_data.py --replace</code>，不能 <code>git add public-data/</code>，不能 <code>git push</code>。</p>
+    </div>
+
+    <p><strong>给授权 agent / 人的命令（使用真实 CLI 参数）：</strong></p>
+    <pre><code>cd &lt;control-tower-repo&gt;
+
+# 6.1 看 export 工具真实参数
+python3 scripts/export_public_data.py --help
+
+# 6.2 干跑一次（不写文件），先看会改什么
+python3 scripts/export_public_data.py \
+  --source data \
+  --output public-data \
+  --plan config/public-data-export-plan.yml \
+  --dry-run
+
+# 6.3 人工确认无误后，真正导出（覆盖现有 public-data）
+python3 scripts/export_public_data.py \
+  --source data \
+  --output public-data \
+  --plan config/public-data-export-plan.yml \
+  --replace
+
+# 6.4 校验导出结果
+python3 scripts/validate.py --source public-data
+
+# 6.5 重建 generated/index.json + embedded site（dashboard 渲染数据）
+python3 scripts/build_index.py --source public-data
+python3 scripts/build_embedded_site.py</code></pre>
+    <p class="muted">
+      <strong>注意：</strong><code>--plan</code> 后跟的是 repo 里真实的 <code>config/public-data-export-plan.yml</code>。
+      如果未来有 per-project plan 文件，名字可能不同；请以 <code>ls config/</code> 实际结果为准。
+    </p>
+
+    <h3 id="example-step-7">Step 7 — 显式 <code>git add</code> + <code>commit</code> + <code>push</code></h3>
+    <div class="callout callout-danger">
+      <strong>禁止</strong> <code>git add .</code>
+      <p>必须<strong>逐文件显式列出</strong>。下表是这次 P5F 例子应该 add 的清单：</p>
+    </div>
+    <p><strong>给 agent 的命令：</strong></p>
+    <pre><code>cd &lt;control-tower-repo&gt;
+
+# 7.1 二次检查：哪些文件变了？是否混入了不该 commit 的东西？
+git status --short
+git status --short --ignored \
+  | grep -E "data/|generated/|artifacts/|apps/dashboard/dist|node_modules|\.env" \
+  || echo "OK: no forbidden paths staged"
+
+# 7.2 显式 add（不要 git add .）
+git add public-data/MANIFEST.json
+git add public-data/registry/projects.yml
+git add public-data/registry/agents.yml
+git add public-data/events/*.json
+git add site/index.embedded.html
+
+# 7.3 再次确认 staged 内容
+git status --short
+git diff --cached --stat
+
+# 7.4 commit + push
+git commit -m "Artvee Gallery P5F: approved publish after curation filters"
+git push</code></pre>
+
+    <h3 id="example-step-8">Step 8 — 线上验证 dashboard</h3>
+    <p><strong>给 agent 的命令（push 后等 60–90 秒）：</strong></p>
+    <pre><code>cd &lt;control-tower-repo&gt;
+
+# 8.1 首页 200 + 含项目名
+curl -sL -o /dev/null -w "%&#123;http_code&#125;\n" https://control-tower.conanxin.com/
+curl -sL https://control-tower.conanxin.com/ \
+  | grep -E "Artvee|artvee-gallery|P5F" -o | sort -u
+
+# 8.2 项目详情页 200 + P5F / PASS
+curl -sL -o /dev/null -w "%&#123;http_code&#125;\n" \
+  https://control-tower.conanxin.com/projects/artvee-gallery/
+curl -sL https://control-tower.conanxin.com/projects/artvee-gallery/ \
+  | grep -E "P5F|24e5aa7|通过|Approved" -o | sort -u
+
+# 8.3 时间线 200 + 新 event
+curl -sL -o /dev/null -w "%&#123;http_code&#125;\n" \
+  https://control-tower.conanxin.com/timeline/
+curl -sL https://control-tower.conanxin.com/timeline/ \
+  | grep -E "P5F|artvee-gallery|PASS" -o | sort -u
+
+# 8.4 确认 data/ / generated/ 没被公开
+curl -sL https://control-tower.conanxin.com/ \
+  | grep -E "/home/|\.env|token=" -o \
+  || echo "OK: no secrets on public dashboard"</code></pre>
+
+    <h3>示例结束时面板看起来什么样</h3>
+    <p>假设所有 8 步都通过，线上 dashboard 的变化是：</p>
+    <ul>
+      <li><strong>首页</strong>：Artvee Gallery 行的 phase pill 从 <code>P3B · 通过 · PASS</code> 变成 <code>P5F · 通过 · PASS</code>。</li>
+      <li><strong>Artvee Gallery 项目页</strong>：当前阶段显示 <code>P5F — Approved publish after curation filters</code>，source commit <code>24e5aa7</code>，状态 <code>PASS · green</code>，最近事件摘要更新。</li>
+      <li><strong>时间线</strong>：顶部新增一条 <code>阶段 · PHASE_REPORT · artvee-gallery · P5F · 通过 · PASS</code>，按 newest-first 排序。</li>
+      <li><strong>BookTrans Desk</strong>：不变（仍是 <code>S13 / 16f38b6 / PARTIAL</code>），control tower 自身不变（仍是当前阶段）。</li>
+      <li><strong>data/ / generated/ / artifacts/</strong>：仍 gitignored，不公开。</li>
+    </ul>
+
+    <div class="callout callout-info">
+      <strong>示例边界</strong>
+      <p>这只是说明流程。真实更新请遵循：</p>
+      <ul>
+        <li>用 <a href="https://github.com/conanxin/agent-project-control-tower/tree/main/templates/checklists">templates/checklists/</a> 里的 <code>public-data-review-checklist.md</code> 走完整 checklist。</li>
+        <li>Commit 信息遵守 ACT-12 / ACT-13 的命名风格（<code>&lt;PROJECT&gt; &lt;PHASE&gt;: short description</code>）。</li>
+        <li>遇到 redaction WARN，先回 data/ 修改再走 preflight，不要直接 export。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
     <h2>双门模型</h2>
     <p>控制塔把"写事件"和"公开发布"分成两道门。这是最重要的不变式。</p>
 
