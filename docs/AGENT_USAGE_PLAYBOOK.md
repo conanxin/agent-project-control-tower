@@ -881,3 +881,94 @@ they commit. The four reports (`CANDIDATE_SUMMARY.md`,
 support the §15 review checklist. The candidate is the
 *evidence*; the human's `git add public-data/` is the
 *decision*.
+
+## 16. ACT-11 — Public Update Preflight (human + authorized primary agent only)
+
+`make public-update-preflight` is the **actual update path** —
+it is the tool the human runs immediately before `git add` /
+`git commit` / `git push` for a real `public-data/` refresh.
+
+### 16.1 Who is allowed to run it
+
+**Authorized primary agent** (e.g. `local-hermes` on the
+orchestrator's machine) and the human orchestrator. A
+**trial agent** is explicitly **not** allowed to run it.
+
+The distinction matters: a trial agent can write `data/`
+events (Door 1, see §2.1) but cannot touch the export
+gate. ACT-11's preflight *does* touch the export gate
+(it regenerates `public-data/`), so it is Door 2
+territory and Door 2 is human-only by default.
+
+### 16.2 The command
+
+```bash
+make public-update-preflight
+```
+
+or equivalently:
+
+```bash
+python3 scripts/public_data_update_preflight.py \
+  --plan config/public-data-export-plan.yml \
+  --output artifacts/public-data-update-preflight
+```
+
+### 16.3 What the preflight produces
+
+A reviewable artifact directory at
+`artifacts/public-data-update-preflight/`:
+
+- `UPDATE_SUMMARY.md` — overall PASS/FAIL + checks + counts
+- `PUBLIC_DATA_DIFF.md` — before/after manifest diff
+- `MANIFEST_BEFORE.json` / `MANIFEST_AFTER.json`
+- `REDACTION_RESULT.md` — FAIL/WARN/PASS counts
+- `REVIEW_CHECKLIST.md` — 10-section human walkthrough
+- `NEXT_STEPS.md` — exact `git add` / `git commit` commands
+- `EXPORT_STDOUT.txt` / `EXPORT_STDERR.txt` /
+  `VALIDATE_STDOUT.txt` / `VALIDATE_STDERR.txt` /
+  `BUILD_STDOUT.txt` / `BUILD_STDERR.txt` — raw subprocess
+  output for forensics
+
+### 16.4 The 5 checks the preflight runs
+
+1. `project_count_meets_plan` — at least as many projects as
+   the plan requires (catches the pre-ACT-9C
+   "silently truncated to 1 project" bug)
+2. `booktrans_repo_not_homepage` — if booktrans-desk is in
+   the plan, its `repo` must NOT be `conanxin-homepage`
+   (catches the ACT-6C regression)
+3. `booktrans_no_hp33` — if booktrans-desk is in the plan,
+   no event for it may have `phase_id=HP-33` (same incident)
+4. `redaction_fail_zero` — redaction `FAIL` must be 0
+5. `validate_clean` / `build_clean` — subprocess exit codes
+
+### 16.5 The daily update workflow
+
+```
+1. Agent reports events to data/         (tower.py report-*)
+2. Authorized primary agent OR human runs:
+   make public-update-preflight
+3. Human opens:
+   artifacts/public-data-update-preflight/UPDATE_SUMMARY.md
+4. Human opens:
+   templates/checklists/public-data-update-preflight-checklist.md
+5. Human runs:
+   git diff public-data/
+6. Human runs:
+   git add <explicit list from NEXT_STEPS.md>
+7. Human runs:
+   git commit -m "..." && git push
+8. Human waits 60–90s for Cloudflare Pages
+9. Human runs:
+   templates/checklists/online-verification-checklist.md
+```
+
+### 16.6 Automation level
+
+This is **Level 1.5** (see
+`docs/PUBLIC_DATA_AUTOMATION_POLICY.md` §3) — a new level
+introduced by ACT-11 to describe "assisted local update".
+It is **not** Level 4 (PR-only bot) and **not** Level 5
+(auto-merge). The human still does `git add` / `git commit`
+/ `git push` by hand.

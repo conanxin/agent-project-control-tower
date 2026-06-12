@@ -680,3 +680,133 @@ touches one YAML file and is reviewed by a human — not a
 "remember to also update the Makefile / the script / the
 candidate test" scramble. ACT-9C makes the diff one file, the
 review one file, and the rollback one file.
+
+## 14. ACT-11 — Public Update Preflight (local, manual)
+
+ACT-11 adds a **local preflight** tool that the human (or
+authorized primary agent) runs *immediately before* the manual
+`git add` / `git commit` / `git push` that updates `public-data/`.
+
+### 14.1 What it is
+
+```bash
+make public-update-preflight
+# or:
+python3 scripts/public_data_update_preflight.py \
+  --plan config/public-data-export-plan.yml \
+  --output artifacts/public-data-update-preflight
+```
+
+It does (in order):
+
+1. Reads `config/public-data-export-plan.yml`.
+2. Snapshots the current `public-data/` state into
+   `MANIFEST_BEFORE.json`.
+3. Runs `export_public_data.py --plan ... --replace` to
+   regenerate `public-data/` from `data/`.
+4. Validates the regenerated `public-data/`.
+5. Rebuilds `generated/index.json` and `site/index.embedded.html`.
+6. Snapshots the AFTER state into `MANIFEST_AFTER.json`.
+7. Parses the redaction summary from the export stdout.
+8. Runs regression checks:
+   - `project_count_meets_plan` — at least as many projects as the
+     plan requires
+   - `booktrans_repo_not_homepage` — if booktrans-desk is in the
+     plan, its `repo` must NOT be `conanxin-homepage`
+   - `booktrans_no_hp33` — if booktrans-desk is in the plan, no
+     event for it may have `phase_id=HP-33`
+   - `redaction_fail_zero` — `FAIL` must be 0
+   - `validate_clean` / `build_clean` — subprocess exit codes
+9. Writes a reviewable artifact directory:
+   - `UPDATE_SUMMARY.md` — overall PASS/FAIL + checks + counts
+   - `PUBLIC_DATA_DIFF.md` — before/after manifest diff
+   - `MANIFEST_BEFORE.json` / `MANIFEST_AFTER.json`
+   - `REDACTION_RESULT.md` — FAIL/WARN/PASS counts
+   - `REVIEW_CHECKLIST.md` — step-by-step human walkthrough
+   - `NEXT_STEPS.md` — exact `git add` / `git commit` commands
+   - `EXPORT_STDOUT.txt` / `EXPORT_STDERR.txt` / `VALIDATE_*` /
+     `BUILD_*` — raw subprocess output for forensics
+
+### 14.2 What it does NOT do
+
+- `git add` anything
+- `git commit`
+- `git push`
+- Touch Cloudflare Pages
+- Touch `data/` (read-only source)
+- Auto-promote to `public-data/` (the human still does the diff
+  review and the explicit `git add`)
+
+### 14.3 How it differs from the candidate artifact
+
+| Concern | `make candidate` (ACT-9B) | `make public-update-preflight` (ACT-11) |
+| --- | --- | --- |
+| Purpose | Preview the export without touching `public-data/` | Actually regenerate `public-data/` + run regression checks |
+| Writes to | `artifacts/public-data-candidate/` (download-only) | `public-data/` (tracked) + `artifacts/public-data-update-preflight/` (review-only) |
+| Triggered by | Human OR CI (via `workflow_dispatch`) | Human only (this is the actual update path) |
+| Automation level | Level 3 (prototype) | Level 1.5 (assisted local update) — still human-reviewed |
+| Commits? | No | No (human commits after review) |
+| Pushes? | No | No |
+
+### 14.4 The human's workflow
+
+```
+1. Agent reports events to data/         (tower.py report-*)
+2. Human runs: make public-update-preflight
+3. Human reads: artifacts/public-data-update-preflight/
+4. Human runs:  git diff public-data/
+5. Human runs:  git add <explicit list>
+6. Human runs:  git commit && git push
+7. Human waits: 60–90s for Cloudflare Pages
+8. Human runs:  online-verification-checklist.md
+```
+
+The preflight is the **gate between step 1 and step 4**. It
+catches:
+
+- "the export silently truncated to 1 project" (pre-ACT-9C bug)
+- "the redaction scanner found a FAIL"
+- "booktrans-desk regressed to conanxin-homepage" (the ACT-6C
+  incident)
+- "booktrans-desk regressed to HP-33" (the ACT-6C incident)
+- "validate or build crashed"
+
+It does **not** catch semantic bugs in event summaries (those
+require a human to read the diff). The preflight is a
+**necessary floor**, not a sufficient gate.
+
+### 14.5 The smoke test
+
+`make public-update-test` runs
+`tests/public_update_preflight_smoke.py` which:
+
+1. Runs the preflight end-to-end and verifies the 7 required
+   artifact files exist.
+2. Confirms HEAD does not change (no auto-commit).
+3. Confirms `.gitignore` still ignores `data/` and `generated/`.
+4. Truncates `public-data/registry/projects.yml` to 1 project
+   and confirms the preflight reports FAIL with
+   `project_count_meets_plan`.
+5. Rewrites `booktrans-desk`'s `repo` to `conanxin-homepage`
+   and confirms the preflight reports FAIL with
+   `booktrans_repo_not_homepage`.
+
+The smoke test is **not** in `make all` (it mutates `public-data/`
+on disk). Run it on demand.
+
+### 14.6 The template + checklist
+
+For the human workflow:
+
+- `templates/telegram/public-data-update-preflight.txt` —
+  copy-paste command for local-hermes
+- `templates/checklists/public-data-update-preflight-checklist.md` —
+  step-by-step human review (10 sections)
+
+### 14.7 Automation level
+
+`make public-update-preflight` operates at **Level 1.5** — a
+new level introduced by ACT-11 to describe "assisted local
+update". It is **not** Level 4 (PR-only bot) and **not** Level 5
+(auto-merge). The human still does `git add` / `git commit` /
+`git push` by hand.

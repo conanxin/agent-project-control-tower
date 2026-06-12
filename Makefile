@@ -10,7 +10,8 @@ PYTHON ?= python3
 
 .PHONY: help seed validate build site site-only dashboard dashboard-local test test-cli clean all reset \
         public-data public-build public-build-final publish-preflight publish-preflight-examples command-test \
-        candidate candidate-fixture candidate-test export-plan-test
+        candidate candidate-fixture candidate-test export-plan-test \
+        public-update-preflight public-update-test
 
 help:
 	@echo "make targets:"
@@ -134,6 +135,33 @@ candidate-test:
 
 export-plan-test:
 	$(PYTHON) tests/export_plan_smoke.py
+
+# ACT-11: local public-data update preflight.
+#
+# `public-update-preflight` runs scripts/public_data_update_preflight.py
+# which:
+#   - reads config/public-data-export-plan.yml
+#   - snapshots the current public-data/ state
+#   - regenerates public-data/ from data/ via export_public_data.py
+#   - validates and rebuilds generated/ + site/index.embedded.html
+#   - runs regression checks (1-project downgrade, BookTrans Desk
+#     repo misclassification, redaction FAIL > 0)
+#   - writes a reviewable artifact directory under
+#     artifacts/public-data-update-preflight/
+#
+# It does NOT git add / commit / push. The human reviews the artifact
+# directory and does the commit/push by hand. See
+# templates/checklists/public-data-update-preflight-checklist.md.
+#
+# Deliberately NOT in `make all`: this target mutates public-data/
+# on disk, and the smoke test also does. The ACT-11 verification
+# runs them on demand via `make public-update-preflight` and
+# `make public-update-test`.
+public-update-preflight:
+	$(PYTHON) scripts/public_data_update_preflight.py --plan $(PUBLIC_DATA_PLAN)
+
+public-update-test:
+	$(PYTHON) tests/public_update_preflight_smoke.py
 
 reset:
 	rm -rf data generated site/index.embedded.html

@@ -11,6 +11,14 @@
 > **ACT-10 update**: v0.1.0 released (2026-06-12). Automation levels unchanged.
 > Level 1 + Level 2 active, Level 3 prototype available, Level 4/5 not allowed.
 >
+> **ACT-11 update**: v0.1.1 added **Level 1.5 — assisted local
+> update** (2026-06-12). `make public-update-preflight` is a
+> human-only tool that regenerates `public-data/` and writes a
+> reviewable artifact directory. It does **not** `git add`,
+> `git commit`, or `git push`. It is **not** Level 4 (PR-only
+> bot) and **not** Level 5 (auto-merge). See
+> `docs/PUBLIC_DATA_EXPORT_PLAYBOOK.md` §14.
+>
 > This document is a **policy**, not a code change. No CI was
 > modified in ACT-9. No public-data automation was turned on
 > in ACT-9. The next time automation is *considered*, the
@@ -131,14 +139,15 @@ machine, and on what conditions.
 Six levels, ordered by how much of the export pipeline a
 machine is allowed to perform without human review.
 
-| Level | Name | Machine does | Machine does NOT | Current? |
-| --- | --- | --- | --- | --- |
-| 0 | **Manual only** | nothing | anything in the export pipeline | historical; superseded by Level 1 |
-| 1 | **Assisted command generation** | print single-line `tower.py` commands (`scripts/generate_tower_command.py`) | run the printed commands, modify `data/`, modify `public-data/`, push | **active** (ACT-7B) |
-| 2 | **CI validation only** | validate `public-data/`, build the dashboard, run `make command-test`, run the alignment checker, run the redaction scanner, deploy to Cloudflare Pages from the *committed* `public-data/` | write to `data/`, write to `public-data/`, `git add`, `git commit`, `git push`, disable `.gitignore` | **active** (ACT-4A) |
-| 3 | **CI proposed export artifact** | run `scripts/build_public_data_candidate.py` to a *non-tracked* path (`artifacts/public-data-candidate/`, gitignored), redaction-scan the result, post the tarball as a GitHub Actions build artifact (download-only) | `git add public-data/`, `git commit`, `git push`, modify `.gitignore` | **prototype available** (ACT-9B) — see §10 |
-| 4 | **Authorized export bot** | run the full pipeline, commit to a `proposed/public-data` branch, open a PR | merge to `main`, push to `master`, disable the branch protection rule, modify `.gitignore` | not designed; not approved |
-| 5 | **Fully automatic export** | run the full pipeline, merge to `main`, push, deploy | n/a | **explicitly rejected** |
+|| Level | Name | Machine does | Machine does NOT | Current? |
+|| --- | --- | --- | --- | --- |
+|| 0 | **Manual only** | nothing | anything in the export pipeline | historical; superseded by Level 1 |
+|| 1 | **Assisted command generation** | print single-line `tower.py` commands (`scripts/generate_tower_command.py`) | run the printed commands, modify `data/`, modify `public-data/`, push | **active** (ACT-7B) |
+|| 1.5 | **Assisted local update** (ACT-11) | run `scripts/public_data_update_preflight.py` to regenerate `public-data/` from `data/` (plan-driven, with regression checks) and write a reviewable artifact directory | `git add public-data/`, `git commit`, `git push`, modify `data/`, touch Cloudflare | **active** (ACT-11) — human-only trigger, no auto-promote |
+|| 2 | **CI validation only** | validate `public-data/`, build the dashboard, run `make command-test`, run the alignment checker, run the redaction scanner, deploy to Cloudflare Pages from the *committed* `public-data/` | write to `data/`, write to `public-data/`, `git add`, `git commit`, `git push`, disable `.gitignore` | **active** (ACT-4A) |
+|| 3 | **CI proposed export artifact** | run `scripts/build_public_data_candidate.py` to a *non-tracked* path (`artifacts/public-data-candidate/`, gitignored), redaction-scan the result, post the tarball as a GitHub Actions build artifact (download-only) | `git add public-data/`, `git commit`, `git push`, modify `.gitignore` | **prototype available** (ACT-9B) — see §10 |
+|| 4 | **Authorized export bot** | run the full pipeline, commit to a `proposed/public-data` branch, open a PR | merge to `main`, push to `master`, disable the branch protection rule, modify `.gitignore` | not designed; not approved |
+|| 5 | **Fully automatic export** | run the full pipeline, merge to `main`, push, deploy | n/a | **explicitly rejected** |
 
 ### 3.1 Why these levels, in this order
 

@@ -1,11 +1,11 @@
-# MVP Plan — ACT-1 to ACT-10
+# MVP Plan — ACT-1 to ACT-11
 
 > 把"建一个能用的控制塔"拆成阶段。每个阶段都有明确产出 + 验收标准 + 退出条件。
 >
-> 当前在 **ACT-10 ✅ COMPLETE**。ACT-10 把 ACT-0 到 ACT-9C 的成果打包成 v0.1.0 稳定版本：新增 VERSION、CHANGELOG.md、RELEASE_NOTES、RELEASE_CHECKLIST、tag v0.1.0；更新 README 和核心文档；所有验证 gate PASS；Cloudflare dashboard 正常；BookTrans Desk 回归通过。**CI 仍然不写 public-data/、不 commit、不 push、不 deploy**——这仍是 §8.2 的 hard rail。当前 public-data 状态：3 real projects / 2 agents / 22 events。当前自动化等级：**Level 1 + Level 2 + Level 3 (prototype)**。
+> 当前在 **ACT-11 ✅ COMPLETE**。ACT-11 让日常更新 public-data 的流程更顺手、更可审查、更不容易误操作：新增 `scripts/public_data_update_preflight.py`（自动重生成 public-data + 写审查 artifact）、`tests/public_update_preflight_smoke.py`（12 项检查）、`make public-update-preflight` / `make public-update-test`、Telegram 模板 + 人类 review checklist。预生成的 artifact 目录包含 `UPDATE_SUMMARY.md` / `PUBLIC_DATA_DIFF.md` / `MANIFEST_BEFORE.json` / `MANIFEST_AFTER.json` / `REDACTION_RESULT.md` / `REVIEW_CHECKLIST.md` / `NEXT_STEPS.md`。**不自动 commit / 不自动 push / 不自动 deploy**。当前公开数据状态：3 real projects / 2 agents / 23 events。当前自动化等级：**Level 1 + Level 1.5 + Level 2 + Level 3 (prototype)**，Level 4/5 仍被拒绝。
 > 下一阶段（按推荐度排序）：
-> 1. **ACT-10B：GitHub release polish / screenshots / demo GIF**——纯 polish（依赖 ACT-10）。
-> 2. **ACT-11：public-data update ergonomics**——更快的手动刷新工作流。
+> 1. **ACT-10B：GitHub release polish / screenshots / demo GIF**——纯 polish。
+> 2. **ACT-12：real recurring update trial**——用 ACT-11 流程跑一次真实的多日更新，验证 ergonomic 是否真的让 daily update 更顺手。
 
 ## 全景时间线
 
@@ -40,7 +40,8 @@ ACT-8B  ✅ Generated-command Multi-agent Trial (2026-06-12)
 ACT-9   ✅ Public-data Export Automation Policy (2026-06-12)
 ACT-9B  ✅ CI Proposed Export Artifact Prototype (2026-06-12)
 ACT-9C  ✅ Export Plan Review Workflow (2026-06-12)
-ACT-10 ✅ v0.1.0 Release Packaging (2026-06-12) ← 当前阶段
+ACT-10 ✅ v0.1.0 Release Packaging (2026-06-12)
+ACT-11 ✅ Public-data Update Ergonomics (2026-06-12) ← 当前阶段
 ```
 
 每个 ACT 的预算：**1–2 周业余时间**，不超过 30 个 commit。

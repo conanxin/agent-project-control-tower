@@ -5,13 +5,14 @@
 > 🌍 **GitHub**: <https://github.com/conanxin/agent-project-control-tower>（public，ACT-4B 已 push）
 > 🚀 **Online Dashboard (custom domain)**: <https://control-tower.conanxin.com/>（ACT-5B ✅ 已绑 custom domain）
 > 🔁 **Online Dashboard (pages.dev fallback)**: <https://agent-project-control-tower.pages.dev/>（ACT-5 ✅，与 custom domain 服务同一份 dist）
-|> 🟢 **状态**: v0.1.0 ✅ RELEASED（ACT-0 到 ACT-9C 成果打包；CHANGELOG / VERSION / RELEASE_NOTES / RELEASE_CHECKLIST / tag 已创建）|
+|> 🟢 **状态**: v0.1.0 ✅ RELEASED + ACT-11 ✅ COMPLETE（public-data 更新审查流程）|
 |> 🟢 **当前线上真实项目**: `agent-project-control-tower` + `artvee-gallery` + `booktrans-desk`（BookTrans Desk 已修正为 `conanxin/booktrans-desk` / S13 / `16f38b6` / PARTIAL）|
 |> 🟢 **当前线上 agent**: `local-hermes` + `cloud-openclaw`（trial agent 公开）|
 |> 🟢 **当前 public-data**: 3 projects / 2 agents / 22 events |
 |> 📋 **Release notes**: [docs/release/RELEASE_NOTES_v0.1.0.md](docs/release/RELEASE_NOTES_v0.1.0.md) |
 |> 📋 **Changelog**: [CHANGELOG.md](CHANGELOG.md) |
-|> ⏸ **下一步**: ACT-10B（GitHub release polish / screenshots / demo GIF）或 ACT-11（public-data update ergonomics）|
+|> 🔄 **日常更新 public-data**: `make public-update-preflight`（ACT-11）→ 看 `artifacts/public-data-update-preflight/` → 显式 `git add` → commit + push |
+|> ⏸ **下一步**: ACT-10B（GitHub release polish / screenshots / demo GIF）或 ACT-12（real recurring update trial）|
 
 ---
 
