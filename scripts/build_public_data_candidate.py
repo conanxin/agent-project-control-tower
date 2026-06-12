@@ -185,6 +185,141 @@ def _build_via_export_public_data(
     return json.loads(manifest_path.read_text(encoding="utf-8"))
 
 
+def _yaml_dumper() -> "Any":
+    """Return a callable ``_dump(obj) -> str`` that serializes
+    a list-of-dicts (the only shape the public-data registry
+    uses) to YAML.
+
+    Tries three layers in order:
+
+    1. ``yaml_mini.dump`` — the project's own stdlib helper.
+       It is intentionally read-only, so this layer will
+       typically fail; that's expected.
+    2. ``PyYAML.safe_dump`` — if PyYAML happens to be
+       installed.
+    3. A tiny built-in fallback that handles the
+       ``list[dict[str, Any]]`` shape with 2-space indent
+       and string-quoting for colons / hashes. It is **not**
+       a general YAML serializer; it is just good enough
+       for projects.yml / agents.yml.
+
+    The fallback exists so the candidate script still works
+    in environments where neither yaml_mini (which has no
+    dump) nor PyYAML is installed (e.g. a vanilla GitHub
+    Actions runner).
+    """
+    try:
+        from yaml_mini import dump as _dump  # type: ignore
+        return _dump
+    except Exception:
+        pass
+    try:
+        import yaml  # type: ignore
+        def _dump(obj: Any) -> str:
+            # ACT-8B hotfix: yaml_mini parser mis-parses 2-space
+            # nested list items as further top-level list
+            # elements. PyYAML dumps with 2-space indent by
+            # default; re-indent list items under `capabilities:`
+            # to 4 spaces so the parser round-trips.
+            raw = yaml.safe_dump(
+                obj, sort_keys=False, allow_unicode=True,
+            )
+            out: list[str] = []
+            in_caps = False
+            for line in raw.splitlines():
+                if line.strip() == "capabilities:":
+                    out.append(line)
+                    in_caps = True
+                    continue
+                if in_caps:
+                    if line.startswith("  - "):
+                        out.append("    " + line[2:])
+                        continue
+                    in_caps = False
+                out.append(line)
+            return "\n".join(out) + "\n"
+        return _dump
+    except Exception:
+        pass
+
+    def _builtin_dump(obj: Any) -> str:
+        # obj is list[dict[str, Any]] (the public-data registry
+        # shape). 2-space indent. None / bool / int / float /
+        # str values. Lists as values (e.g. capabilities:).
+        lines: list[str] = []
+        for entry in obj:
+            if not isinstance(entry, dict):
+                continue
+            for k, v in entry.items():
+                lines.extend(_yaml_dump_value(k, v, indent=0))
+            lines.append("")
+        return "\n".join(lines).rstrip("\n") + "\n"
+
+    def _yaml_dump_value(
+        key: str, value: Any, indent: int,
+    ) -> list[str]:
+        pad = "  " * indent
+        if value is None:
+            return [f"{pad}{key}: null"]
+        if isinstance(value, bool):
+            return [f"{pad}{key}: {'true' if value else 'false'}"]
+        if isinstance(value, (int, float)):
+            return [f"{pad}{key}: {value}"]
+        if isinstance(value, str):
+            v = value.replace("\\", "\\\\").replace('"', '\\"')
+            return [f'{pad}{key}: "{v}"']
+        if isinstance(value, list):
+            if not value:
+                return [f"{pad}{key}: []"]
+            out: list[str] = []
+            first = True
+            for item in value:
+                if first:
+                    if isinstance(item, dict):
+                        sub = _yaml_dump_value_dict(item, indent)
+                        out.append(f"{pad}{key}:")
+                        out.extend(sub)
+                    else:
+                        out.append(
+                            f"{pad}{key}: {_yaml_scalar(item)}"
+                        )
+                    first = False
+                else:
+                    if isinstance(item, dict):
+                        sub = _yaml_dump_value_dict(item, indent)
+                        out.extend(sub)
+                    else:
+                        # ACT-8B hotfix: 4-space-indent list items
+                        # so yaml_mini parser round-trips correctly.
+                        out.append(f"{pad}    - {_yaml_scalar(item)}")
+            return out
+        if isinstance(value, dict):
+            out = [f"{pad}{key}:"]
+            out.extend(_yaml_dump_value_dict(value, indent + 1))
+            return out
+        return [f"{pad}{key}: {_yaml_scalar(value)}"]
+
+    def _yaml_dump_value_dict(
+        d: dict[str, Any], indent: int,
+    ) -> list[str]:
+        out: list[str] = []
+        for k, v in d.items():
+            out.extend(_yaml_dump_value(k, v, indent))
+        return out
+
+    def _yaml_scalar(v: Any) -> str:
+        if v is None:
+            return "null"
+        if isinstance(v, bool):
+            return "true" if v else "false"
+        if isinstance(v, (int, float)):
+            return str(v)
+        s = str(v).replace("\\", "\\\\").replace('"', '\\"')
+        return f'"{s}"'
+
+    return _builtin_dump
+
+
 def _build_from_public_data_copy(
     out_root: Path,
     args: argparse.Namespace,
@@ -215,21 +350,19 @@ def _build_from_public_data_copy(
         try:
             from yaml_mini import load as _load  # type: ignore
         except Exception:
-            import yaml  # type: ignore
-            _load = lambda p: yaml.safe_load(  # noqa: E731
-                p.read_text(encoding="utf-8")
-            )
+            try:
+                import yaml  # type: ignore
+                _load = lambda p: yaml.safe_load(  # noqa: E731
+                    p.read_text(encoding="utf-8")
+                )
+            except Exception:
+                # PyYAML missing too — use yaml_mini.load as a last resort
+                # (re-import inside this scope to bind locally).
+                from yaml_mini import load as _load  # type: ignore
         projects = _load(src_reg / "projects.yml") or []
         if project_ids_filter is not None:
             projects = [p for p in projects if p.get("id") in project_ids_filter]
-        try:
-            from yaml_mini import dump as _dump  # type: ignore
-        except Exception:
-            import yaml  # type: ignore
-            def _dump(obj: Any) -> str:
-                return yaml.safe_dump(  # noqa: E731
-                    obj, sort_keys=False, allow_unicode=True,
-                )
+        _dump = _yaml_dumper()
         (out_reg / "projects.yml").write_text(
             _dump(projects) + "\n", encoding="utf-8",
         )
@@ -239,21 +372,17 @@ def _build_from_public_data_copy(
         try:
             from yaml_mini import load as _load  # type: ignore
         except Exception:
-            import yaml  # type: ignore
-            _load = lambda p: yaml.safe_load(  # noqa: E731
-                p.read_text(encoding="utf-8")
-            )
+            try:
+                import yaml  # type: ignore
+                _load = lambda p: yaml.safe_load(  # noqa: E731
+                    p.read_text(encoding="utf-8")
+                )
+            except Exception:
+                from yaml_mini import load as _load  # type: ignore
         agents = _load(src_reg / "agents.yml") or []
         if agent_ids_filter is not None:
             agents = [a for a in agents if a.get("id") in agent_ids_filter]
-        try:
-            from yaml_mini import dump as _dump  # type: ignore
-        except Exception:
-            import yaml  # type: ignore
-            def _dump(obj: Any) -> str:
-                return yaml.safe_dump(  # noqa: E731
-                    obj, sort_keys=False, allow_unicode=True,
-                )
+        _dump = _yaml_dumper()
         (out_reg / "agents.yml").write_text(
             _dump(agents) + "\n", encoding="utf-8",
         )
@@ -328,10 +457,13 @@ def _scan_candidate(out_root: Path) -> dict[str, Any]:
             try:
                 from yaml_mini import load as _load  # type: ignore
             except Exception:
-                import yaml  # type: ignore
-                _load = lambda p: yaml.safe_load(  # noqa: E731
-                    p.read_text(encoding="utf-8")
-                )
+                try:
+                    import yaml  # type: ignore
+                    _load = lambda p: yaml.safe_load(  # noqa: E731
+                        p.read_text(encoding="utf-8")
+                    )
+                except Exception:
+                    from yaml_mini import load as _load  # type: ignore
             entries = _load(yml) or []
             for entry in entries:
                 sev, reasons = check_payload(entry)
@@ -671,19 +803,25 @@ def main() -> int:
             try:
                 from yaml_mini import load as _load  # type: ignore
             except Exception:
-                import yaml  # type: ignore
-                _load = lambda p: yaml.safe_load(  # noqa: E731
-                    p.read_text(encoding="utf-8")
-                )
+                try:
+                    import yaml  # type: ignore
+                    _load = lambda p: yaml.safe_load(  # noqa: E731
+                        p.read_text(encoding="utf-8")
+                    )
+                except Exception:
+                    from yaml_mini import load as _load  # type: ignore
             candidate_stats["n_projects"] = len(_load(proj_yml) or [])
         if agent_yml.exists():
             try:
                 from yaml_mini import load as _load  # type: ignore
             except Exception:
-                import yaml  # type: ignore
-                _load = lambda p: yaml.safe_load(  # noqa: E731
-                    p.read_text(encoding="utf-8")
-                )
+                try:
+                    import yaml  # type: ignore
+                    _load = lambda p: yaml.safe_load(  # noqa: E731
+                        p.read_text(encoding="utf-8")
+                    )
+                except Exception:
+                    from yaml_mini import load as _load  # type: ignore
             candidate_stats["n_agents"] = len(_load(agent_yml) or [])
     else:  # public-data
         stats = _build_from_public_data_copy(out_root, args)
