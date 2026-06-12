@@ -140,12 +140,12 @@ function applyToContainer(container: HTMLElement) {
     emptyEl.hidden = visible > 0;
   }
 
-  // Count badge
+  // Count badge — ACT-13B 中文化: "N 条匹配"
   const countTarget = container.parentElement?.querySelector<HTMLElement>(
     "[data-count-target]"
   );
   if (countTarget) {
-    countTarget.textContent = `${visible} matching`;
+    countTarget.textContent = `${visible} 条匹配`;
   }
 }
 

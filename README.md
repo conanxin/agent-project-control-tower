@@ -5,16 +5,49 @@
 > 🌍 **GitHub**: <https://github.com/conanxin/agent-project-control-tower>（public，ACT-4B 已 push）
 > 🚀 **Online Dashboard (custom domain)**: <https://control-tower.conanxin.com/>（ACT-5B ✅ 已绑 custom domain）
 > 🔁 **Online Dashboard (pages.dev fallback)**: <https://agent-project-control-tower.pages.dev/>（ACT-5 ✅，与 custom domain 服务同一份 dist）
-|> 🟢 **状态**: v0.1.0 ✅ RELEASED + ACT-13 ✅ COMPLETE（Dashboard Help 页面 `/help/`）|
+|> 🟢 **状态**: v0.1.0 ✅ RELEASED + ACT-13 ✅ COMPLETE（Dashboard Help 页面 `/help/`）+ ACT-13B ✅ COMPLETE（Dashboard 中文化 + Help 中文重写）|
 |> 🟢 **当前线上真实项目**: `agent-project-control-tower` + `artvee-gallery` + `booktrans-desk`（BookTrans Desk 已修正为 `conanxin/booktrans-desk` / S13 / `16f38b6` / PARTIAL）|
 |> 🟢 **当前线上 agent**: `local-hermes` + `cloud-openclaw`（trial agent 公开）|
 |> 🟢 **当前 public-data**: 3 projects / 2 agents / 24 events |
-|> ❓ **在线 Help**: <https://control-tower.conanxin.com/help/>（ACT-13，使用流程 + Double-door + Public-data update checklist）|
+|> ❓ **在线 Help（中文）**: <https://control-tower.conanxin.com/help/>（ACT-13B，使用流程 + 双门模型 + 权限边界 + 检查清单，**中文优先**）|
 |> 📸 **v0.1.0 screenshots**: [docs/media/v0.1.0/](docs/media/v0.1.0/)（6 PNGs, 桌面 + 移动, 实时截自线上 dashboard）|
 |> 📋 **Release notes**: [docs/release/RELEASE_NOTES_v0.1.0.md](docs/release/RELEASE_NOTES_v0.1.0.md) |
 |> 📋 **Changelog**: [CHANGELOG.md](CHANGELOG.md) |
 |> 🔄 **日常更新 public-data**: `make public-update-preflight`（ACT-11）→ 看 `artifacts/public-data-update-preflight/` → 显式 `git add` → commit + push（ACT-12 已真实验证）|
-|> ⏸ **下一步**: ACT-12B（等真实多日更新事件触发）或 ACT-14（adoption packaging）|
+|> ⏸ **下一步**: ACT-14（adoption packaging）或 ACT-12B（等真实多日更新事件触发）|
+
+---
+
+## 🌐 ACT-13B — Dashboard 已中文化（中文优先界面）
+
+从 **ACT-13B** 开始，整个 dashboard 默认显示中文：
+
+- 首页（`/`）— 总览 / 项目 / Agent / 最近活动 / 状态徽标全部中文。
+- 时间线（`/timeline/`）— 事件类型 / 状态 / 筛选器 / 排序全部中文。
+- 项目详情（`/projects/<id>/`）— 字段标签 + 双语徽标（`通过 · PASS` / `部分完成 · PARTIAL`）。
+- Agent 详情（`/agents/<id>/`）— 字段标签 + 事件类型分布中文。
+- Help（`/help/`）— 整页重写为中文操作手册，包含双门模型、权限边界、public-data 检查清单。
+
+英文保留为"机器字"：`data/`、`public-data/`、`commit`、`push`、`agent_id`、`project_id`、状态值（`PASS` / `PARTIAL` / `ACTIVE` ...）、健康度（`green` / `yellow` / `red` / `gray`）。这些是协议字面量，翻译会破坏 grep / CI / agent 命令的语义。
+
+### 权限边界（重要）
+
+> **本 Help 页面是公开说明，不代表任何人都能更新本面板。**
+>
+> 只有拥有 `conanxin/agent-project-control-tower` 写权限的维护者，才能修改 `public-data/` 并触发线上 Dashboard 部署。
+> 其他用户可以 fork 仓库、参考流程搭建自己的控制塔，或提交 Pull Request。任何 `public-data/` 变更都必须经过维护者审核后才能合并。
+
+### 深入说明
+
+中文 Help 页面本身就是当前阶段最权威的操作入口（直接部署到 `https://control-tower.conanxin.com/help/`）。完整、版本受控的文档仍在 [`docs/`](docs/) 目录下：
+
+- [`docs/AGENT_USAGE_PLAYBOOK.md`](docs/AGENT_USAGE_PLAYBOOK.md) — agent 使用手册（多机器）。
+- [`docs/PUBLIC_DATA_EXPORT_PLAYBOOK.md`](docs/PUBLIC_DATA_EXPORT_PLAYBOOK.md) — public-data export 流程 + ACT-6C 复盘。
+- [`docs/PUBLIC_DATA_AUTOMATION_POLICY.md`](docs/PUBLIC_DATA_AUTOMATION_POLICY.md) — 自动化等级（Level 1 / 1.5 / 2 / 3）的语义。
+- [`docs/MULTI_MACHINE_SETUP.md`](docs/MULTI_MACHINE_SETUP.md) — 新机器首次 clone + register。
+- [`docs/MVP_PLAN.md`](docs/MVP_PLAN.md) — 完整 ACT-0 → 当前 ACT 计划。
+
+**普通访客不能更新我的面板**，只能 fork 或 PR。
 
 ---
 

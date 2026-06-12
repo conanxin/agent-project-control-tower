@@ -2,6 +2,7 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import TimelineItem from "../components/TimelineItem.astro";
 import { tower } from "../lib/tower-data";
+import { EVENT_TYPE_LABEL, UI } from "../lib/labels";
 
 // tower.timeline is already sorted newest-first by build_index.py.
 const tl = tower.timeline;
@@ -14,65 +15,65 @@ const agentOptions = tower.agents
 
 const eventTypes = Array.from(new Set(tl.map((t) => t.event_type))).sort();
 ---
-<BaseLayout title="Timeline — Agent Project Control Tower">
+<BaseLayout title="时间线 — Agent Project Control Tower">
   <section>
     <div class="section-head">
-      <h2>All events (newest first)</h2>
-      <span class="count-badge" data-count-target>{tl.length} total</span>
+      <h2>{UI.timelineTitle}</h2>
+      <span class="count-badge" data-count-target>{tl.length} {UI.timelineTotal}</span>
     </div>
 
-    <form class="filter-bar" data-filter-form aria-label="Filter timeline">
+    <form class="filter-bar" data-filter-form aria-label="筛选时间线">
       <label class="search-field">
-        <span class="visually-hidden">Search</span>
+        <span class="visually-hidden">搜索</span>
         <input
           type="search"
           name="q"
-          placeholder="Search summary, phase, agent…"
+          placeholder={UI.timelineSearchPlaceholder}
           autocomplete="off"
         />
       </label>
       <label>
-        <span class="visually-hidden">Event type</span>
+        <span class="visually-hidden">事件类型</span>
         <select name="event_type">
-          <option value="">All event types</option>
-          {eventTypes.map((et) => <option value={et}>{et}</option>)}
+          <option value="">{UI.timelineEventTypeAll}</option>
+          {eventTypes.map((et) => <option value={et}>{EVENT_TYPE_LABEL[et] ?? et}</option>)}
         </select>
       </label>
       <label>
-        <span class="visually-hidden">Status</span>
+        <span class="visually-hidden">状态</span>
         <select name="status">
-          <option value="">All status</option>
-          <option value="ACTIVE">ACTIVE</option>
-          <option value="PASS">PASS</option>
-          <option value="FAIL">FAIL</option>
-          <option value="PARTIAL">PARTIAL</option>
-          <option value="BLOCKED">BLOCKED</option>
-          <option value="PAUSED">PAUSED</option>
-          <option value="RELEASED">RELEASED</option>
+          <option value="">{UI.timelineStatusAll}</option>
+          <option value="ACTIVE">ACTIVE · 进行中</option>
+          <option value="PASS">PASS · 通过</option>
+          <option value="FAIL">FAIL · 失败</option>
+          <option value="PARTIAL">PARTIAL · 部分完成</option>
+          <option value="BLOCKED">BLOCKED · 阻塞</option>
+          <option value="PAUSED">PAUSED · 暂停</option>
+          <option value="RELEASED">RELEASED · 已发布</option>
         </select>
       </label>
       <label>
-        <span class="visually-hidden">Project</span>
+        <span class="visually-hidden">项目</span>
         <select name="project">
-          <option value="">All projects</option>
+          <option value="">{UI.timelineProjectAll}</option>
           {projectOptions.map((p) => <option value={p.id}>{p.name}</option>)}
         </select>
       </label>
       <label>
         <span class="visually-hidden">Agent</span>
         <select name="agent">
-          <option value="">All agents</option>
+          <option value="">{UI.timelineAgentAll}</option>
           {agentOptions.map((a) => <option value={a.id}>{a.name}</option>)}
         </select>
       </label>
       <label>
-        <span class="visually-hidden">Sort</span>
+        <span class="visually-hidden">排序</span>
         <select name="sort">
-          <option value="newest">Newest first</option>
-          <option value="oldest">Oldest first</option>
+          <option value="newest">{UI.timelineSortNewest}</option>
+          <option value="oldest">{UI.timelineSortOldest}</option>
         </select>
       </label>
-      <button type="button" data-filter-clear class="clear-btn">Clear</button>
+      <button type="button" data-filter-clear class="clear-btn">{UI.timelineClear}</button>
     </form>
 
     <div class="timeline" data-container="items">
@@ -94,7 +95,7 @@ const eventTypes = Array.from(new Set(tl.map((t) => t.event_type))).sort();
       ))}
     </div>
     <p class="empty-state" data-empty-state hidden>
-      No events match the current filters.
+      {UI.timelineEmpty}
     </p>
   </section>
 

@@ -1,14 +1,25 @@
 ---
-// ProjectCard.astro — compact card for the projects list.
+// ProjectCard.astro — ACT-13B 中文化。
 import type { Project } from "../lib/tower-data";
+import {
+  locationLabel, categoryLabel, statusLabel, healthBadge,
+} from "../lib/labels";
 
 interface Props {
   project: Project;
 }
 const { project: p } = Astro.props;
+
+// Phase pill: keep machine IDs visible; prepend Chinese status if not equal.
+const statusCn = statusLabel(p.current_status);
 const phaseLabel = p.current_phase_id
-  ? `${p.current_phase_id} · ${p.current_status}`
-  : p.current_status;
+  ? (statusCn === p.current_status
+      ? `${p.current_phase_id} · ${p.current_status}`
+      : `${p.current_phase_id} · ${statusCn} · ${p.current_status}`)
+  : (statusCn === p.current_status ? p.current_status : `${statusCn} · ${p.current_status}`);
+
+const locCn = locationLabel(p.location);
+const catCn = categoryLabel(p.category);
 ---
 <div class={`row ${p.current_health}`}>
   <div class="head">
@@ -20,10 +31,12 @@ const phaseLabel = p.current_phase_id
     </span>
   </div>
   <div class="meta-line">
-    location: {p.location} · category: {p.category} ·
-    last agent: {p.last_agent_id ?? "—"} · events: {p.event_count}
+    位置: {locCn === p.location ? p.location : `${locCn} · ${p.location}`} ·
+    分类: {catCn === p.category ? p.category : `${catCn} · ${p.category}`} ·
+    最近 Agent: {p.last_agent_id ?? "—"} ·
+    事件: {p.event_count}
     {p.last_event_at && ` · ${p.last_event_at}`}
   </div>
-  <div class="body">{p.last_summary ?? "(no events yet)"}</div>
+  <div class="body">{p.last_summary ?? "（暂无事件）"}</div>
   {p.next && <div class="next">{p.next}</div>}
 </div>

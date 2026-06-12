@@ -1,5 +1,5 @@
 ---
-// BaseLayout.astro — ACT-3A shell layout, ACT-3B polished.
+// BaseLayout.astro — ACT-3A shell layout, ACT-3B polished, ACT-13B 中文化.
 //
 // Provides the dark-theme chrome (header / nav / footer) and pulls in
 // global.css. Pages compose with this via `import BaseLayout from "..."`.
@@ -8,19 +8,26 @@
 //   - theme toggle (light/dark), persisted in localStorage
 //   - Astro <ClientRouter /> for view transitions between pages
 //   - mobile-responsive header
+//
+// ACT-13B additions:
+//   - Chinese nav labels (首页 / 时间线 / 帮助)
+//   - Chinese description / meta line
+//   - Readonly-notice callout in footer
+//   - <html lang="zh-CN">
 
 import "../styles/global.css";
 import { ClientRouter } from "astro:transitions";
+import { UI } from "../lib/labels";
 
 interface Props {
   title: string;
   description?: string;
 }
 
-const { title, description = "Agent Project Control Tower — multi-agent project progress tracking" } = Astro.props;
+const { title, description = "Agent Project Control Tower — 多 Agent 项目进度控制塔（中文优先界面）" } = Astro.props;
 ---
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -35,24 +42,25 @@ const { title, description = "Agent Project Control Tower — multi-agent projec
         <button
           id="theme-toggle"
           type="button"
-          aria-label="Toggle theme"
+          aria-label="切换主题"
           aria-pressed="false"
           class="theme-btn"
-        >☾ dark</button>
+        >☾ 暗色</button>
       </div>
-      <div class="meta">Astro dashboard shell · multi-agent project progress</div>
+      <div class="meta">{UI.headerMeta}</div>
     </header>
     <nav class="site-nav">
-      <a href="/">Home</a>
-      <a href="/timeline/">Timeline</a>
-      <a href="/help/">Help</a>
+      <a href="/">{UI.navHome}</a>
+      <a href="/timeline/">{UI.navTimeline}</a>
+      <a href="/help/">{UI.navHelp}</a>
       <slot name="nav-extras" />
     </nav>
     <main>
       <slot />
     </main>
     <footer class="site">
-      ACT-3B dashboard + ACT-13 Help page · reads <code>generated/index.json</code> at build time
+      <div>{UI.footerPrefix} · 构建时读取 <code>generated/index.json</code></div>
+      <div class="footer-readonly">{UI.helpReadonlyNotice}</div>
     </footer>
 
     <!-- Theme toggle script: must run early to avoid a flash -->

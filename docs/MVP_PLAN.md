@@ -1,11 +1,12 @@
-# MVP Plan — ACT-1 to ACT-13
+# MVP Plan — ACT-1 to ACT-13B
 
 > 把"建一个能用的控制塔"拆成阶段。每个阶段都有明确产出 + 验收标准 + 退出条件。
->
-> 当前在 **ACT-13 ✅ COMPLETE**。ACT-13 在 dashboard 上新增了一个 Help 页面（`/help/`），把整套使用流程（Start here / Core mental model / Common workflow / Double-door model / Public-data update checklist / Multi-machine usage / Links）写到了线上；导航加了 Help 入口；footer 注明 ACT-13 身份。**没有改任何控制塔数据 / 功能 / 边界**：public-data 仍是 3 real projects / 2 agents / 24 events，data/ / generated/ / artifacts/ 仍 gitignored，automation level 仍 Level 1 + 1.5 + 2 + 3 (prototype)。
+
+> 当前在 **ACT-13B ✅ COMPLETE**。ACT-13B 把整个 dashboard 改成中文优先界面（首页 / 时间线 / 项目 / Agent / Help），并把 Help 页面整页重写为中文操作手册（先看这里 / 核心流程 / 什么时候触发 / 常用操作 / 双门模型 / 权限边界 / public-data 检查清单 / 多机器使用 / 深入文档）。英文保留为"机器字"：状态值（PASS / PARTIAL / ACTIVE...）、健康度（green / yellow / red / gray）、路径（data/ / public-data/）、协议标识（commit / push / agent_id / project_id）。**没有改任何控制塔数据 / 功能 / 边界**：public-data 仍是 3 real projects / 2 agents / 24 events，data/ / generated/ / artifacts/ 仍 gitignored，automation level 仍 Level 1 + 1.5 + 2 + 3 (prototype)。
 > 下一阶段（按推荐度排序）：
-> 1. **ACT-12B：second recurring update trial**——等下一个真实多日更新事件触发（BookTrans S14+ / Artvee P3C+ / tower ACT-14+ / 其他真实项目）。
-> 2. **ACT-14：adoption packaging**——为新 agent / 新人类首次 clone 这个仓库准备更顺手的入口。
+> 1. **wait-for-real-update**——等待真实项目阶段更新（BookTrans S14+ / Artvee P3C+ / tower ACT-14+ / 其他真实项目）。
+> 2. **ACT-12B when real update appears**——当 wait-for-real-update 出现真实事件时，再走一次 ACT-12 的 end-to-end flow。
+> 3. **ACT-14：adoption packaging**——为新 agent / 新人类首次 clone 这个仓库准备更顺手的入口。
 
 ## 全景时间线
 
@@ -44,7 +45,8 @@ ACT-10 ✅ v0.1.0 Release Packaging (2026-06-12)
 ACT-11 ✅ Public-data Update Ergonomics (2026-06-12)
 ACT-12 ✅ Recurring Public-data Update Trial (2026-06-12)
 ACT-10B ✅ v0.1.0 Release Polish (2026-06-12)
-ACT-13 ✅ Dashboard Help Page (2026-06-12) ← 当前阶段
+ACT-13 ✅ Dashboard Help Page (2026-06-12)
+ACT-13B ✅ Dashboard Chinese Localization & Help Optimization (2026-06-12) ← 当前阶段
 ```
 
 每个 ACT 的预算：**1–2 周业余时间**，不超过 30 个 commit。

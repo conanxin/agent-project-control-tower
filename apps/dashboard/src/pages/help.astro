@@ -1,268 +1,214 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
+import { UI } from "../lib/labels";
 ---
 <BaseLayout
-  title="Help — How to Use Agent Project Control Tower"
-  description="Operational guide for the Agent Project Control Tower: how to report a phase, the double-door model, the public-data update checklist, and where to find the full docs."
+  title={UI.helpTitle}
+  description={UI.helpDescription}
 >
 <div class="help-doc">
   <section>
-    <h2>Help — How to use this dashboard</h2>
+    <h2>{UI.helpTitle}</h2>
     <p class="muted">
-      Operational guide for <strong>Agent Project Control Tower</strong>. This page is rendered as part of the
-      <a href="https://control-tower.conanxin.com/">live dashboard</a> — same build as
-      <a href="/">Home</a> and <a href="/timeline/">Timeline</a>. It exists so you can read the workflow
-      without leaving the dashboard. The full, version-controlled documentation lives in
-      <a href="https://github.com/conanxin/agent-project-control-tower/tree/main/docs">the GitHub repo</a>.
+      <strong>Agent Project Control Tower</strong> 的中文操作手册。这一页跟
+      <a href="/">首页</a>、<a href="/timeline/">时间线</a> 同一次构建部署，在
+      <a href="https://control-tower.conanxin.com/help/">control-tower.conanxin.com/help/</a>
+      也能直接看到。完整、版本受控的文档仍在
+      <a href="https://github.com/conanxin/agent-project-control-tower/tree/main/docs">GitHub 仓库 docs/</a>。
     </p>
   </section>
 
   <section>
-    <h2>1 · Start here</h2>
+    <h2>先看这里</h2>
     <p>
-      The control tower is a <strong>Git-backed status dashboard for multi-agent projects</strong>.
-      It does not store your source code. Each tracked project lives in its own code repository.
-      The control tower only tracks the project's <em>current state</em> across machines and agents.
+      这是一个 <strong>Git 驱动的多 Agent 项目状态面板</strong>。它不保存项目源码，只保存项目阶段状态。
     </p>
     <ul>
-      <li><strong>Source code</strong> stays in the project's own repo (e.g. <code>conanxin/booktrans-desk</code>).</li>
-      <li><strong>Project state</strong> lives here, as a stream of <code>PHASE_REPORT</code> / <code>REVIEW_REPORT</code> / <code>FAILURE</code> events.</li>
-      <li><code>data/</code> is the <strong>private, local</strong> event store — never published.</li>
-      <li><code>public-data/</code> is the <strong>human-reviewed</strong> public snapshot — this is what the dashboard renders.</li>
-      <li>The dashboard itself is a static Astro site rebuilt from <code>public-data/</code> and deployed to Cloudflare Pages.</li>
-      <li>Cloudflare deployment is triggered automatically on <code>git push</code>. There is no manual deploy step and no Cloudflare API token used.</li>
+      <li><strong>原项目仓库</strong>保存代码（例如 <code>conanxin/booktrans-desk</code>）。</li>
+      <li><strong>控制塔仓库</strong>保存项目状态。</li>
+      <li><code>data/</code> 是<strong>本地真实事件</strong>，不公开。</li>
+      <li><code>public-data/</code> 是<strong>人工审核后的公开快照</strong>。</li>
+      <li>Dashboard 只展示 <code>public-data/</code>。</li>
+      <li><code>git push</code> 后 Cloudflare Pages 自动部署。</li>
     </ul>
   </section>
 
   <section>
-    <h2>2 · Core mental model</h2>
-    <p>The data flow from "agent finishes work" to "dashboard updates" is:</p>
+    <h2>核心流程</h2>
+    <p>从"agent 完成阶段"到"面板更新"的标准链路：</p>
     <ol>
-      <li><strong>Project repo</strong> — agent finishes work, pushes source code to the project's own repo.</li>
-      <li><strong>tower.py report-phase</strong> — agent records a phase event to local <code>data/</code>.</li>
-      <li><strong>Human / local-hermes review</strong> — opens the generated event, sanity-checks it.</li>
-      <li><strong>make public-update-preflight</strong> — regenerates <code>public-data/</code> candidate + writes review artifacts under <code>artifacts/public-data-update-preflight/</code>.</li>
-      <li><strong>Reviewer walks the checklist</strong> — UPDATE_SUMMARY, PUBLIC_DATA_DIFF, REDACTION_RESULT, REVIEW_CHECKLIST.</li>
-      <li><strong>python3 scripts/export_public_data.py --plan config/public-data-export-plan.yml --replace</strong> — promote the candidate to <code>public-data/</code>.</li>
-      <li><strong>Explicit <code>git add public-data/...</code></strong> — never <code>git add .</code>.</li>
-      <li><strong>git commit + git push</strong>.</li>
-      <li><strong>Cloudflare Pages auto-deploys</strong> in ~30–60 s, then CDN cache settles 60–90 s later.</li>
-      <li><strong>Dashboard shows the new state</strong>.</li>
+      <li><strong>原项目完成阶段</strong> — agent 在原项目仓库推送源码 commit。</li>
+      <li><strong>agent 使用 <code>tower.py</code> 写入 <code>data/</code></strong> — 调用 <code>report-phase</code> / <code>report-review</code> / <code>report-failure</code> 等。</li>
+      <li><strong>local-hermes / 人类审核</strong> — 打开生成的事件 JSON，做合理性检查。</li>
+      <li><strong>运行 <code>make public-update-preflight</code></strong> — 生成 <code>public-data/</code> 候选 + 7 份审查 artifact。</li>
+      <li><strong>检查 <code>artifacts/</code></strong> — UPDATE_SUMMARY / PUBLIC_DATA_DIFF / REDACTION_RESULT / REVIEW_CHECKLIST 等。</li>
+      <li><strong>运行 <code>export_public_data.py --plan … --replace</code></strong> — 把候选晋升到 <code>public-data/</code>。</li>
+      <li><strong>显式 <code>git add public-data/</code> + <code>site/</code></strong> — 永远不要 <code>git add .</code>。</li>
+      <li><strong>commit + push</strong>。</li>
+      <li><strong>Cloudflare Pages 自动更新</strong> — 约 30–60 秒部署 + 60–90 秒 CDN 缓存稳定。</li>
     </ol>
-    <p class="muted">Every step is human-reviewed. There is no CI auto-publish, no token-based export, no auto-deploy hook beyond the static-site CDN.</p>
+    <p class="muted">每一步都有人工把关，没有 CI 自动发布、没有 token 自动 export。</p>
   </section>
 
   <section>
-    <h2>3 · When to trigger an update</h2>
-    <p>This is <strong>not</strong> an automatic listener. The dashboard updates when a real event happens in a tracked project. Triggers include:</p>
+    <h2>什么时候触发更新</h2>
+    <p>这是<strong>真实事件驱动</strong>，不是自动监听。当真实项目出现新阶段时才会更新面板：</p>
     <ul>
-      <li>BookTrans Desk reaches a new phase (e.g. <code>S14</code>, replacing the current <code>S13 / 16f38b6 / PARTIAL</code> state).</li>
-      <li>Artvee Gallery reaches a new phase (e.g. <code>P3C</code>, after the current <code>P3B Daily Inspiration Digest</code>).</li>
-      <li>Control tower itself reaches a new phase (e.g. <code>ACT-13</code> — which is what you are looking at right now).</li>
-      <li>Any other tracked real-world project produces a state worth showing publicly.</li>
+      <li><strong>BookTrans Desk 到达 S14+</strong>（当前仍是 <code>S13 / 16f38b6 / PARTIAL</code>）。</li>
+      <li><strong>Artvee Gallery 到达 P3C+</strong>（当前 <code>P3B Daily Inspiration Digest</code>）。</li>
+      <li><strong>Control Tower 自身到达 ACT-14+</strong>（当前 <code>ACT-13B</code>，也就是这一页所属的阶段）。</li>
+      <li><strong>其他真实项目</strong>需要公开展示状态时。</li>
     </ul>
     <p class="muted">
-      Triggering the update is always a manual / semi-manual step. An agent finishes work in the project repo,
-      the human or <code>local-hermes</code> runs the workflow above. Cloudflare deployment is the only fully
-      automatic part.
+      触发更新永远是人工 / 半自动流程。Cloudflare 部署是唯一的全自动环节。
     </p>
   </section>
 
   <section>
-    <h2>4 · Common workflow: report a phase</h2>
-    <p>The 8-step recurring flow. This is the same flow that ACT-12 trialed end-to-end.</p>
-    <ol>
-      <li>
-        <strong>Agent finishes work in the project repo</strong> and pushes the source-code commit.
-        Example: <code>git push</code> in <code>~/work/booktrans-desk</code>.
-      </li>
-      <li>
-        In the control tower, write a <code>PHASE_REPORT</code> to local <code>data/</code>:
-        <pre><code>python3 scripts/tower.py report-phase \
-  --project-id booktrans-desk \
-  --agent-id local-hermes \
-  --phase-id S14 \
-  --phase-name "New Phase Name" \
-  --status PASS \
-  --health green \
-  --summary "One-line summary of what was done." \
-  --source-repo "conanxin/booktrans-desk" \
-  --source-commit &lt;commit-hash&gt; \
-  --next "What's next."</code></pre>
-        <span class="muted">Short templates also exist under <code>templates/telegram/</code> for one-shot command issuance.</span>
-      </li>
-      <li>
-        Run the preflight:
-        <pre><code>make public-update-preflight</code></pre>
-        This regenerates <code>public-data/</code> as a candidate and writes 7 review artifacts to
-        <code>artifacts/public-data-update-preflight/</code>.
-      </li>
-      <li>
-        Review the artifacts: <code>UPDATE_SUMMARY.md</code>, <code>PUBLIC_DATA_DIFF.md</code>,
-        <code>REDACTION_RESULT.md</code>, <code>REVIEW_CHECKLIST.md</code>, <code>NEXT_STEPS.md</code>.
-      </li>
-      <li>
-        If everything looks correct, promote the candidate to live <code>public-data/</code>:
-        <pre><code>python3 scripts/export_public_data.py \
-  --plan config/public-data-export-plan.yml --replace</code></pre>
-      </li>
-      <li>
-        Stage <strong>only</strong> the reviewed files (no <code>git add .</code>):
-        <pre><code>git add public-data/MANIFEST.json \
-        public-data/registry/projects.yml \
-        public-data/registry/agents.yml \
-        public-data/events/*.json \
-        site/index.embedded.html
-git status --short</code></pre>
-      </li>
-      <li>
-        Commit and push:
-        <pre><code>git commit -m "ACT-N: short description of the update"
-git push</code></pre>
-      </li>
-      <li>
-        Wait 60–90 s for Cloudflare Pages deploy + CDN cache, then verify with the
-        <a href="https://github.com/conanxin/agent-project-control-tower/blob/main/templates/checklists/online-verification-checklist.md">online verification checklist</a>.
-      </li>
-    </ol>
-  </section>
+    <h2>常用操作</h2>
+    <p>下面是高频命令的精简模板。完整说明见 <a href="https://github.com/conanxin/agent-project-control-tower/blob/main/docs/AGENT_USAGE_PLAYBOOK.md"><code>docs/AGENT_USAGE_PLAYBOOK.md</code></a>。</p>
+    <p class="muted">
+      命令可以换行展示，但实际给 agent 执行时推荐使用 <a href="#command-generator">command generator</a> 生成单行命令，避免大段长命令淹没上下文。
+    </p>
 
-  <section>
-    <h2>5 · Common commands</h2>
-    <p>The most-used commands. Full reference lives in <a href="https://github.com/conanxin/agent-project-control-tower/blob/main/docs/AGENT_USAGE_PLAYBOOK.md"><code>docs/AGENT_USAGE_PLAYBOOK.md</code></a>.</p>
+    <h3>注册 agent / project</h3>
+    <pre><code>register-agent
+register-project</code></pre>
 
-    <h3>Report an event</h3>
-    <pre><code>python3 scripts/tower.py report-phase    --project-id ... --agent-id ... --phase-id ... --status ... --summary ...
-python3 scripts/tower.py report-failure  --project-id ... --agent-id ... --summary ...
-python3 scripts/tower.py report-review   --project-id ... --agent-id ... --summary ...
-python3 scripts/tower.py report-handoff  --project-id ... --agent-id ... --target-agent-id ... --summary ...
-python3 scripts/tower.py report-release  --project-id ... --agent-id ... --tag ... --summary ...</code></pre>
+    <h3>上报事件</h3>
+    <pre><code>report-phase
+report-review
+report-failure
+report-handoff
+report-release</code></pre>
 
-    <h3>Register a new entity (one-shot per project / per agent)</h3>
-    <pre><code>python3 scripts/tower.py register-project --project-id ... --name ... --repo ... --location ... --category ...
-python3 scripts/tower.py register-agent   --agent-id ... --name ... --machine ... --role ...</code></pre>
+    <h3>更新 public-data</h3>
+    <pre><code>make public-update-preflight
+export_public_data.py --plan</code></pre>
 
-    <h3>Build, validate, refresh</h3>
-    <pre><code>make public-update-preflight        # generate candidate + review artifacts
-python3 scripts/export_public_data.py --plan config/public-data-export-plan.yml --replace
-python3 scripts/validate.py --source public-data
-python3 scripts/build_index.py --source public-data
-python3 scripts/build_embedded_site.py
-(cd apps/dashboard && npm run build)</code></pre>
-
-    <h3>Command generator (preferred for multi-line / copy-paste)</h3>
+    <h3 id="command-generator">用 command generator 拼装真实命令</h3>
+    <p class="muted">
+      <code>templates/telegram/</code> 下是带 <code>&lt;PLACEHOLDER&gt;</code> 的 Telegram 模板，
+      用 generator 输出单行命令再执行。这样可以避免手敲 escape 漂移：
+    </p>
     <pre><code>python3 scripts/generate_tower_command.py \
   --template templates/telegram/report-phase.txt \
   --out /tmp/cmd.sh
 bash /tmp/cmd.sh</code></pre>
-    <p class="muted">The generator reads <code>&lt;PLACEHOLDER&gt;</code> tokens and produces a real shell script — no manual escaping, no template/CLI drift.</p>
   </section>
 
   <section>
-    <h2>6 · Double-door model</h2>
-    <p>The control tower separates <strong>writing events</strong> from <strong>publishing them publicly</strong>. This is the most important invariant.</p>
+    <h2>双门模型</h2>
+    <p>控制塔把"写事件"和"公开发布"分成两道门。这是最重要的不变式。</p>
 
-    <h3>Door 1 — any agent may write <code>data/</code></h3>
+    <h3>第一道门 — 任何 agent 可以写 <code>data/</code></h3>
     <ul>
-      <li>Each agent has its own <code>agent_id</code> and writes its own events.</li>
-      <li><code>data/</code> is local + gitignored. It can contain home paths, in-progress notes, anything.</li>
-      <li>A <code>PHASE_REPORT</code> or <code>FAILURE</code> in <code>data/</code> is <strong>not yet public</strong>.</li>
+      <li>每个 agent 有自己的 <code>agent_id</code>，写自己的事件。</li>
+      <li><code>data/</code> 是本地 + gitignored，可以包含 home 路径、进行中笔记、任意内容。</li>
+      <li><code>data/</code> 里的 <code>PHASE_REPORT</code> 或 <code>FAILURE</code> <strong>还不是公开</strong>。</li>
     </ul>
 
-    <h3>Door 2 — only the local-hermes / human gate exports <code>public-data/</code></h3>
+    <h3>第二道门 — 只有人类或授权 primary agent 可以导出 <code>public-data/</code></h3>
     <ul>
-      <li>Exporting <code>public-data/</code> requires running the ACT-11 preflight + manual review.</li>
-      <li>Trial agents must <strong>not</strong> directly:
+      <li>导出 <code>public-data/</code> 必须走 ACT-11 preflight + 人工 review。</li>
+      <li><strong>普通 trial agent 不应直接</strong>：
         <ul>
-          <li>run <code>export_public_data.py</code> (no auto-export)</li>
-          <li>run <code>git add public-data/</code> on the tower repo</li>
-          <li>run <code>git push</code> on the tower repo</li>
-          <li>modify <code>config/public-data-export-plan.yml</code></li>
+          <li>运行 <code>export_public_data.py</code>（无自动 export）。</li>
+          <li>在控制塔仓库运行 <code>git add public-data/</code>。</li>
+          <li>在控制塔仓库运行 <code>git push</code>。</li>
+          <li>修改 <code>config/public-data-export-plan.yml</code>。</li>
         </ul>
       </li>
-      <li>Those four actions belong to the human reviewer / local-hermes.</li>
+      <li>这四个动作只属于人工 reviewer / local-hermes。</li>
     </ul>
-
-    <p class="muted">Why: trial agents can crash, hallucinate, or operate on stale state. The public dashboard is the public record, so the door to it is narrow on purpose.</p>
-  </section>
-
-  <section>
-    <h2>7 · Public-data update checklist</h2>
-    <p>Before <code>git push</code>, every public-data update must pass these. ACT-11 preflight enforces most of them automatically; the rest is human review.</p>
-    <ul>
-      <li><input type="checkbox" disabled /> No 1-project downgrade (<code>project_count_meets_plan</code>).</li>
-      <li><input type="checkbox" disabled /> BookTrans Desk still points at <code>conanxin/booktrans-desk</code> — never <code>conanxin-homepage</code>.</li>
-      <li><input type="checkbox" disabled /> No <code>HP-33</code> events bleeding into BookTrans Desk's current state (<code>booktrans_no_hp33</code>).</li>
-      <li><input type="checkbox" disabled /> Redaction <code>FAIL = 0</code> (no leaked tokens / IPs / home paths / <code>.env</code>).</li>
-      <li><input type="checkbox" disabled /> <code>MANIFEST.json</code> matches <code>config/public-data-export-plan.yml</code> (same project_filter, agent_filter, max_events_per_project).</li>
-      <li><input type="checkbox" disabled /> <code>data/</code> not staged.</li>
-      <li><input type="checkbox" disabled /> <code>generated/</code> not staged (regenerated by build, not source of truth).</li>
-      <li><input type="checkbox" disabled /> <code>artifacts/</code> not staged (review-only, never committed).</li>
-      <li><input type="checkbox" disabled /> <code>apps/dashboard/dist/</code> not staged (regenerated by <code>npm run build</code>).</li>
-      <li><input type="checkbox" disabled /> <code>git status --short</code> shows only <code>public-data/</code> + <code>site/index.embedded.html</code> + optional <code>reports/</code> + <code>docs/</code>.</li>
-    </ul>
-  </section>
-
-  <section>
-    <h2>8 · Multi-machine usage</h2>
-    <p>The tower is designed to be cloned onto multiple machines with multiple agents.</p>
-    <ul>
-      <li>Every machine that wants to report events clones the control tower repo.</li>
-      <li>Each agent on each machine registers a unique <code>agent_id</code> (via <code>register-agent</code>) and gets its own <code>data/events/&lt;agent_id&gt;/...</code> history.</li>
-      <li>The same project can be touched by many agents over time — the timeline shows the latest phase, the latest agent, and full event history.</li>
-      <li>Off-machine agents only ever write to their own <code>data/</code>. They never run <code>export_public_data.py</code>, never push the tower repo, never modify the export plan.</li>
-      <li>Only <code>local-hermes</code> (notebook) or a human reviewer exports and pushes <code>public-data/</code>.</li>
-      <li>Cross-machine onboarding playbook: <a href="https://github.com/conanxin/agent-project-control-tower/blob/main/docs/MULTI_MACHINE_SETUP.md"><code>docs/MULTI_MACHINE_SETUP.md</code></a>.</li>
-    </ul>
-  </section>
-
-  <section>
-    <h2>9 · Links</h2>
-
-    <h3>Live dashboard</h3>
-    <ul>
-      <li><a href="/">Home</a> — projects / agents / recent timeline</li>
-      <li><a href="/timeline/">Timeline</a> — full event stream with filters</li>
-      <li><a href="/help/">Help</a> — this page</li>
-    </ul>
-
-    <h3>GitHub repository</h3>
-    <ul>
-      <li><a href="https://github.com/conanxin/agent-project-control-tower">conanxin/agent-project-control-tower</a> — the source repo</li>
-      <li><a href="https://github.com/conanxin/agent-project-control-tower/blob/main/README.md">README.md</a> — top-level guide</li>
-      <li><a href="https://github.com/conanxin/agent-project-control-tower/tree/main/docs">docs/</a> — all design + operational docs</li>
-    </ul>
-
-    <h3>Key docs</h3>
-    <ul>
-      <li><a href="https://github.com/conanxin/agent-project-control-tower/blob/main/docs/AGENT_USAGE_PLAYBOOK.md">AGENT_USAGE_PLAYBOOK.md</a> — multi-machine agent handbook</li>
-      <li><a href="https://github.com/conanxin/agent-project-control-tower/blob/main/docs/PUBLIC_DATA_EXPORT_PLAYBOOK.md">PUBLIC_DATA_EXPORT_PLAYBOOK.md</a> — public-data export flow + ACT-6C mis-attribution postmortem</li>
-      <li><a href="https://github.com/conanxin/agent-project-control-tower/blob/main/docs/PUBLIC_DATA_AUTOMATION_POLICY.md">PUBLIC_DATA_AUTOMATION_POLICY.md</a> — what the automation levels mean (Level 1 / 1.5 / 2 / 3)</li>
-      <li><a href="https://github.com/conanxin/agent-project-control-tower/blob/main/docs/MULTI_MACHINE_SETUP.md">MULTI_MACHINE_SETUP.md</a> — first-time clone + register on a new box</li>
-      <li><a href="https://github.com/conanxin/agent-project-control-tower/blob/main/docs/MVP_PLAN.md">MVP_PLAN.md</a> — full ACT-0 → current ACT plan</li>
-      <li><a href="https://github.com/conanxin/agent-project-control-tower/blob/main/docs/release/RELEASE_NOTES_v0.1.0.md">RELEASE_NOTES_v0.1.0.md</a> — what shipped in v0.1.0</li>
-    </ul>
-
-    <h3>Templates &amp; checklists (copy-paste ready)</h3>
-    <ul>
-      <li><a href="https://github.com/conanxin/agent-project-control-tower/tree/main/templates/telegram">templates/telegram/</a> — short Telegram command templates for each event type</li>
-      <li><a href="https://github.com/conanxin/agent-project-control-tower/tree/main/templates/checklists">templates/checklists/</a> — pre-commit, pre-export, post-deploy, public-update preflight, online verification</li>
-    </ul>
-
-    <h3>Reports</h3>
-    <ul>
-      <li><a href="https://github.com/conanxin/agent-project-control-tower/tree/main/reports">reports/</a> — per-ACT phase reports (what was done, what was tested, what changed)</li>
-    </ul>
-  </section>
-
-  <section>
-    <h2>Status &amp; version</h2>
     <p class="muted">
-      This page was added in <strong>ACT-13 — Dashboard Help Page</strong>. The dashboard renders the
-      reviewed <code>public-data/</code> snapshot; the help text above is static (baked into the Astro
-      build). To propose a doc change, edit the corresponding file in the
-      <a href="https://github.com/conanxin/agent-project-control-tower/tree/main/docs">docs/</a> directory
-      (which is the source of truth) and link from here.
+      原因：trial agent 可能崩溃、幻觉或在过时状态下操作。公开面板是公共记录，所以通往它的门刻意收窄。
+    </p>
+  </section>
+
+  <section>
+    <h2>权限边界</h2>
+    <div class="callout callout-warning">
+      <strong>{UI.permBoundaryTitle}</strong>
+      <p>{UI.permBoundaryBody}</p>
+      <p>普通 trial agent 不应直接 export public-data、不应 <code>git add public-data</code>、不应 push。</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>public-data 更新检查清单</h2>
+    <p><code>git push</code> 之前必须通过这些。ACT-11 preflight 自动覆盖大部分，其余靠人工 review。</p>
+    <ul class="checklist">
+      <li><span class="check-box"></span>没有 1-project downgrade（<code>project_count_meets_plan</code>）。</li>
+      <li><span class="check-box"></span>BookTrans Desk 仍为 <code>conanxin/booktrans-desk</code>，不是 <code>conanxin-homepage</code>。</li>
+      <li><span class="check-box"></span><code>HP-33</code> = 0（没有 HP-33 事件污染 BookTrans Desk 当前状态）。</li>
+      <li><span class="check-box"></span>redaction <code>FAIL = 0</code>（无 token / IP / home 路径 / <code>.env</code> 泄露）。</li>
+      <li><span class="check-box"></span><code>public-data/MANIFEST.json</code> 与 <code>export plan</code> 一致。</li>
+      <li><span class="check-box"></span><code>data/</code> 未被 add。</li>
+      <li><span class="check-box"></span><code>generated/</code> 未被 add。</li>
+      <li><span class="check-box"></span><code>artifacts/</code> 未被 add。</li>
+      <li><span class="check-box"></span><code>apps/dashboard/dist/</code> 未被 add。</li>
+      <li><span class="check-box"></span><code>git status --short</code> 仅显示 <code>public-data/</code> + <code>site/index.embedded.html</code> + 必要 <code>reports/</code> / <code>docs/</code>。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>多机器使用</h2>
+    <p>控制塔支持多台机器 + 多个 agent 协同。</p>
+    <ul>
+      <li>每台机器可以 clone 控制塔仓库。</li>
+      <li>每个 agent 有自己的 <code>agent_id</code>（通过 <code>register-agent</code> 一次性注册）。</li>
+      <li>同一个项目可以由多个 agent 接手，时间线会显示最新阶段、最新 agent 和完整历史。</li>
+      <li>异机 agent 只写 <code>data/</code> event。</li>
+      <li>public export 仍由 <code>local-hermes</code> 或人类 gate 执行。</li>
+    </ul>
+    <p class="muted">跨机器 onboarding：<a href="https://github.com/conanxin/agent-project-control-tower/blob/main/docs/MULTI_MACHINE_SETUP.md"><code>docs/MULTI_MACHINE_SETUP.md</code></a>。</p>
+  </section>
+
+  <section>
+    <h2>深入文档</h2>
+
+    <h3>在线 dashboard</h3>
+    <ul>
+      <li><a href="/">首页</a> — 项目 / Agent / 最近活动</li>
+      <li><a href="/timeline/">时间线</a> — 完整事件流，含筛选</li>
+      <li><a href="/help/">帮助</a> — 你正在看的这一页</li>
+    </ul>
+
+    <h3>GitHub 仓库</h3>
+    <ul>
+      <li><a href="https://github.com/conanxin/agent-project-control-tower">conanxin/agent-project-control-tower</a> — 源码仓库</li>
+      <li><a href="https://github.com/conanxin/agent-project-control-tower/blob/main/README.md">README.md</a> — 顶层入口</li>
+      <li><a href="https://github.com/conanxin/agent-project-control-tower/tree/main/docs">docs/</a> — 全部设计与运维文档</li>
+    </ul>
+
+    <h3>关键文档</h3>
+    <ul>
+      <li><a href="https://github.com/conanxin/agent-project-control-tower/blob/main/docs/AGENT_USAGE_PLAYBOOK.md">AGENT_USAGE_PLAYBOOK.md</a> — 多机器 agent 手册</li>
+      <li><a href="https://github.com/conanxin/agent-project-control-tower/blob/main/docs/MULTI_MACHINE_SETUP.md">MULTI_MACHINE_SETUP.md</a> — 新机器首次 clone + register</li>
+      <li><a href="https://github.com/conanxin/agent-project-control-tower/blob/main/docs/PUBLIC_DATA_EXPORT_PLAYBOOK.md">PUBLIC_DATA_EXPORT_PLAYBOOK.md</a> — public-data export 流程 + ACT-6C mis-attribution 复盘</li>
+      <li><a href="https://github.com/conanxin/agent-project-control-tower/blob/main/docs/PUBLIC_DATA_AUTOMATION_POLICY.md">PUBLIC_DATA_AUTOMATION_POLICY.md</a> — 自动化等级（Level 1 / 1.5 / 2 / 3）的语义</li>
+    </ul>
+
+    <h3>模板与检查清单（可直接复制）</h3>
+    <ul>
+      <li><a href="https://github.com/conanxin/agent-project-control-tower/tree/main/templates/telegram">templates/telegram/</a> — 每种事件类型的简短 Telegram 命令模板</li>
+      <li><a href="https://github.com/conanxin/agent-project-control-tower/tree/main/templates/checklists">templates/checklists/</a> — pre-commit / pre-export / post-deploy / public-update preflight / online verification</li>
+    </ul>
+
+    <h3>Release</h3>
+    <ul>
+      <li><a href="https://github.com/conanxin/agent-project-control-tower/releases/tag/v0.1.0">GitHub Release v0.1.0</a> — ACT-10 阶段定版</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>关于这一页</h2>
+    <p class="muted">
+      这一页在 <strong>ACT-13B — Dashboard 中文化与 Help 优化</strong> 阶段被改写为中文。
+      Help 文本是静态的（编译进 Astro 构建）。要修改文案，请编辑
+      <a href="https://github.com/conanxin/agent-project-control-tower/tree/main/apps/dashboard/src/pages/help.astro">apps/dashboard/src/pages/help.astro</a>，
+      然后通过 ACT-13B 的标准流程 commit + push，Cloudflare Pages 会自动部署。
     </p>
   </section>
 </div>

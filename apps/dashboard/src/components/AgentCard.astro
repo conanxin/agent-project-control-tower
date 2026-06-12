@@ -1,5 +1,5 @@
 ---
-// AgentCard.astro — compact card for the agents list.
+// AgentCard.astro — ACT-13B 中文化。
 import type { Agent } from "../lib/tower-data";
 
 interface Props {
@@ -15,9 +15,9 @@ const { agent: a } = Astro.props;
     <span class="tl-type">{a.machine}</span>
   </div>
   <div class="meta-line">
-    role: {a.role} ·
-    last project: {a.last_project_id ?? "—"} ·
-    events: {a.event_count}
+    角色: {a.role} ·
+    最近项目: {a.last_project_id ?? "—"} ·
+    事件: {a.event_count}
     {a.last_event_at && ` · ${a.last_event_at}`}
   </div>
 </div>

@@ -7,6 +7,7 @@ import {
   projectsByAgent,
   countByEventType,
 } from "../../lib/tower-data";
+import { EVENT_TYPE_LABEL, UI } from "../../lib/labels";
 
 export function getStaticPaths() {
   return tower.agents.map((a) => ({
@@ -20,21 +21,7 @@ const timeline = agentTimeline(agent_id);
 const projects = projectsByAgent(agent_id);
 const typeCounts = countByEventType(timeline);
 
-// Type label map (mirrors TimelineItem)
-const TYPE_LABEL: Record<string, string> = {
-  AGENT_REGISTERED:   "AGENT REG",
-  PROJECT_REGISTERED: "PROJECT REG",
-  PHASE_REPORT:       "PHASE",
-  REVIEW_REPORT:      "REVIEW",
-  HANDOFF:            "HANDOFF",
-  RELEASE:            "RELEASE",
-  FAILURE:            "FAILURE",
-  BLOCK:              "BLOCK",
-  UNBLOCK:            "UNBLOCK",
-  ARCHIVE:            "ARCHIVE",
-};
-
-// Type badge class — phase/review/handoff/release/failure/block
+// Map event_type → badge CSS class (used for color-coded badges).
 const TYPE_BADGE: Record<string, string> = {
   PHASE_REPORT:  "badge-phase",
   REVIEW_REPORT: "badge-review",
@@ -51,28 +38,28 @@ const TYPE_BADGE: Record<string, string> = {
 <BaseLayout title={`${agent.name} — Agent Project Control Tower`}>
   <section>
     <div class="section-head">
-      <h2>Agent</h2>
+      <h2>{UI.agentHeading}</h2>
       <span class="pill pill-gray">{agent.machine}</span>
     </div>
     <dl class="detail-grid">
-      <dt>ID</dt>             <dd><code>{agent.agent_id}</code></dd>
-      <dt>Name</dt>           <dd>{agent.name}</dd>
-      <dt>Machine</dt>        <dd><code>{agent.machine}</code></dd>
-      <dt>Role</dt>           <dd>{agent.role}</dd>
-      <dt>Last event at</dt>  <dd>{agent.last_event_at ?? "—"}</dd>
-      <dt>Last project</dt>   <dd>{agent.last_project_id ? <a href={`/projects/${agent.last_project_id}/`}>{agent.last_project_id}</a> : "—"}</dd>
-      <dt>Event count</dt>    <dd>{agent.event_count}</dd>
+      <dt>{UI.agentFieldId}</dt>             <dd><code>{agent.agent_id}</code></dd>
+      <dt>{UI.agentFieldName}</dt>           <dd>{agent.name}</dd>
+      <dt>{UI.agentFieldMachine}</dt>        <dd><code>{agent.machine}</code></dd>
+      <dt>{UI.agentFieldRole}</dt>           <dd>{agent.role}</dd>
+      <dt>{UI.agentFieldLastEventAt}</dt>    <dd>{agent.last_event_at ?? "—"}</dd>
+      <dt>{UI.agentFieldLastProject}</dt>    <dd>{agent.last_project_id ? <a href={`/projects/${agent.last_project_id}/`}>{agent.last_project_id}</a> : "—"}</dd>
+      <dt>{UI.agentFieldEventCount}</dt>     <dd>{agent.event_count}</dd>
     </dl>
   </section>
 
   <section>
-    <h2>Event-type breakdown</h2>
+    <h2>{UI.agentEventBreakdown}</h2>
     {timeline.length === 0
-      ? <p class="muted">(no events yet)</p>
+      ? <p class="muted">{UI.agentNoEvents}</p>
       : <div class="type-badges">
           {Object.entries(typeCounts).map(([k, n]) => (
             <span class={`type-badge ${TYPE_BADGE[k] ?? ""}`}>
-              {TYPE_LABEL[k] ?? k} · {n}
+              {EVENT_TYPE_LABEL[k] ?? k} · {n}
             </span>
           ))}
         </div>
@@ -81,10 +68,10 @@ const TYPE_BADGE: Record<string, string> = {
 
   <section>
     <div class="section-head">
-      <h2>Projects touched ({projects.length})</h2>
+      <h2>{UI.agentProjectsTouchedTpl(projects.length)}</h2>
     </div>
     {projects.length === 0
-      ? <p class="muted">(no projects)</p>
+      ? <p class="muted">{UI.agentNoProjects}</p>
       : <ul class="related-projects">
           {projects.map((p) => (
             <li>
@@ -98,11 +85,11 @@ const TYPE_BADGE: Record<string, string> = {
 
   <section>
     <div class="section-head">
-      <h2>Activity timeline</h2>
-      <span class="count-badge">{timeline.length} events</span>
+      <h2>{UI.agentActivityTimeline}</h2>
+      <span class="count-badge">{UI.agentEventsTpl(timeline.length)}</span>
     </div>
     {timeline.length === 0
-      ? <p class="muted">(no events yet)</p>
+      ? <p class="muted">{UI.agentNoEvents}</p>
       : <div class="timeline">
           {timeline.map((t) => (
             <div
