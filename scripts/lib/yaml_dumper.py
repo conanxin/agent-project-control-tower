@@ -51,31 +51,64 @@ def dumper() -> Callable[[Any], str]:
     except Exception:
         pass
 
-    # Layer 2: PyYAML with ACT-8B 4-space hotfix.
+    # Layer 2: PyYAML with ACT-8B 4-space hotfix + ACT-9C
+    # yaml_mini round-trip fix.
     try:
         import yaml  # type: ignore
 
         def _dump(obj: Any) -> str:
-            raw = yaml.safe_dump(
-                obj, sort_keys=False, allow_unicode=True,
+            # ACT-9C fix: PyYAML's default datetime representer
+            # emits unquoted strings like "2026-06-11 09:05:00+00:00"
+            # which yaml_mini (the loader used in CI validate)
+            # cannot re-parse (it eats the following "- id: ..."
+            # line as a continuation). The fix: subclass SafeDumper
+            # to add a custom datetime/date representer that emits
+            # as a quoted string, AND to force str values to use
+            # plain (unquoted) style only when the value has no
+            # special characters — i.e. behave like safe_dump by
+            # default except for datetime. This keeps the existing
+            # public-data format identical for non-datetime values.
+            class _SafeDT(yaml.SafeDumper):
+                pass
+
+            def _repr_dt(dumper: yaml.SafeDumper, data: Any) -> Any:
+                return dumper.represent_scalar(
+                    "tag:yaml.org,2002:str", str(data), style="'",
+                )
+
+            try:
+                from datetime import datetime, date
+                _SafeDT.add_representer(datetime, _repr_dt)
+                _SafeDT.add_representer(date, _repr_dt)
+            except ImportError:
+                pass
+
+            raw = yaml.dump(
+                obj,
+                Dumper=_SafeDT,
+                default_flow_style=False, allow_unicode=True,
+                sort_keys=False,
             )
-            # ACT-8B hotfix: yaml_mini parser mis-parses 2-space
-            # nested list items as further top-level list
+            # ACT-8B / ACT-9C hotfix: yaml_mini parser mis-parses
+            # 2-space nested list items as further top-level list
             # elements. PyYAML dumps with 2-space indent by
-            # default; re-indent list items under `capabilities:`
-            # to 4 spaces so the parser round-trips.
+            # default; re-indent list items under any key whose
+            # value is a list of scalars (capabilities:, topics:,
+            # tags:, etc.) to 4 spaces so the parser round-trips.
             out: list[str] = []
-            in_caps = False
+            in_list_block = False
+            list_keys = {"capabilities:", "topics:", "tags:", "events:"}
             for line in raw.splitlines():
-                if line.strip() == "capabilities:":
+                stripped = line.strip()
+                if stripped in list_keys:
                     out.append(line)
-                    in_caps = True
+                    in_list_block = True
                     continue
-                if in_caps:
+                if in_list_block:
                     if line.startswith("  - "):
                         out.append("    " + line[2:])
                         continue
-                    in_caps = False
+                    in_list_block = False
                 out.append(line)
             return "\n".join(out) + "\n"
 
@@ -92,45 +125,44 @@ def dumper() -> Callable[[Any], str]:
         for entry in obj:
             if not isinstance(entry, dict):
                 continue
+            first = True
             for k, v in entry.items():
-                lines.extend(_dump_value(k, v, indent=0))
+                if first:
+                    lines.extend(_dump_value(k, v, indent=0, list_first=True))
+                    first = False
+                else:
+                    lines.extend(_dump_value(k, v, indent=1))
             lines.append("")
         return "\n".join(lines).rstrip("\n") + "\n"
 
     def _dump_value(
         key: str, value: Any, indent: int,
+        list_first: bool = False,
     ) -> list[str]:
         pad = "  " * indent
+        prefix = "- " if list_first else ""
         if value is None:
-            return [f"{pad}{key}: null"]
+            return [f"{pad}{prefix}{key}: null"]
         if isinstance(value, bool):
-            return [f"{pad}{key}: {'true' if value else 'false'}"]
+            return [f"{pad}{prefix}{key}: {'true' if value else 'false'}"]
         if isinstance(value, (int, float)):
-            return [f"{pad}{key}: {value}"]
+            return [f"{pad}{prefix}{key}: {value}"]
         if isinstance(value, str):
             v = value.replace("\\", "\\\\").replace('"', '\\"')
-            return [f'{pad}{key}: "{v}"']
+            return [f'{pad}{prefix}{key}: "{v}"']
         if isinstance(value, list):
             if not value:
-                return [f"{pad}{key}: []"]
+                return [f"{pad}{prefix}{key}: []"]
             out_list: list[str] = []
-            first = True
+            # Always emit key: on its own line, then list items
+            out_list.append(f"{pad}{prefix}{key}:")
             for item in value:
-                if first:
-                    if isinstance(item, dict):
-                        sub = _dump_dict(item, indent)
-                        out_list.append(f"{pad}{key}:")
-                        out_list.extend(sub)
-                    else:
-                        out_list.append(f"{pad}{key}: {_scalar(item)}")
-                    first = False
+                if isinstance(item, dict):
+                    sub = _dump_dict(item, indent + 1)
+                    out_list.extend(sub)
                 else:
-                    if isinstance(item, dict):
-                        sub = _dump_dict(item, indent)
-                        out_list.extend(sub)
-                    else:
-                        # 4-space list item indent (ACT-8B).
-                        out_list.append(f"{pad}    - {_scalar(item)}")
+                    # 2-space indent for list items under the key
+                    out_list.append(f"{pad}  - {_scalar(item)}")
             return out_list
         if isinstance(value, dict):
             out_dict = [f"{pad}{key}:"]

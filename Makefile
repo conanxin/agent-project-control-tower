@@ -173,7 +173,7 @@ PUBLIC_DATA_MAX     ?= 50
 PUBLIC_DATA_PREFIX  ?= conanxin
 
 public-data:
-	$(PYTHON) scripts/export_public_data.py --source examples
+	$(PYTHON) scripts/export_public_data.py --source examples --replace
 
 public-data-real:
 	@echo "→ exporting real project slice from data/ → public-data/ (via tracked plan)"
