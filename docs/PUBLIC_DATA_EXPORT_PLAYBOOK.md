@@ -472,3 +472,48 @@ If you are tempted to chain these into a single one-liner, the
 generator will not help you. ACT-7B addresses command *spelling*,
 not command *chaining*. The export pipeline is still a human
 operation with explicit stages.
+
+---
+
+## 12. Automation levels (Level 0–5) and the ACT-9 policy
+
+ACT-9 added `docs/PUBLIC_DATA_AUTOMATION_POLICY.md` as the
+**single source of truth for what can be automated and what
+cannot**. This section is the cross-reference; the policy
+itself is the spec.
+
+| Level | Name | Active? | Where documented |
+| --- | --- | --- | --- |
+| 0 | Manual only | historical | policy §3 |
+| 1 | Assisted command generation | **active (ACT-7B)** | policy §3, generator source |
+| 2 | CI validation only | **active (ACT-4A)** | policy §8, `DEPLOYMENT_PLAN.md` §5 |
+| 3 | CI proposed export artifact | design only (ACT-9B candidate) | policy §10 |
+| 4 | Authorized export bot | not designed; not approved | policy §3 |
+| 5 | Fully automatic export | **explicitly rejected** | ADR-0001 "Why not fully automatic" |
+
+**The seven questions ACT-9 answered (in priority order)**:
+
+1. **Can CI auto-export public-data?** No (Level 2 max).
+2. **Can an agent trigger the export?** No (Door 2 is
+   human-only; trial agents are explicitly forbidden from
+   running `export_public_data.py`).
+3. **What must be human-confirmed?** §6's six-point
+   project identity check + §7's status/health honesty +
+   §5's redaction WARN judgment.
+4. **How do we preserve the two-gate model?** §2 codifies
+   it. Any future automation must keep Door 1 (agent
+   writes `data/`) and Door 2 (human exports `public-data/`)
+   separate.
+5. **How do we avoid leaking `data/`?** `.gitignore` is
+   load-bearing; no automation step may touch it. The
+   policy §8.2 makes this a hard rail.
+6. **How do we prevent the ACT-6C mis-attribution
+   regression?** §6's checklist is mandatory pre-export.
+   No automation, no matter how smart, can replace it.
+7. **How do we handle redaction WARN/FAIL?** §5. FAIL
+   aborts the export. WARN is human-judged.
+
+**Pre-export checklist (mandatory)**:
+`templates/checklists/public-data-automation-policy-checklist.md`.
+
+**Architectural decision**: `docs/decision/ADR-0001-public-data-automation-boundary.md`.

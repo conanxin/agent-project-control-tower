@@ -394,3 +394,32 @@ PUBLIC_DATA_PROJECTS ?= agent-project-control-tower artvee-gallery booktrans-des
 - 跳过 ACT-6 接入真实项目时的脱敏 checklist（但仍建议做）
 
 > 但**建议保持开源**——理由：控制塔本身是 meta-tool，没有真正的"商业价值"需要保护；公开反而能让别人 fork、自用、提 issue。
+
+## 14. 自动化边界（ACT-9 落定）
+
+> ACT-9 在 `docs/PUBLIC_DATA_AUTOMATION_POLICY.md` 中定义了 5 个自动化等级。开源发布是其中最容易踩坑的环节：项目一旦被 fork，外部 contributor 看到的是 `data/`（gitignored） + `public-data/`（committed）的双层结构，**自动化等级就是他们会问的第一个问题**。
+
+**给 fork 者的明确说明**：
+
+- 公开仓库的 `public-data/` 是 `data/` 的一个**手工审核过的子集**。不是 `data/` 的全量，不是自动 export，不是 CI 推到 main 的结果。
+- "我想加新项目" → 不能 push 到 main，必须开 PR。PR 会触发 `make all` + `make publish-preflight`（validate + alignment + redaction），失败则不能 merge。
+- "我想 fork 一份做私密项目" → §13 的"不开源"路径适用，但建议仍保留 Level 1 + Level 2 的自动化（CI 验证不写 public-data/）。
+- **不允许**把 `data/` 加到 `public-data/` 旁边的另一个 tracked 目录——`data/` 永远是 gitignored 的本地真实状态，与是否开源无关。
+
+**为什么 `public-data export` ≠ "自动公开 `data/`"**：
+
+| 概念 | 含义 |
+| --- | --- |
+| `data/` | 本地真实状态，gitignored，从不公开 |
+| `public-data/` | `data/` 的**手工审核过的子集**，committed，公开 |
+| `export_public_data.py` | `data/` → `public-data/` 的转换器，**当前由人类触发** |
+| `data/ 是否被公开` | 仅当有人显式 `git add data/`（绕过 gitignore）才会发生——这是事故，不是 feature |
+| `public-data/ 是否包含 `data/` 全量` | **不**，永远是审核过的子集（可能小、可能大、可能为空） |
+
+**fork 后的常见误解**：
+
+1. ❌ "control tower 自动把我的 `data/` 公开了" — 不对。`data/` 永远是 gitignored 的本地状态。`public-data/` 永远是手工审核过的子集。
+2. ❌ "CI 会自动 export 我的 `data/` 到 `public-data/`" — 不对。CI 只能 *validate* committed `public-data/`，不能 *write* `public-data/`。
+3. ❌ "我可以在 GitHub Actions 里写 `data/`" — 不对。`data/` 永远在本地，不进 CI。
+
+详见 `docs/PUBLIC_DATA_AUTOMATION_POLICY.md`。

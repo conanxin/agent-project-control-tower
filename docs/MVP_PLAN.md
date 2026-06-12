@@ -1,11 +1,11 @@
-# MVP Plan — ACT-1 to ACT-7B
+# MVP Plan — ACT-1 to ACT-9
 
 > 把"建一个能用的控制塔"拆成阶段。每个阶段都有明确产出 + 验收标准 + 退出条件。
 >
-> 当前在 **ACT-7B ✅ COMPLETE**。ACT-7B 不接入新项目、不开发新 dashboard UI、不引入数据库、不引入登录系统、不使用 Cloudflare API token、不自动 export public-data、不自动 git commit/push。ACT-7B 的产出是**命令生成器 + 模板对齐检查器 + 测试 + 文档**——`scripts/generate_tower_command.py` / `scripts/check_template_cli_alignment.py` / `tests/command_generator_smoke.py` / `Makefile` `command-test` target / 4 个 docs 新章节。当前 public-data 为 3 real projects / 2 agents / 16 events（保持 ACT-8 收尾状态；ACT-7B 自己的 phase event 在 `data/events/` 中但 gitignored，不公开）。
+> 当前在 **ACT-9 ✅ COMPLETE**。ACT-9 不接入新项目、不开发新 dashboard UI、不引入数据库、不引入登录系统、不使用 Cloudflare API token、不实现自动 export、不修改 CI workflow。ACT-9 的产出是**policy 文档**——`docs/PUBLIC_DATA_AUTOMATION_POLICY.md`（5 等级 Level 0–5）、`docs/decision/ADR-0001-public-data-automation-boundary.md`、`templates/checklists/public-data-automation-policy-checklist.md`、5 个 docs 章节更新。当前 public-data 为 3 real projects / 2 agents / 18 events（保持 ACT-8B 收尾状态；ACT-9 自己的 phase event 在 `data/events/` 中但 gitignored，不公开）。当前自动化等级：**Level 1 + Level 2**。
 > 下一阶段（二选一）：
-> 1. **ACT-8B：run second-agent trial using generated commands**——用 ACT-7B 的生成器，让 `cloud-openclaw` 重新跑一遍端到端流程，验证生成器在真实异机场景下可用、模板不再漂移、命令不再断行。
-> 2. **ACT-9：public-data export automation design (not implementation)**——设计 CI 自动 export 的双门方案（仅设计，不实现；自动 export 涉及 secret 与权限，需 user 显式批准）。
+> 1. **ACT-9B：prototype CI proposed-export artifact**——实现 `docs/PUBLIC_DATA_AUTOMATION_POLICY.md` §10 的 Level 3 设计：CI 跑 `export_public_data.py` 到 `$RUNNER_TEMP/proposed-public-data`，上传为 download-only artifact。**不允许** auto commit/push。需 user 显式批准。
+> 2. **ACT-10：stable v0.1.0 release packaging**——把控制塔当前状态打包为一个 tagged release，附 CHANGELOG / RELEASES.md / citation。不引入新功能；只整理"我们到了哪里"。
 
 ## 全景时间线
 
@@ -35,8 +35,10 @@ ACT-6B ✅ Second real project — Artvee Gallery (2026-06-11)
 ACT-6C ✅ Third real project — BookTrans Desk  (2026-06-11) + ACT-6C hotfix
 ACT-7   ✅ Multi-machine Agent Usage Playbook (2026-06-12)
 ACT-8   ✅ Real Multi-agent Onboarding Trial (2026-06-12)
-ACT-7B  ✅ Template-to-Command Generator (2026-06-12) ← 当前阶段
-ACT-9          harden automation around recurring public-data exports (planned)
+ACT-7B  ✅ Template-to-Command Generator (2026-06-12)
+ACT-8B  ✅ Generated-command Multi-agent Trial (2026-06-12)
+ACT-9   ✅ Public-data Export Automation Policy (2026-06-12) ← 当前阶段
+ACT-9B         prototype CI proposed-export artifact (planned)
 ```
 
 每个 ACT 的预算：**1–2 周业余时间**，不超过 30 个 commit。
@@ -832,15 +834,15 @@ ACT-7 写完了 playbook，ACT-8 验证 playbook 是不是真的能被第二个 
 
 ## ACT-7+ — Future Optional Enhancements
 
-> ACT-7B 完成后讨论的扩展。**不要提前做**。
+> ACT-9 完成后讨论的扩展。**不要提前做**。
 
-- **ACT-8B**（候选）：run second-agent trial using generated commands——用 ACT-7B 生成器在 `cloud-openclaw` 上重跑端到端流程，验证生成器在真实异机场景下可用
-- **ACT-9**（候选）：public-data export automation design (not implementation)——设计 CI 自动 export 的双门方案（仅设计；自动 export 涉及 secret 与权限边界）
-- **ACT-10**：统计（`generated/stats.json`、跨项目聚合页）
-- **ACT-11**：错误修正流（`correction` event 真正被 build_index 消费）
-- **ACT-12**：第二份控制塔（私密项目）—— 独立仓库 + 独立域名
-- **ACT-13**：Astro 升级到 v5，引入 view transitions
-- **ACT-14**：被其他人 fork → 写 CONTRIBUTING.md
+- **ACT-9B**（候选）：prototype CI proposed-export artifact——实现 `docs/PUBLIC_DATA_AUTOMATION_POLICY.md` §10 的 Level 3 设计（CI 生成 download-only artifact，无 auto commit/push）。需 user 显式批准。
+- **ACT-10**（候选）：stable v0.1.0 release packaging——CHANGELOG + RELEASES.md + citation，无新功能。
+- **ACT-11**：统计（`generated/stats.json`、跨项目聚合页）
+- **ACT-12**：错误修正流（`correction` event 真正被 build_index 消费）
+- **ACT-13**：第二份控制塔（私密项目）—— 独立仓库 + 独立域名
+- **ACT-14**：Astro 升级到 v5，引入 view transitions
+- **ACT-15**：被其他人 fork → 写 CONTRIBUTING.md
 - **未来**：通知（Discord / Telegram webhook 在 CI 末尾）—— ACT-4A 已决定不引入，避免增加 secret 管理负担
 
 ## 风险控制

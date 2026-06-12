@@ -610,3 +610,33 @@ ACT-7 之后，所有上线后验证的步骤都集中在 `templates/checklists/
 | **合计** | **$0/月** |
 
 唯一可能花钱的是：当 Cloudflare Access 用满 50 用户后要付费（$3/月起）——但 MVP 不需要。
+
+---
+
+## 5. CI 可以 validate，不可以 mutate public-data（ACT-9 落定）
+
+ACT-9 在 `docs/PUBLIC_DATA_AUTOMATION_POLICY.md` 中明确定义了 5 个自动化等级。当前部署链位于 **Level 2（CI validation only）**。
+
+**当前 CI 实际做**：
+
+- ✅ 跑 `python3 scripts/tower.py validate --source public-data`（已 commit 的 public-data 是否一致）
+- ✅ 跑 `python3 scripts/tower.py build --source public-data`（生成 `generated/index.json` + `site/index.embedded.html`）
+- ✅ 跑 `make all` + `make command-test`（alignment + generator smoke）
+- ✅ 跑 npm build（`apps/dashboard/` 7 pages）
+- ✅ 部署到 Cloudflare Pages（从 committed `public-data/` 拉数据）
+
+**当前 CI 明确不做**：
+
+- ❌ `export_public_data.py --source data --output public-data`（即使配了 secret）
+- ❌ `git add public-data/` 任何文件
+- ❌ `git commit` / `git push` 任何 public-data 改动
+- ❌ 修改或解除 `.gitignore` 中 `data/` / `generated/` / `apps/dashboard/dist/` 三条
+- ❌ 把 `data/` 任何字节以 artifact / log / debug-output 形式发到 PR 评论 / Slack / Cloudflare KV
+
+**为什么这是部署计划的一部分**：
+
+CF Pages 的 build 过程会触发 npm prebuild hook，该 hook 会**重新**生成 `generated/index.json`——所以 build pipeline 与 public-data 的"一进一出"必须严格受控。CI **不能写** `public-data/` 是 ACT-9 policy 的 hard rail（policy §8.2）。
+
+**未来 ACT-9B 候选**（Level 3）：CI 可以生成 `proposed-public-data` artifact（**只读**，download-only）供人类评审。这仍是 design-only，未实现。
+
+详见 `docs/PUBLIC_DATA_AUTOMATION_POLICY.md` §8 + `docs/decision/ADR-0001-public-data-automation-boundary.md`。

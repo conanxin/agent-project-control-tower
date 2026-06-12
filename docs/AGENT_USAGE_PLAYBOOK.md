@@ -751,3 +751,49 @@ python scripts/check_template_cli_alignment.py
 The command is fast (< 1 second) and depends only on Python
 stdlib plus the templates on disk. It is safe to add to any
 pre-commit hook.
+
+---
+
+## 15. The agent's export boundary (ACT-9)
+
+This is a one-paragraph summary of what an agent may and
+may not do with respect to `public-data/`. The full policy
+is in `docs/PUBLIC_DATA_AUTOMATION_POLICY.md`; the ADR
+that accepted it is `docs/decision/ADR-0001-public-data-automation-boundary.md`.
+
+**You (the agent) may:**
+
+- Generate single-line `tower.py` commands via
+  `scripts/generate_tower_command.py` (Level 1).
+- Run the printed command in your own `TOWER_ROOT` (writes
+  to *your* `data/`, not the orchestrator's).
+- Run `make all` in your own `TOWER_ROOT`.
+- Send event JSON files back to the orchestrator.
+
+**You may NOT (without explicit, per-push human
+authorization):**
+
+- Run `export_public_data.py` against the orchestrator's
+  `public-data/`.
+- `git add public-data/` (or any subset of it) in the
+  orchestrator's repo.
+- `git commit` / `git push` in the orchestrator's repo.
+- Modify `.gitignore`.
+- Touch the orchestrator's `public-data/` for *any*
+  reason, including "just to fix one file".
+
+**Why this matters**:
+
+The two-gate model (Door 1: agent writes `data/`; Door 2:
+human exports `public-data/`) is what stops a bot from
+publishing a mis-attributed event to a public dashboard.
+ACT-6C was a real mis-attribution that only a human
+caught. The ACT-9 policy makes the boundary explicit and
+codifies a checklist that any human reviewer must follow
+before `--replace`.
+
+**If you are unsure**: do not run the command. Ask the
+human reviewer. The worst-case outcome of "I asked a
+question" is a 5-minute delay. The worst-case outcome of
+"I ran export" is a public dashboard with a wrong project
+status, which is what ACT-6C was.
