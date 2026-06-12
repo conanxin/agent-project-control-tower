@@ -73,13 +73,42 @@ The current plan (`config/public-data-export-plan.yml`) exports:
 * Cross-machine onboarding trial completed (ACT-8)
 * Generated-command trial validated (ACT-8B)
 
-## Current public-data status
+## Current public-data status (as of v0.1.0)
 
-* 3 projects
-* 2 agents
-* 22 events
-* 0 redaction FAILs
-* 0 WARNs
+* 3 projects: `agent-project-control-tower`, `artvee-gallery`, `booktrans-desk`
+* 2 agents: `local-hermes`, `cloud-openclaw`
+* 24 events (cap 50 per project, newest first)
+* 0 redaction FAILs, 0 WARNs
+
+## BookTrans Desk status note (v0.1.0)
+
+BookTrans Desk is shown as `PARTIAL` (amber) on purpose:
+
+* **Phase**: S13 (Blocker Fixes and Manual Validation Rerun)
+* **Source commit**: `16f38b6`
+* **Health**: amber (real Windows desktop click-through remains `BLOCKED_MANUAL` — manual QA pending)
+* **Repo**: `conanxin/booktrans-desk` (NOT `conanxin/conanxin-homepage` — ACT-6C bug class is documented and preflight now checks it)
+
+## Public-data update workflow (v0.1.0)
+
+v0.1.0 ships the ACT-11 preflight + ACT-12 trial as the supported way to update public-data:
+
+1. Agent writes a `PHASE_REPORT` to local `data/` via `tower.py report-phase`.
+2. Human (or local-hermes) runs `make public-update-preflight` — this regenerates the candidate public-data, then writes review artifacts to `artifacts/public-data-update-preflight/`.
+3. Reviewer walks through `UPDATE_SUMMARY.md` + `PUBLIC_DATA_DIFF.md` + `REDACTION_RESULT.md` + `REVIEW_CHECKLIST.md`.
+4. If everything looks correct, run `python3 scripts/export_public_data.py --plan config/public-data-export-plan.yml --replace`.
+5. `git add` ONLY the changed public-data files + `site/index.embedded.html` (NEVER `git add .`).
+6. Commit + push. Cloudflare Pages auto-deploys.
+7. Wait 60–90s for CDN cache, then run `templates/checklists/online-verification-checklist.md`.
+
+ACT-12 confirmed this workflow end-to-end. ACT-12 also caught one leak that ACT-11 missed: `MANIFEST.json` previously embedded the absolute local `plan_file` path — now it's repo-relative.
+
+## Screenshots & demo assets (ACT-10B polish)
+
+* 6 PNGs in `docs/media/v0.1.0/` covering desktop home, mobile home, timeline, agent-project-control-tower page, booktrans-desk page, and cloud-openclaw agent page.
+* Captured 2026-06-12 from <https://control-tower.conanxin.com/> via Playwright + Chromium.
+* Capture script lives at `/tmp/capture_v010_screenshots.py` (not committed; reproducible).
+* `demo-flow.gif` is **deferred** to v0.2.0+ — static screenshots cover the visual release needs for v0.1.0.
 
 ## Known limitations
 
@@ -94,8 +123,8 @@ The current plan (`config/public-data-export-plan.yml`) exports:
 
 ## Recommended next phase
 
-* **ACT-10B:** GitHub release polish / screenshots / demo GIF
-* **ACT-11:** Public-data update ergonomics (faster manual refresh workflow)
+* **ACT-12B:** second recurring update trial (long-running stability validation of the ACT-11/ACT-12 workflow)
+* **ACT-13:** adoption packaging (entry-point polish for new agents / new humans cloning the repo)
 
 ## Security / privacy boundary
 

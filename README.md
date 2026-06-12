@@ -5,14 +5,15 @@
 > 🌍 **GitHub**: <https://github.com/conanxin/agent-project-control-tower>（public，ACT-4B 已 push）
 > 🚀 **Online Dashboard (custom domain)**: <https://control-tower.conanxin.com/>（ACT-5B ✅ 已绑 custom domain）
 > 🔁 **Online Dashboard (pages.dev fallback)**: <https://agent-project-control-tower.pages.dev/>（ACT-5 ✅，与 custom domain 服务同一份 dist）
-|> 🟢 **状态**: v0.1.0 ✅ RELEASED + ACT-11 ✅ COMPLETE（public-data 更新审查流程）|
+|> 🟢 **状态**: v0.1.0 ✅ RELEASED + ACT-10B ✅ COMPLETE（GitHub release polish / screenshots / release notes）|
 |> 🟢 **当前线上真实项目**: `agent-project-control-tower` + `artvee-gallery` + `booktrans-desk`（BookTrans Desk 已修正为 `conanxin/booktrans-desk` / S13 / `16f38b6` / PARTIAL）|
 |> 🟢 **当前线上 agent**: `local-hermes` + `cloud-openclaw`（trial agent 公开）|
-|> 🟢 **当前 public-data**: 3 projects / 2 agents / 22 events |
+|> 🟢 **当前 public-data**: 3 projects / 2 agents / 24 events |
+|> 📸 **v0.1.0 screenshots**: [docs/media/v0.1.0/](docs/media/v0.1.0/)（6 PNGs, 桌面 + 移动, 实时截自线上 dashboard）|
 |> 📋 **Release notes**: [docs/release/RELEASE_NOTES_v0.1.0.md](docs/release/RELEASE_NOTES_v0.1.0.md) |
 |> 📋 **Changelog**: [CHANGELOG.md](CHANGELOG.md) |
-|> 🔄 **日常更新 public-data**: `make public-update-preflight`（ACT-11）→ 看 `artifacts/public-data-update-preflight/` → 显式 `git add` → commit + push |
-|> ⏸ **下一步**: ACT-10B（GitHub release polish / screenshots / demo GIF）或 ACT-12（real recurring update trial）|
+|> 🔄 **日常更新 public-data**: `make public-update-preflight`（ACT-11）→ 看 `artifacts/public-data-update-preflight/` → 显式 `git add` → commit + push（ACT-12 已真实验证）|
+|> ⏸ **下一步**: ACT-12B（second recurring update trial）或 ACT-13（adoption packaging）|
 
 ---
 
@@ -60,6 +61,36 @@ time, follow this order:
 
 - **`local-hermes`** — primary coding agent on the local notebook (WSL). `machine=local`, `role=scaffolding / orchestration / long-running`. Owns the public-data export gate.
 - **`cloud-openclaw`** — secondary coding agent on a cloud VPS. `machine=cloud`, registered during the ACT-8 cross-machine onboarding trial. The ACT-8 review event it submitted is now part of the public timeline.
+
+---
+
+## 📸 Screenshots (v0.1.0)
+
+All screenshots captured 2026-06-12 from the live dashboard at <https://control-tower.conanxin.com/>.
+
+### Dashboard home — desktop
+
+![Dashboard home](docs/media/v0.1.0/dashboard-home.png)
+
+### Timeline (newest first)
+
+![Timeline](docs/media/v0.1.0/dashboard-timeline.png)
+
+### Project page — BookTrans Desk (S13 / PARTIAL)
+
+![BookTrans Desk project page](docs/media/v0.1.0/project-booktrans-desk.png)
+
+### Agent page — cloud-openclaw (VPS secondary)
+
+![Cloud OpenClaw agent page](docs/media/v0.1.0/agent-cloud-openclaw.png)
+
+### Mobile view
+
+![Dashboard home mobile](docs/media/v0.1.0/dashboard-home-mobile.png)
+
+> All assets in `docs/media/v0.1.0/` are tracked in git (small PNGs). Source: <https://control-tower.conanxin.com/>. Capture method and refresh instructions: [`docs/media/README.md`](docs/media/README.md).
+
+> ⚠️ The dashboard renders a **reviewed public snapshot** of `public-data/`. The local `data/` event store is private and never published. BookTrans Desk shows `PARTIAL/amber` because the Windows desktop click-through remains `BLOCKED_MANUAL` (real-machine QA pending).
 
 ---
 
