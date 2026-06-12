@@ -87,13 +87,11 @@ jobs:
         with:
           python-version: "3.12"
       - name: Seed local data from examples
-        # ACT-9C: CI's `make publish-preflight` runs the plan-driven
-        # `public-data-real` target with `--source data`, which needs
-        # data/ to exist. On a fresh runner data/ is gitignored and
-        # empty; seed it from examples/ so the export has something
-        # to read. This does NOT change what gets published — the
-        # plan's project filter still applies, and the resulting
-        # public-data is sanitized via redaction.
+        # ACT-9C: needed because the CI preflight runs against
+        # public-data (the fixture seed from examples/), and
+        # `make publish-preflight-examples` reads examples/ →
+        # public-data/. Without this seed, public-data is empty
+        # on a fresh runner.
         run: make seed
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -104,8 +102,20 @@ jobs:
       - name: Install dashboard dependencies
         working-directory: apps/dashboard
         run: npm ci
-      - name: Run publish preflight
-        run: make publish-preflight
+      - name: Run publish preflight (examples fixture — ACT-9C CI variant)
+        # ACT-9C: CI uses `make publish-preflight-examples` (NOT the
+        # plan-driven `publish-preflight`). Reason: the plan file
+        # lists the 3 real production projects; on CI those don't
+        # exist in data/ (data/ is gitignored, and `make seed` from
+        # examples/ only writes the 2 demo projects). A plan-driven
+        # export on CI would write an empty public-data/, which
+        # then fails validation. The CI preflight verifies the
+        # **pipeline** (export → validate → build → dashboard) using
+        # the sanitized examples/ fixture, which is what ACT-4A
+        # originally specified. Local-hermes is the only machine
+        # that runs the plan-driven `make publish-preflight` for
+        # real production refreshes.
+        run: make publish-preflight-examples
       - name: Upload public-data manifest
         uses: actions/upload-artifact@v4
         with:
