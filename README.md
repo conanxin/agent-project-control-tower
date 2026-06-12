@@ -5,15 +5,16 @@
 > 🌍 **GitHub**: <https://github.com/conanxin/agent-project-control-tower>（public，ACT-4B 已 push）
 > 🚀 **Online Dashboard (custom domain)**: <https://control-tower.conanxin.com/>（ACT-5B ✅ 已绑 custom domain）
 > 🔁 **Online Dashboard (pages.dev fallback)**: <https://agent-project-control-tower.pages.dev/>（ACT-5 ✅，与 custom domain 服务同一份 dist）
-|> 🟢 **状态**: v0.1.0 ✅ RELEASED + ACT-10B ✅ COMPLETE（GitHub release polish / screenshots / release notes）|
+|> 🟢 **状态**: v0.1.0 ✅ RELEASED + ACT-13 ✅ COMPLETE（Dashboard Help 页面 `/help/`）|
 |> 🟢 **当前线上真实项目**: `agent-project-control-tower` + `artvee-gallery` + `booktrans-desk`（BookTrans Desk 已修正为 `conanxin/booktrans-desk` / S13 / `16f38b6` / PARTIAL）|
 |> 🟢 **当前线上 agent**: `local-hermes` + `cloud-openclaw`（trial agent 公开）|
 |> 🟢 **当前 public-data**: 3 projects / 2 agents / 24 events |
+|> ❓ **在线 Help**: <https://control-tower.conanxin.com/help/>（ACT-13，使用流程 + Double-door + Public-data update checklist）|
 |> 📸 **v0.1.0 screenshots**: [docs/media/v0.1.0/](docs/media/v0.1.0/)（6 PNGs, 桌面 + 移动, 实时截自线上 dashboard）|
 |> 📋 **Release notes**: [docs/release/RELEASE_NOTES_v0.1.0.md](docs/release/RELEASE_NOTES_v0.1.0.md) |
 |> 📋 **Changelog**: [CHANGELOG.md](CHANGELOG.md) |
 |> 🔄 **日常更新 public-data**: `make public-update-preflight`（ACT-11）→ 看 `artifacts/public-data-update-preflight/` → 显式 `git add` → commit + push（ACT-12 已真实验证）|
-|> ⏸ **下一步**: ACT-12B（second recurring update trial）或 ACT-13（adoption packaging）|
+|> ⏸ **下一步**: ACT-12B（等真实多日更新事件触发）或 ACT-14（adoption packaging）|
 
 ---
 

@@ -558,6 +558,53 @@ code {
   border-radius: 4px;
 }
 
+/* ============================================================ HELP PAGE (ACT-13) */
+.help-doc {
+  max-width: 880px;
+}
+.help-doc section { margin-bottom: 28px; }
+.help-doc h2 {
+  font-size: 22px;
+  margin: 0 0 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.help-doc h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 12px 0 6px;
+  color: var(--text-dim);
+}
+.help-doc p,
+.help-doc li { line-height: 1.6; }
+.help-doc ul,
+.help-doc ol { margin: 6px 0 12px 0; padding-left: 24px; }
+.help-doc li { margin-bottom: 4px; }
+.help-doc pre {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 14px;
+  margin: 8px 0 12px;
+  overflow-x: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+  white-space: pre;
+}
+.help-doc pre code {
+  background: transparent;
+  padding: 0;
+  font-size: 12px;
+  border-radius: 0;
+}
+.help-doc input[type="checkbox"][disabled] {
+  margin-right: 6px;
+  accent-color: var(--accent);
+}
+.help-doc a { color: var(--link); }
+
 /* ============================================================ MOBILE */
 @media (max-width: 720px) {
   header.site, nav.site-nav, main, footer.site {

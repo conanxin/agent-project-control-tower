@@ -1,11 +1,11 @@
-# MVP Plan — ACT-1 to ACT-10B
+# MVP Plan — ACT-1 to ACT-13
 
 > 把"建一个能用的控制塔"拆成阶段。每个阶段都有明确产出 + 验收标准 + 退出条件。
 >
-> 当前在 **ACT-10B ✅ COMPLETE**。ACT-10B 是纯 polish：用 Playwright + Chromium 1.5× DPI 实时截了 6 张 v0.1.0 screenshot（dashboard home 桌面+移动、timeline、agent-project-control-tower 页、booktrans-desk 页、cloud-openclaw agent 页），全部 commit 进 `docs/media/v0.1.0/`、upload 到 GitHub Release v0.1.0、嵌入 README；同时把 release notes 从 22 events 更新到 24 events / 加 BookTrans Desk S13 PARTIAL note / 加 ACT-11+12 public-data update workflow 说明。**没有改任何控制塔数据 / 功能 / 边界**。当前公开数据状态：3 real projects / 2 agents / 24 events。当前自动化等级：**Level 1 + Level 1.5 + Level 2 + Level 3 (prototype)**，Level 4/5 仍被拒绝。
+> 当前在 **ACT-13 ✅ COMPLETE**。ACT-13 在 dashboard 上新增了一个 Help 页面（`/help/`），把整套使用流程（Start here / Core mental model / Common workflow / Double-door model / Public-data update checklist / Multi-machine usage / Links）写到了线上；导航加了 Help 入口；footer 注明 ACT-13 身份。**没有改任何控制塔数据 / 功能 / 边界**：public-data 仍是 3 real projects / 2 agents / 24 events，data/ / generated/ / artifacts/ 仍 gitignored，automation level 仍 Level 1 + 1.5 + 2 + 3 (prototype)。
 > 下一阶段（按推荐度排序）：
-> 1. **ACT-12B：second recurring update trial**——再跑一次真实多日更新，验证 ACT-11/12 ergonomic 在多天节奏下稳定。
-> 2. **ACT-13：adoption packaging**——为新 agent / 新人类首次 clone 这个仓库准备更顺手的入口。
+> 1. **ACT-12B：second recurring update trial**——等下一个真实多日更新事件触发（BookTrans S14+ / Artvee P3C+ / tower ACT-14+ / 其他真实项目）。
+> 2. **ACT-14：adoption packaging**——为新 agent / 新人类首次 clone 这个仓库准备更顺手的入口。
 
 ## 全景时间线
 
@@ -43,7 +43,8 @@ ACT-9C  ✅ Export Plan Review Workflow (2026-06-12)
 ACT-10 ✅ v0.1.0 Release Packaging (2026-06-12)
 ACT-11 ✅ Public-data Update Ergonomics (2026-06-12)
 ACT-12 ✅ Recurring Public-data Update Trial (2026-06-12)
-ACT-10B ✅ v0.1.0 Release Polish (2026-06-12) ← 当前阶段
+ACT-10B ✅ v0.1.0 Release Polish (2026-06-12)
+ACT-13 ✅ Dashboard Help Page (2026-06-12) ← 当前阶段
 ```
 
 每个 ACT 的预算：**1–2 周业余时间**，不超过 30 个 commit。
