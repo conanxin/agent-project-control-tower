@@ -404,52 +404,34 @@ def main() -> int:
     # write projects.yml (filtered + rewritten YAML)
     if projects_out:
         # Use yaml_mini for writing (it ships with the project) to stay
-        # zero-dep. Fall back to PyYAML if yaml_mini has no dump().
+        # zero-dep. Fall back to the shared ACT-9B yaml_dumper
+        # helper, which wraps PyYAML with the ACT-8B 4-space hotfix
+        # and has a pure-stdlib fallback for environments where
+        # neither yaml_mini has dump() nor PyYAML is installed
+        # (e.g. vanilla GitHub Actions runners).
         try:
             from yaml_mini import dump as _dump  # type: ignore
         except Exception:
-            try:
-                import yaml  # type: ignore
-                def _dump(obj: Any) -> str:
-                    return yaml.safe_dump(obj, sort_keys=False, allow_unicode=True)
-            except Exception:
-                print("  [FAIL] no YAML dumper available", file=sys.stderr)
-                return 2
+            from yaml_dumper import dumper as _dd
+            _dump = _dd()
         (out_reg / "projects.yml").write_text(
             _dump(projects_out) + "\n", encoding="utf-8"
         )
         print(f"  wrote {out_reg/'projects.yml'} ({len(projects_out)} entries)")
 
     if agents_out:
+        # Use yaml_mini for writing (it ships with the project) to stay
+        # zero-dep. Fall back to PyYAML + ACT-8B hotfix via the
+        # shared ACT-9B yaml_dumper helper, which is the same code
+        # path build_public_data_candidate.py uses. The shared
+        # helper also has a pure-stdlib fallback so the script
+        # works in vanilla GitHub Actions runners where neither
+        # yaml_mini has dump() nor PyYAML is installed.
         try:
             from yaml_mini import dump as _dump  # type: ignore
         except Exception:
-            import yaml  # type: ignore
-            def _dump(obj: Any) -> str:
-                raw = yaml.safe_dump(
-                    obj, sort_keys=False, allow_unicode=True,
-                )
-                # ACT-8B hotfix: yaml_mini is also the parser and it
-                # mis-parses 2-space-indented nested list items as
-                # further top-level list elements. Re-indent list items
-                # under `capabilities:` to 4 spaces so the parser
-                # round-trips correctly. This is the only known
-                # parser/dumper mismatch; other fields use 2-space
-                # indent and parse fine.
-                out: list[str] = []
-                in_caps = False
-                for line in raw.splitlines():
-                    if line.strip() == "capabilities:":
-                        out.append(line)
-                        in_caps = True
-                        continue
-                    if in_caps:
-                        if line.startswith("  - "):
-                            out.append("    " + line[2:])
-                            continue
-                        in_caps = False
-                    out.append(line)
-                return "\n".join(out) + "\n"
+            from yaml_dumper import dumper as _dd
+            _dump = _dd()
         (out_reg / "agents.yml").write_text(
             _dump(agents_out) + "\n", encoding="utf-8"
         )

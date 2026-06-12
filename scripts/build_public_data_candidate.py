@@ -190,24 +190,21 @@ def _yaml_dumper() -> "Any":
     a list-of-dicts (the only shape the public-data registry
     uses) to YAML.
 
-    Tries three layers in order:
-
-    1. ``yaml_mini.dump`` — the project's own stdlib helper.
-       It is intentionally read-only, so this layer will
-       typically fail; that's expected.
-    2. ``PyYAML.safe_dump`` — if PyYAML happens to be
-       installed.
-    3. A tiny built-in fallback that handles the
-       ``list[dict[str, Any]]`` shape with 2-space indent
-       and string-quoting for colons / hashes. It is **not**
-       a general YAML serializer; it is just good enough
-       for projects.yml / agents.yml.
-
-    The fallback exists so the candidate script still works
-    in environments where neither yaml_mini (which has no
-    dump) nor PyYAML is installed (e.g. a vanilla GitHub
-    Actions runner).
+    Delegates to :mod:`yaml_dumper` (the ACT-9B shared helper
+    in ``scripts/lib/yaml_dumper.py``) so both
+    ``build_public_data_candidate.py`` and
+    ``export_public_data.py`` use the same three-layer
+    fallback (yaml_mini → PyYAML → pure stdlib).
     """
+    try:
+        from yaml_dumper import dumper as _dd
+        return _dd()
+    except Exception:
+        # yaml_dumper module not on sys.path (older checkout
+        # where scripts/lib wasn't on path) — fall back to
+        # an inline implementation that mirrors yaml_dumper.
+        pass
+
     try:
         from yaml_mini import dump as _dump  # type: ignore
         return _dump
@@ -243,9 +240,6 @@ def _yaml_dumper() -> "Any":
         pass
 
     def _builtin_dump(obj: Any) -> str:
-        # obj is list[dict[str, Any]] (the public-data registry
-        # shape). 2-space indent. None / bool / int / float /
-        # str values. Lists as values (e.g. capabilities:).
         lines: list[str] = []
         for entry in obj:
             if not isinstance(entry, dict):
