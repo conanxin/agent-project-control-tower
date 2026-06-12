@@ -86,6 +86,15 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Seed local data from examples
+        # ACT-9C: CI's `make publish-preflight` runs the plan-driven
+        # `public-data-real` target with `--source data`, which needs
+        # data/ to exist. On a fresh runner data/ is gitignored and
+        # empty; seed it from examples/ so the export has something
+        # to read. This does NOT change what gets published — the
+        # plan's project filter still applies, and the resulting
+        # public-data is sanitized via redaction.
+        run: make seed
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
