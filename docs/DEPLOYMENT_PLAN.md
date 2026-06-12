@@ -637,6 +637,6 @@ ACT-9 在 `docs/PUBLIC_DATA_AUTOMATION_POLICY.md` 中明确定义了 5 个自动
 
 CF Pages 的 build 过程会触发 npm prebuild hook，该 hook 会**重新**生成 `generated/index.json`——所以 build pipeline 与 public-data 的"一进一出"必须严格受控。CI **不能写** `public-data/` 是 ACT-9 policy 的 hard rail（policy §8.2）。
 
-**未来 ACT-9B 候选**（Level 3）：CI 可以生成 `proposed-public-data` artifact（**只读**，download-only）供人类评审。这仍是 design-only，未实现。
+**ACT-9B Level 3 prototype**（已实现）：CI 可以生成 `public-data-candidate` artifact（**只读**、download-only、gitignored、tarball + 4 份 reports）供人类评审。详见 `.github/workflows/proposed-export.yml` 和 `docs/PUBLIC_DATA_AUTOMATION_POLICY.md` §10。**CI 仍然不写 `public-data/`、不 commit、不 push、不 deploy**——这是 §8.2 的 hard rail，ACT-9B 不会越界。
 
-详见 `docs/PUBLIC_DATA_AUTOMATION_POLICY.md` §8 + `docs/decision/ADR-0001-public-data-automation-boundary.md`。
+详见 `docs/PUBLIC_DATA_AUTOMATION_POLICY.md` §8 + §10 + `docs/decision/ADR-0001-public-data-automation-boundary.md`。

@@ -133,7 +133,7 @@ machine is allowed to perform without human review.
 | 0 | **Manual only** | nothing | anything in the export pipeline | historical; superseded by Level 1 |
 | 1 | **Assisted command generation** | print single-line `tower.py` commands (`scripts/generate_tower_command.py`) | run the printed commands, modify `data/`, modify `public-data/`, push | **active** (ACT-7B) |
 | 2 | **CI validation only** | validate `public-data/`, build the dashboard, run `make command-test`, run the alignment checker, run the redaction scanner, deploy to Cloudflare Pages from the *committed* `public-data/` | write to `data/`, write to `public-data/`, `git add`, `git commit`, `git push`, disable `.gitignore` | **active** (ACT-4A) |
-| 3 | **CI proposed export artifact** | read `data/`, run `export_public_data.py` to a *non-tracked* path, post the artifact as a build artifact (download-only) | `git add public-data/`, `git commit`, `git push`, modify `.gitignore` | design-only (ACT-9B candidate) |
+| 3 | **CI proposed export artifact** | run `scripts/build_public_data_candidate.py` to a *non-tracked* path (`artifacts/public-data-candidate/`, gitignored), redaction-scan the result, post the tarball as a GitHub Actions build artifact (download-only) | `git add public-data/`, `git commit`, `git push`, modify `.gitignore` | **prototype available** (ACT-9B) — see §10 |
 | 4 | **Authorized export bot** | run the full pipeline, commit to a `proposed/public-data` branch, open a PR | merge to `main`, push to `master`, disable the branch protection rule, modify `.gitignore` | not designed; not approved |
 | 5 | **Fully automatic export** | run the full pipeline, merge to `main`, push, deploy | n/a | **explicitly rejected** |
 
@@ -521,80 +521,104 @@ under pressure in a future act.
 
 ---
 
-## 10. Future ACT-9B proposal (design only, not implemented)
+## 10. ACT-9B prototype (Level 3 — implemented, gate still required)
 
-ACT-9B's scope would be:
+ACT-9B has been implemented. The Level 3 prototype is
+**available**; it is **not an automatic publisher**. The
+human gate from §2 still applies in full.
 
-### 10.1 The artifact
+### 10.1 What was added
 
-CI runs:
+| Component | Path | Purpose |
+|---|---|---|
+| Candidate script | `scripts/build_public_data_candidate.py` | Builds a candidate artifact under `artifacts/public-data-candidate/` (gitignored) |
+| Candidate test | `tests/candidate_artifact_smoke.py` | 22 assertions across 4 source modes |
+| GitHub Actions workflow | `.github/workflows/proposed-export.yml` | `workflow_dispatch` only; uploads the tarball as a build artifact |
+| Makefile targets | `make candidate`, `make candidate-fixture`, `make candidate-test` | Local reproduction of the same pipeline |
 
-```bash
-export_public_data.py \
-  --source data \
-  --output $RUNNER_TEMP/proposed-public-data \
-  --project-id <explicit list> \
-  --agent-id   <explicit list> \
-  --max-events 50 \
-  --repo-prefix conanxin \
-  --replace
-```
+### 10.2 What the workflow does
 
-The output is a directory tree that mirrors `public-data/`,
-but it lives in the CI runner's temp space. CI then:
+On `workflow_dispatch` (manual trigger only — never on push,
+never on PR), the workflow:
 
-1. Runs the redaction scanner on the artifact. Fails the
-   build if `FAIL > 0`.
-2. Zips the artifact and posts it as a download-only
-   build artifact (e.g. `proposed-public-data-<sha>.zip`).
-3. Posts a PR-style comment with:
-   - the list of new event files
-   - the diff of `MANIFEST.json`
-   - the redaction summary
-   - a checklist link (`templates/checklists/public-data-automation-policy-checklist.md`)
+1. Verifies `data/` and `generated/` are still in `.gitignore`
+   (defense-in-depth check).
+2. Runs `scripts/build_public_data_candidate.py` with
+   `--source public-data` by default (a no-op reference
+   run that proves the pipeline works). The user can also
+   select `--source examples` (CI fixture).
+3. Verifies the candidate directory contains the four
+   expected reports (`CANDIDATE_SUMMARY.md`,
+   `MANIFEST_DIFF.md`, `REDACTION_REPORT.md`,
+   `REVIEW_CHECKLIST.md`) and a tarball, and that
+   the tarball does **not** contain `data/`, `generated/`,
+   `.git`, `node_modules`, or `.env`.
+4. Uploads the tarball + the four reports as a build
+   artifact (`public-data-candidate-<source>-<run_id>`,
+   14-day retention).
 
-### 10.2 What the human reviewer does
+The workflow has `permissions: contents: read` (no write
+access to the repo). It does **not** use any secrets. It
+does **not** commit, push, or deploy anything.
 
-1. Downloads the artifact.
-2. Inspects it on their own machine.
-3. If accepted: copies the artifact into the working
-   tree, `git add`s the relevant files explicitly, commits,
-   and pushes. (This is the same sequence as the current
-   manual pipeline, just with a draft to start from.)
-4. If rejected: closes the PR / deletes the artifact.
-   The next CI run can regenerate it.
+### 10.3 What the human reviewer does
 
-### 10.3 What ACT-9B explicitly is NOT
+1. Opens the Actions run page.
+2. Downloads the artifact.
+3. Inspects `CANDIDATE_SUMMARY.md`,
+   `MANIFEST_DIFF.md`, `REDACTION_REPORT.md`, and
+   `REVIEW_CHECKLIST.md`.
+4. Verifies the ACT-6C project identity checks (§6).
+5. If the candidate is acceptable, on **local-hermes**
+   (which is the only machine that has `data/`), runs:
+
+   ```bash
+   python scripts/export_public_data.py \
+       --source data --replace \
+       --project-id agent-project-control-tower \
+       --project-id artvee-gallery \
+       --project-id booktrans-desk
+   ```
+
+6. Reviews the diff, then **explicitly** `git add`s the
+   files in `public-data/` (never `git add .`), commits,
+   and pushes. Cloudflare Pages picks up the new public
+   data automatically.
+
+### 10.4 What ACT-9B explicitly is NOT
 
 - It is not a "approve with one click" workflow. The
-  reviewer still runs `git add` and `git push` themselves.
+  reviewer still runs `git add`, `git commit`, and
+  `git push` themselves.
 - It is not an auto-merge to `main`. There is no path
   from the artifact to `main` that does not pass through
   a human working tree.
 - It is not a hook for "auto-export when `data/` changes".
-  The trigger is "human pushed code to `main`" or "human
-  ran the workflow manually". It never watches `data/`
-  (it can't; `data/` is gitignored and CI cannot see
-  it).
+  The trigger is "human triggered the workflow manually".
+  It never watches `data/` (it can't; `data/` is gitignored
+  and CI cannot see it).
+- It does not remove the "single project only" Makefile
+  default. That default still applies to `make
+  publish-preflight`. ACT-9B introduced **separate**
+  targets (`make candidate`, `make candidate-fixture`).
 
-### 10.4 Open questions for ACT-9B
+### 10.5 Open questions still tracked
 
-- Where does CI get the *project filter* and *agent filter*
-  for the export? Today's Makefile hard-codes a single
-  project. ACT-9B would need a config file (e.g.
-  `.github/export-config.yml`) that humans can edit via PR.
-- How does the reviewer download the artifact in a
-  way that is auditable? Today CF Pages does not have a
-  per-build artifact store. A separate bucket (R2? S3?)
-  is out of scope for ACT-9.
-- What happens if the human forgets to download the
-  artifact before the CI retention period expires? The
-  pipeline is best-effort; missing an artifact is not a
-  public-data error, it is a human-time error.
-
-ACT-9B is **not** approved. It is described here so that
-the next act that proposes to build it has a known target
-shape.
+- The Makefile `publish-preflight` target still
+  hard-codes a single project (`agent-project-control-tower`)
+  for the actual export step. A 3-project version lives
+  in the post-ACT-9B commit history (see `git log -p
+  public-data/MANIFEST.json`) and is reproducible via
+  `scripts/export_public_data.py` directly. ACT-9C
+  (manual review workflow polish) is the natural place
+  to wire the 3-project default into the Makefile.
+- The CI workflow has 14-day artifact retention. If a
+  reviewer needs the artifact for longer, they should
+  download and store it locally. There is no remote
+  artifact store (CF Pages, R2, S3) wired up.
+- `cloudflare-verify` (a separate `tower.py` subcommand)
+  is **not** invoked by this workflow. It is a local
+  convenience only.
 
 ---
 

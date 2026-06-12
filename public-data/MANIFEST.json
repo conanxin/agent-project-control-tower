@@ -1,9 +1,6 @@
 {
-  "agent_filter": [
-    "cloud-openclaw",
-    "local-hermes"
-  ],
-  "event_count": 19,
+  "agent_filter": null,
+  "event_count": 20,
   "max_events_per_project": 50,
   "project_filter": [
     "agent-project-control-tower",

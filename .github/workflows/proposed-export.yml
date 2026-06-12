@@ -1,0 +1,170 @@
+name: Proposed Export Artifact (ACT-9B Level 3)
+
+# ACT-9B — Level 3 prototype: generates a reviewable public-data
+# candidate artifact. This workflow does NOT commit, push, or
+# publish anything. It only runs build_public_data_candidate.py
+# and uploads the resulting tarball + reports as a GitHub
+# Actions artifact for human review.
+#
+# See:
+#   - docs/PUBLIC_DATA_AUTOMATION_POLICY.md  (§3 Level 3)
+#   - docs/PUBLIC_SCOPE_v0.1.0.md            (Future ACT-9B)
+#   - docs/decision/ADR-0001-...             (Revisit criteria)
+#
+# Hard rails enforced here:
+#   - permissions: contents: read  (no write access)
+#   - No secrets used
+#   - No Cloudflare API token
+#   - No git push
+#   - artifacts/ is gitignored (candidate is not committed)
+
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: >-
+          data, examples, or public-data. GitHub CI cannot access
+          local gitignored data/, so 'data' will refuse (it is only
+          available on local-hermes). Use 'examples' (CI fixture) or
+          'public-data' (no-op reference).
+        required: true
+        type: choice
+        default: "public-data"
+        options:
+          - data
+          - examples
+          - public-data
+      project_ids:
+        description: >-
+          Comma-separated project ids (e.g. "agent-project-control-tower,artvee-gallery,booktrans-desk").
+          Leave blank to export all available.
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: proposed-export-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-candidate:
+    name: Build proposed-export candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Shallow clone is enough; we don't need history.
+          fetch-depth: 1
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Verify gitignore is intact (data/ must be ignored)
+        run: |
+          set -euo pipefail
+          grep -E '^data/?$' .gitignore >/dev/null || \
+            (echo "ERROR: data/ is NOT in .gitignore" && exit 1)
+          grep -E '^generated/?$' .gitignore >/dev/null || \
+            (echo "ERROR: generated/ is NOT in .gitignore" && exit 1)
+          echo "gitignore OK — data/ and generated/ are protected"
+
+      - name: Sanity — public-data/ and data/ exist (or not) as expected
+        run: |
+          set -euo pipefail
+          if [ -d public-data ]; then
+            echo "public-data/: present (as expected for reference mode)"
+          else
+            echo "public-data/: absent (unexpected — was the repo initialized?)"
+            exit 1
+          fi
+          if [ -d data ]; then
+            echo "data/: present (UNEXPECTED on a CI runner — should be gitignored)"
+            echo "WARNING: data/ exists on CI; refusing to use it for safety"
+            # Do not exit; the script itself will refuse --source data
+          else
+            echo "data/: absent (as expected on a CI runner)"
+          fi
+
+      - name: Build candidate artifact
+        env:
+          SOURCE: ${{ inputs.source }}
+          PROJECT_IDS: ${{ inputs.project_ids }}
+        run: |
+          set -euo pipefail
+          # Compose project-id args
+          PIDS=""
+          if [ -n "${PROJECT_IDS}" ]; then
+            IFS=',' read -ra ARR <<< "${PROJECT_IDS}"
+            for pid in "${ARR[@]}"; do
+              pid_trimmed="$(echo "${pid}" | xargs)"
+              PIDS="${PIDS} --project-id ${pid_trimmed}"
+            done
+          fi
+          echo "::group::build_public_data_candidate.py --source=${SOURCE}"
+          python3 scripts/build_public_data_candidate.py \
+            --source "${SOURCE}" \
+            --output artifacts/public-data-candidate \
+            ${PIDS}
+          echo "::endgroup::"
+
+      - name: Verify candidate has expected reports
+        run: |
+          set -euo pipefail
+          test -f artifacts/public-data-candidate/reports/CANDIDATE_SUMMARY.md
+          test -f artifacts/public-data-candidate/reports/MANIFEST_DIFF.md
+          test -f artifacts/public-data-candidate/reports/REDACTION_REPORT.md
+          test -f artifacts/public-data-candidate/reports/REVIEW_CHECKLIST.md
+          test -f artifacts/public-data-candidate/public-data-candidate.tar.gz
+          echo "All 4 reports + tarball present"
+
+      - name: Verify candidate does NOT contain data/ or generated/
+        run: |
+          set -euo pipefail
+          test ! -d artifacts/public-data-candidate/data
+          test ! -d artifacts/public-data-candidate/generated
+          # also peek inside tarball
+          if tar -tzf artifacts/public-data-candidate/public-data-candidate.tar.gz \
+              | grep -E '(^|/)data(/|$)|(^|/)generated(/|$)|(^|/)\.git(/|$)'; then
+            echo "ERROR: tarball contains forbidden path" && exit 1
+          fi
+          echo "Candidate tree is clean (no data/, generated/, .git)"
+
+      - name: Upload candidate tarball + reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-data-candidate-${{ inputs.source }}-${{ github.run_id }}
+          path: |
+            artifacts/public-data-candidate/public-data-candidate.tar.gz
+            artifacts/public-data-candidate/reports/
+          if-no-files-found: error
+          retention-days: 14
+          # Note: artifact is NOT signed, NOT deployed, NOT pushed.
+          # Reviewer must download, inspect, and ONLY THEN run
+          # export_public_data.py --source data --replace locally.
+
+      - name: Post-run summary
+        if: always()
+        run: |
+          echo "## Proposed-Export Candidate — Run ${{ github.run_id }}"
+          echo ""
+          echo "- source: \`${{ inputs.source }}\`"
+          echo "- project_ids: \`${{ inputs.project_ids }}\`"
+          echo "- conclusion: ${{ job.status }}"
+          echo ""
+          echo "This is a Level 3 PROTOTYPE. The artifact is reviewable only —"
+          echo "it has NOT been committed, pushed, or deployed."
+          echo ""
+          echo "Download the artifact from the run page, inspect"
+          echo "\`reports/CANDIDATE_SUMMARY.md\`, \`MANIFEST_DIFF.md\`, and"
+          echo "\`REDACTION_REPORT.md\`, tick every box in"
+          echo "\`REVIEW_CHECKLIST.md\`, and ONLY THEN run"
+          echo "\`export_public_data.py --source data --replace\`"
+          echo "manually on local-hermes."

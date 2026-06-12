@@ -1,11 +1,12 @@
-# MVP Plan — ACT-1 to ACT-9
+# MVP Plan — ACT-1 to ACT-9B
 
 > 把"建一个能用的控制塔"拆成阶段。每个阶段都有明确产出 + 验收标准 + 退出条件。
 >
-> 当前在 **ACT-9 ✅ COMPLETE**。ACT-9 不接入新项目、不开发新 dashboard UI、不引入数据库、不引入登录系统、不使用 Cloudflare API token、不实现自动 export、不修改 CI workflow。ACT-9 的产出是**policy 文档**——`docs/PUBLIC_DATA_AUTOMATION_POLICY.md`（5 等级 Level 0–5）、`docs/decision/ADR-0001-public-data-automation-boundary.md`、`templates/checklists/public-data-automation-policy-checklist.md`、5 个 docs 章节更新。当前 public-data 为 3 real projects / 2 agents / 18 events（保持 ACT-8B 收尾状态；ACT-9 自己的 phase event 在 `data/events/` 中但 gitignored，不公开）。当前自动化等级：**Level 1 + Level 2**。
-> 下一阶段（二选一）：
-> 1. **ACT-9B：prototype CI proposed-export artifact**——实现 `docs/PUBLIC_DATA_AUTOMATION_POLICY.md` §10 的 Level 3 设计：CI 跑 `export_public_data.py` 到 `$RUNNER_TEMP/proposed-public-data`，上传为 download-only artifact。**不允许** auto commit/push。需 user 显式批准。
-> 2. **ACT-10：stable v0.1.0 release packaging**——把控制塔当前状态打包为一个 tagged release，附 CHANGELOG / RELEASES.md / citation。不引入新功能；只整理"我们到了哪里"。
+> 当前在 **ACT-9B ✅ COMPLETE**。ACT-9B 把 `docs/PUBLIC_DATA_AUTOMATION_POLICY.md` §10 的 Level 3 设计落地为一个**原型**——`scripts/build_public_data_candidate.py` + `tests/candidate_artifact_smoke.py` + `.github/workflows/proposed-export.yml` + `make candidate` / `candidate-fixture` / `candidate-test`。**CI 仍然不写 public-data/、不 commit、不 push、不 deploy**——这仍是 §8.2 的 hard rail。当前 public-data 状态：3 real projects / 2 agents / 20 events（ACT-9 phase event 跟随 ACT-9B commit 公开，与 ACT-7B → ACT-8 phase 的 precedent 一致）。当前自动化等级：**Level 1 + Level 2 + Level 3 (prototype)**。
+> 下一阶段（三选一，按推荐度排序）：
+> 1. **ACT-9C：manual review workflow polish**——把"download artifact → 人工 review → promote to real export"流程化（Makefile 默认 3 project 化、reviewer checklist 落地、artifact 命名规范）。不引入新功能；只把 ACT-9B 收口。
+> 2. **ACT-10：v0.1.0 release packaging**——CHANGELOG / VERSION / RELEASE_NOTES / tag。需 user 显式批准。
+> 3. **ACT-10B：GitHub release manual creation + screenshots**——发 GitHub Release + 加 demo 资产。纯 polish。
 
 ## 全景时间线
 
@@ -37,8 +38,8 @@ ACT-7   ✅ Multi-machine Agent Usage Playbook (2026-06-12)
 ACT-8   ✅ Real Multi-agent Onboarding Trial (2026-06-12)
 ACT-7B  ✅ Template-to-Command Generator (2026-06-12)
 ACT-8B  ✅ Generated-command Multi-agent Trial (2026-06-12)
-ACT-9   ✅ Public-data Export Automation Policy (2026-06-12) ← 当前阶段
-ACT-9B         prototype CI proposed-export artifact (planned)
+ACT-9   ✅ Public-data Export Automation Policy (2026-06-12)
+ACT-9B  ✅ CI Proposed Export Artifact Prototype (2026-06-12) ← 当前阶段
 ```
 
 每个 ACT 的预算：**1–2 周业余时间**，不超过 30 个 commit。
@@ -832,12 +833,14 @@ ACT-7 写完了 playbook，ACT-8 验证 playbook 是不是真的能被第二个 
 
 ---
 
-## ACT-7+ — Future Optional Enhancements
+## ACT-9B+ — Future Optional Enhancements
 
-> ACT-9 完成后讨论的扩展。**不要提前做**。
+> ACT-9B 完成后讨论的扩展。**不要提前做**。
 
-- **ACT-9B**（候选）：prototype CI proposed-export artifact——实现 `docs/PUBLIC_DATA_AUTOMATION_POLICY.md` §10 的 Level 3 设计（CI 生成 download-only artifact，无 auto commit/push）。需 user 显式批准。
-- **ACT-10**（候选）：stable v0.1.0 release packaging——CHANGELOG + RELEASES.md + citation，无新功能。
+- ~~**ACT-9B**：prototype CI proposed-export artifact~~ ✅ 已完成 (2026-06-12)
+- **ACT-9C**（候选）：manual review workflow polish——把 ACT-9B 的"download artifact → 人工 review → promote to real export"流程化（Makefile 默认 3 project 化、reviewer checklist 落地、artifact 命名规范）。不引入新功能。
+- **ACT-10**（候选）：v0.1.0 release packaging——CHANGELOG / VERSION / RELEASE_NOTES / tag，无新功能。
+- **ACT-10B**（候选）：GitHub release manual creation + screenshots——发 GitHub Release + 加 demo 资产。
 - **ACT-11**：统计（`generated/stats.json`、跨项目聚合页）
 - **ACT-12**：错误修正流（`correction` event 真正被 build_index 消费）
 - **ACT-13**：第二份控制塔（私密项目）—— 独立仓库 + 独立域名

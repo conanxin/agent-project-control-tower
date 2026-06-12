@@ -395,9 +395,11 @@ PUBLIC_DATA_PROJECTS ?= agent-project-control-tower artvee-gallery booktrans-des
 
 > 但**建议保持开源**——理由：控制塔本身是 meta-tool，没有真正的"商业价值"需要保护；公开反而能让别人 fork、自用、提 issue。
 
-## 14. 自动化边界（ACT-9 落定）
+## 14. 自动化边界（ACT-9 落定，ACT-9B 升级）
 
 > ACT-9 在 `docs/PUBLIC_DATA_AUTOMATION_POLICY.md` 中定义了 5 个自动化等级。开源发布是其中最容易踩坑的环节：项目一旦被 fork，外部 contributor 看到的是 `data/`（gitignored） + `public-data/`（committed）的双层结构，**自动化等级就是他们会问的第一个问题**。
+>
+> **ACT-9B 升级**：Level 3 从 design-only 升级为 prototype-available。CI 现在可以生成 `public-data-candidate` artifact（download-only、gitignored、不自动部署），但**仍然不能**写 `public-data/`、不能 commit、不能 push。详细规格见 `docs/PUBLIC_DATA_AUTOMATION_POLICY.md` §10 + `.github/workflows/proposed-export.yml`。
 
 **给 fork 者的明确说明**：
 

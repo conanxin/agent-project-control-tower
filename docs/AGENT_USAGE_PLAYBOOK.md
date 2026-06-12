@@ -797,3 +797,48 @@ human reviewer. The worst-case outcome of "I asked a
 question" is a 5-minute delay. The worst-case outcome of
 "I ran export" is a public dashboard with a wrong project
 status, which is what ACT-6C was.
+
+---
+
+## 16. Candidate artifacts (ACT-9B)
+
+ACT-9B added a Level 3 prototype that lets you (the
+agent) **build a reviewable candidate artifact** without
+ever writing to `public-data/`. This is useful when the
+human wants a preview of what the next real export would
+look like.
+
+**You (the agent) may:**
+
+- Run `python scripts/build_public_data_candidate.py
+  --source public-data --output artifacts/public-data-candidate`
+  (no-op reference; safe in any environment).
+- Run the same with `--source examples` (CI-safe fixture).
+- On local-hermes only: run with `--source data` (this
+  uses real `data/`; see §15 for the boundary).
+- Run `make candidate` / `make candidate-fixture` /
+  `make candidate-test`.
+
+**You may NOT (without explicit, per-push human
+authorization):**
+
+- Promote the candidate to `public-data/` directly. The
+  candidate lives under `artifacts/`, which is gitignored.
+  Promotion requires the human to run
+  `export_public_data.py --source data --replace` themselves.
+- Run the GitHub Actions workflow
+  (`.github/workflows/proposed-export.yml`) without the
+  human's explicit request. The workflow is
+  `workflow_dispatch` only; it never auto-fires.
+- Upload the candidate tarball to any public location
+  (R2, S3, Slack, PR comment, etc.).
+
+**Why the candidate exists**:
+
+It gives the human reviewer something to look at before
+they commit. The four reports (`CANDIDATE_SUMMARY.md`,
+`MANIFEST_DIFF.md`, `REDACTION_REPORT.md`,
+`REVIEW_CHECKLIST.md`) are exactly the artifacts that
+support the §15 review checklist. The candidate is the
+*evidence*; the human's `git add public-data/` is the
+*decision*.

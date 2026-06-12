@@ -487,9 +487,96 @@ itself is the spec.
 | 0 | Manual only | historical | policy §3 |
 | 1 | Assisted command generation | **active (ACT-7B)** | policy §3, generator source |
 | 2 | CI validation only | **active (ACT-4A)** | policy §8, `DEPLOYMENT_PLAN.md` §5 |
-| 3 | CI proposed export artifact | design only (ACT-9B candidate) | policy §10 |
+| 3 | CI proposed export artifact | **prototype (ACT-9B)** | policy §10, this section §12.1 below |
 | 4 | Authorized export bot | not designed; not approved | policy §3 |
 | 5 | Fully automatic export | **explicitly rejected** | ADR-0001 "Why not fully automatic" |
+
+### 12.1 ACT-9B prototype: build a candidate, then decide
+
+The ACT-9B prototype lets you build a candidate artifact
+locally (or via GitHub Actions) **without** writing to
+`public-data/`. Use it when you want to preview what the
+next real `export_public_data.py --source data --replace`
+would do.
+
+**Build it locally**:
+
+```bash
+# Default: reference mode (no-op, uses current public-data)
+make candidate
+
+# CI-safe fixture mode
+make candidate-fixture
+
+# Real mode (only on local-hermes, where data/ exists)
+python scripts/build_public_data_candidate.py \
+    --source data \
+    --output artifacts/public-data-candidate \
+    --project-id agent-project-control-tower \
+    --project-id artvee-gallery \
+    --project-id booktrans-desk
+```
+
+**Inspect the result**:
+
+```bash
+cd artifacts/public-data-candidate
+ls -la
+cat reports/CANDIDATE_SUMMARY.md
+cat reports/MANIFEST_DIFF.md
+cat reports/REDACTION_REPORT.md
+cat reports/REVIEW_CHECKLIST.md
+tar -tzf public-data-candidate.tar.gz
+```
+
+**Build it via CI** (no local clone needed):
+
+1. Open the [Actions tab](../../actions/workflows/proposed-export.yml)
+   of the repository.
+2. Click **Run workflow** (right side).
+3. Leave `source` at `public-data` (default; no-op) or pick
+   `examples` (CI-safe fixture).
+4. Wait for the run to finish.
+5. Download the artifact
+   `public-data-candidate-<source>-<run_id>` from the
+   run page.
+
+**If the candidate is acceptable**, promote it to the real
+export (this is still a manual step on local-hermes):
+
+```bash
+python scripts/export_public_data.py \
+    --source data --replace \
+    --project-id agent-project-control-tower \
+    --project-id artvee-gallery \
+    --project-id booktrans-desk
+
+# review the diff
+git diff public-data/
+
+# explicit add (never `git add .`)
+git add public-data/registry/projects.yml \
+        public-data/registry/agents.yml \
+        public-data/events/*.json \
+        public-data/MANIFEST.json
+git commit -m "ACT-N: refresh public-data"
+git push
+```
+
+**If the candidate is NOT acceptable**, delete the
+`artifacts/public-data-candidate/` directory and re-run
+after fixing the upstream issue. Nothing was published.
+
+### 12.2 What ACT-9B is NOT
+
+- It is not a "approve with one click" workflow. The
+  reviewer still runs `git add`, `git commit`, and
+  `git push` themselves.
+- It is not an auto-merge to `main`. There is no path
+  from the artifact to `main` that does not pass through
+  a human working tree.
+- It is not a hook for "auto-export when `data/` changes".
+  CI cannot see `data/`.
 
 **The seven questions ACT-9 answered (in priority order)**:
 

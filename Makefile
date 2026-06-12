@@ -9,7 +9,8 @@
 PYTHON ?= python3
 
 .PHONY: help seed validate build site site-only dashboard dashboard-local test test-cli clean all reset \
-        public-data public-build public-build-final publish-preflight command-test
+        public-data public-build public-build-final publish-preflight command-test \
+        candidate candidate-fixture candidate-test
 
 help:
 	@echo "make targets:"
@@ -102,6 +103,30 @@ test-cli:
 
 command-test:
 	$(PYTHON) tests/command_generator_smoke.py
+
+# ACT-9B: Level 3 prototype targets.
+#
+# `candidate`         — default: --source public-data (no-op reference).
+#                       Safe to run any time; does NOT touch public-data/,
+#                       data/, or generated/. Writes under
+#                       artifacts/public-data-candidate/ (gitignored).
+#
+# `candidate-fixture` --source examples. CI-safe: no real data.
+#
+# `candidate-test`    — runs tests/candidate_artifact_smoke.py.
+#                       Covers all 3 source modes + the missing-data
+#                       error path that GitHub Actions hits.
+#
+# These targets are deliberately NOT in `make all` (they create
+# artifacts/public-data-candidate/ on disk). Run them on demand.
+candidate:
+	$(PYTHON) scripts/build_public_data_candidate.py --source public-data --output artifacts/public-data-candidate
+
+candidate-fixture:
+	$(PYTHON) scripts/build_public_data_candidate.py --source examples --output artifacts/public-data-candidate
+
+candidate-test:
+	$(PYTHON) tests/candidate_artifact_smoke.py
 
 reset:
 	rm -rf data generated site/index.embedded.html
