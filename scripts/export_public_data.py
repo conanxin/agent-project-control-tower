@@ -426,7 +426,30 @@ def main() -> int:
         except Exception:
             import yaml  # type: ignore
             def _dump(obj: Any) -> str:
-                return yaml.safe_dump(obj, sort_keys=False, allow_unicode=True)
+                raw = yaml.safe_dump(
+                    obj, sort_keys=False, allow_unicode=True,
+                )
+                # ACT-8B hotfix: yaml_mini is also the parser and it
+                # mis-parses 2-space-indented nested list items as
+                # further top-level list elements. Re-indent list items
+                # under `capabilities:` to 4 spaces so the parser
+                # round-trips correctly. This is the only known
+                # parser/dumper mismatch; other fields use 2-space
+                # indent and parse fine.
+                out: list[str] = []
+                in_caps = False
+                for line in raw.splitlines():
+                    if line.strip() == "capabilities:":
+                        out.append(line)
+                        in_caps = True
+                        continue
+                    if in_caps:
+                        if line.startswith("  - "):
+                            out.append("    " + line[2:])
+                            continue
+                        in_caps = False
+                    out.append(line)
+                return "\n".join(out) + "\n"
         (out_reg / "agents.yml").write_text(
             _dump(agents_out) + "\n", encoding="utf-8"
         )
