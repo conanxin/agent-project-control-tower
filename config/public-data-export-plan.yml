@@ -28,6 +28,7 @@ output: "public-data"
 # here is missing from data/, so the human must catch drift in PR review.
 projects:
   - agent-project-control-tower
+  - ai-tool-test-lab
   - artvee-gallery
   - booktrans-desk
 

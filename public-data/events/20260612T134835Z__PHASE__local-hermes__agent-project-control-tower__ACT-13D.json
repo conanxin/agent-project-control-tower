@@ -1,0 +1,16 @@
+{
+  "agent_id": "local-hermes",
+  "created_at": "2026-06-12T13:48:35Z",
+  "event_id": "987e262e-2e3d-48c8-b2ad-d7bbf302a0d2",
+  "event_type": "PHASE_REPORT",
+  "health": "green",
+  "next": "Return to wait-for-real-update; trigger ACT-12B when a real project update appears. New events should add a Chinese mapping to localized-content.ts.",
+  "phase_id": "ACT-13D",
+  "phase_name": "Dynamic Content Chinese Localization",
+  "project_id": "agent-project-control-tower",
+  "source_commit": "1f0b5da",
+  "source_commit_url": null,
+  "source_repo": "conanxin/agent-project-control-tower",
+  "status": "PASS",
+  "summary": "Added a Chinese display layer on top of public-data: 3 project display mappings and 24 event (project_id::phase_id) mappings in apps/dashboard/src/lib/localized-content.ts. Fallback to English is automatic and never breaks the build. Updated ProjectCard / TimelineItem / 4 pages / Help page / Telegram templates. public-data unchanged (3 projects / 2 agents / 24 events)."
+}

@@ -134,7 +134,7 @@ def test_plan_has_at_least_3_projects(plan: dict) -> bool:
     return True
 
 
-def test_export_with_plan(tmp: Path) -> bool:
+def test_export_with_plan(tmp: Path, plan: dict) -> bool:
     print("test_export_with_plan")
     out = tmp / "pd"
     proc = subprocess.run(
@@ -156,15 +156,15 @@ def test_export_with_plan(tmp: Path) -> bool:
         return False
     if not _check("MANIFEST.plan_name matches", m.get("plan_name") == "default-public-dashboard"):
         return False
-    if not _check("MANIFEST.project_filter is the plan's project list (3 entries)",
+    if not _check("MANIFEST.project_filter is the plan's project list",
                   m.get("project_filter") is not None
-                  and len(m.get("project_filter", [])) == 3,
+                  and len(m.get("project_filter", [])) == len(plan.get("projects", [])),
                   f"project_filter={m.get('project_filter')}"):
         return False
     return True
 
 
-def test_candidate_with_plan(tmp: Path) -> bool:
+def test_candidate_with_plan(tmp: Path, plan: dict) -> bool:
     print("test_candidate_with_plan")
     if not (REPO / "data").exists():
         print("  [SKIP] data/ not present; using examples")
@@ -198,9 +198,10 @@ def test_candidate_with_plan(tmp: Path) -> bool:
                   and "booktrans-desk" in summary):
         return False
     manifest = json.loads((out / "MANIFEST.json").read_text(encoding="utf-8"))
+    plan_projects = plan.get("projects", [])
     if not _check("candidate MANIFEST.project_filter is the plan list",
                   manifest.get("project_filter") is not None
-                  and len(manifest["project_filter"]) == 3):
+                  and len(manifest["project_filter"]) == len(plan_projects)):
         return False
     return True
 
@@ -329,8 +330,8 @@ def main() -> int:
         results = [
             test_plan_exists(),
             test_plan_has_at_least_3_projects(plan),
-            test_export_with_plan(tmp),
-            test_candidate_with_plan(tmp),
+            test_export_with_plan(tmp, plan),
+            test_candidate_with_plan(tmp, plan),
             test_plan_matches_manifest(plan),
             test_publish_preflight_does_not_degrade(),
             test_mutual_exclusion_export(),

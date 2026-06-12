@@ -22,4 +22,13 @@
   status: ACTIVE
   description: Open-source desktop tool for structured PDF and EPUB translation workflows.
   primary_agent: local-hermes
+- id: ai-tool-test-lab
+  name: AI Tool Test Lab
+  repo: local/ai-tool-test-lab
+  location: public
+  category: ai-tooling
+  status: ACTIVE
+  description: Open-source test lab for evaluating AI tools, workflows, and agent-driven
+    experiments.
+  primary_agent: local-hermes
 

@@ -1,0 +1,16 @@
+{
+  "agent_id": "local-hermes",
+  "created_at": "2026-06-12T11:18:06Z",
+  "event_id": "08edcde6-1b62-4a52-b0b4-499eb4d2204d",
+  "event_type": "PHASE_REPORT",
+  "health": "green",
+  "next": "Return to wait-for-real-update; trigger ACT-12B when a real project update appears.",
+  "phase_id": "ACT-13B",
+  "phase_name": "Chinese Dashboard Help Localization",
+  "project_id": "agent-project-control-tower",
+  "source_commit": "204e901",
+  "source_commit_url": null,
+  "source_repo": "conanxin/agent-project-control-tower",
+  "status": "PASS",
+  "summary": "Localized the dashboard UI and Help page into Chinese, including usage workflow, double-door model, and permission boundaries."
+}
